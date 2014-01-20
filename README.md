@@ -1,4 +1,4 @@
-rapid-scheme
+Rapid Scheme
 ============
 
 A Scheme implementation in the browser
