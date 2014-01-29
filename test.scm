@@ -1,3 +1,11 @@
+(define-library (test blubb))
+
+(define-library (test test)
+  (import (test blubb)))
+
+
+(import (test test))
+
 (define f
   (lambda (n)
     (if (= 0 n)
