@@ -6,9 +6,11 @@
   (rapid import-set)
   (rapid compile)
   (rapid library))
-  
+
+; TODO: The compilation is completely missing  
 (display
   (expand (load)))
+(newline)
 
 ; Wie funktioniert die expand-Routine:
 ;

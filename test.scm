@@ -1,8 +1,9 @@
-(define-library (test blubb))
+(define-library (test)
+  (export (rename + *))
+  (import (scheme base)))
 
-(define-library (test test)
-  (import (test blubb)))
-
+(define-library (test2)
+  (import (rename (test) (* /))))
 
 (import (test test))
 
@@ -18,3 +19,4 @@
   (+ 1 (call/cc
        (lambda (k)
          (+ 2 (k 3))))))
+

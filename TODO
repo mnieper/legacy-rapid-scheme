@@ -1,0 +1,5 @@
+- Think of and implement a good framework for compile-time error reporting.
+- Implement (begin ...) in libraries.
+- Write tests of all implemented features.
+
+
