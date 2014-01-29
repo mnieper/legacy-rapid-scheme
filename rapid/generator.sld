@@ -1,5 +1,0 @@
-(define-library (rapid generator)
-
-  
-
-  )
