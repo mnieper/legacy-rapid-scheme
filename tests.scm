@@ -19,24 +19,24 @@
 (let ()
   (define export-sets
     '(
-      ((library 1)
-        ((identifier1 value1) (identifier2 value2)))
-      ((library 2)
-        ((identifier3 value3) (identifier4 value4)))))
+      ((library 1) .
+        ((identifier1 . value1) (identifier2 . value2)))
+      ((library 2) .
+        ((identifier3 . value3) (identifier4 . value4)))))
         
-  (test '((identifier3 value3) (identifier4 value4))
+  (test '((identifier3 . value3) (identifier4 . value4))
     (import-set '(library 2) export-sets))
       
-  (test '((identifier1 value1))
+  (test '((identifier1 . value1))
     (import-set '(only (library 1) identifier1) export-sets))
 
-  (test '((identifier1 value1))
+  (test '((identifier1 . value1))
     (import-set '(except (library 1) identifier2) export-sets))
     
-  (test '((prefix-identifier3 value3) (prefix-identifier4 value4))
+  (test '((prefix-identifier3 . value3) (prefix-identifier4 . value4))
     (import-set '(prefix (library 2) prefix-) export-sets))
     
-  (test '((identifier5 value1) (identifier2 value2))
+  (test '((identifier5 . value1) (identifier2 . value2))
     (import-set '(rename (library 1) (identifier1 identifier5)) export-sets)))
 
 (test-end)

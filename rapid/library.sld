@@ -4,7 +4,7 @@
     make-export-set export-set-library-name export-set-bindings
     make-binding binding-identifier binding-named
     make-naming naming-internal naming-external
-    make-library library-name globals enviroment imports exports
+    make-library library-name globals environment imports exports
     import! export!
     export-set)
   (import (scheme base))

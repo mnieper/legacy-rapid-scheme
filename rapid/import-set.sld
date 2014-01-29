@@ -17,26 +17,26 @@
       ;
       (unless (list? import)
         (error "invalid import set" import))
-          (cond
-            ((and (> (length import) 2) (list? (cadr import)))
-              (let ((imports (import-set (cadr import) export-sets)))
-                (case (car import)
-                  ((only) (import-set-only imports (cddr import)))
-                  ((except) (import-set-except imports (cddr import)))
-                  ((prefix) 
-                    (unless (= (length import) 3)
-                      (error "invalid import set" import))
-                    (import-set-prefix imports (list-ref import 2)))
-                  ((rename) (import-set-rename imports (cddr import)))
-                  (else (error "invalid import set" import)))))
-            (else
-              ; The import set must be of the form <library name>.
-              (unless (library-name? import)
-                (error "invalid library name" import))
-              (cond
-                ((assoc import export-sets) =>
-                  (lambda (export-set) (list-copy (export-set-bindings export-set))))
-                (else (error "library not found" import))))))
+        (cond
+          ((and (> (length import) 2) (list? (cadr import)))
+            (let ((imports (import-set (cadr import) export-sets)))
+              (case (car import)
+                ((only) (import-set-only imports (cddr import)))
+                ((except) (import-set-except imports (cddr import)))
+                ((prefix) 
+                  (unless (= (length import) 3)
+                    (error "invalid import set" import))
+                  (import-set-prefix imports (list-ref import 2)))
+                ((rename) (import-set-rename imports (cddr import)))
+                (else (error "invalid import set" import)))))
+          (else
+            ; The import set must be of the form <library name>.
+            (unless (library-name? import)
+              (error "invalid library name" import))
+            (cond
+              ((assoc import export-sets) =>
+                (lambda (export-set) (list-copy (export-set-bindings export-set))))
+              (else (error "library not found" import))))))
                 
     (define (import-set-only imports identifiers)
       (if (null? identifiers)
@@ -104,5 +104,5 @@
           (lambda (import)
             (if (assq (binding-identifier import) renames)
               (list)
-              (list import))
-          imports))))))
+              (list import)))
+          imports)))))
