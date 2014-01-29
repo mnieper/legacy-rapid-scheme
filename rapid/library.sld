@@ -6,7 +6,8 @@
     make-naming naming-internal naming-external
     make-library library-name globals environment imports exports
     import! export!
-    export-set)
+    export-set
+    library-named)
   (import (scheme base))
   (begin
 
@@ -108,6 +109,13 @@
                         (cons (make-binding (naming-external export) (binding-named global)) bindings)))))
                 (else
                   (error "exported identifier not bound in library" (car export)))))))))
+                  
+    (define (library-named library identifier)
+      ; FIXME Check whether the identifier in the current lexical environment
+      (cond
+        ((assq identifier (globals library)) => binding-named)
+        (else
+          (error "identifier not bound" identifier))))
                   
     (define (library-name? datum)
       ; Return true if datum is a valid library name.

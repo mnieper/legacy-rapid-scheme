@@ -22,7 +22,7 @@
 
     ; TODO (e.g. implement in terms of libraries)
     (define (expand-program source export-sets)
-      (make-sequence source))
+      (apply make-sequence source))
 
     (define (expand-library source export-sets)
       (let ((library-name (list-ref source 1)))
@@ -49,8 +49,10 @@
             (expand-export-declaration (cdr declaration) library export-sets))
           ((import)
             (expand-import-declaration (cdr declaration) library export-sets))
+          ((begin)
+            (expand-begin-declaration (cdr declaration) library))
           ((include-library-declarations)
-            (expand-include-library-declarations) (cdr declaration) library export-sets)
+            (expand-include-library-declarations) (cdr declaration) library)
           (else (error "unknown library declaration" declaration))))
 
     (define (expand-export-declaration export-specs library export-sets)
@@ -70,6 +72,18 @@
                 (import-set import export-sets)))
             import-sets)
           (empty-sequence))))
+          
+    (define (expand-begin-declaration body library)
+      (unless (list? body)
+        (error "invalid begin declaration in library" `(begin . ,body)))
+      (apply make-sequence
+        ; XXX When we change make-sequence to accept a list, we have to remove
+        ; the apply here.
+        (let loop ((body body))
+          (if (null? body)
+            (list)
+            (cons (expand-command-or-definition (car body) library)
+              (loop (cdr body)))))))
 
     (define (expand-include-library-declarations filenames library export-sets)
       (if (null? filenames)
@@ -82,4 +96,14 @@
                   (lambda (declaration)
                     (expand-library-declaration declaration library export-sets))
                   (load-file filename))))
-            filenames))))))
+            filenames))))
+    
+    (define (expand-command-or-definition datum library)
+      (cond
+        ((boolean? datum) datum)
+        ((number? datum) datum)
+        ((char? datum) datum)
+        ((string? datum) datum)
+        ((symbol? datum) ((library-named library datum) 'value library))
+        (else (error "invalid command or definition" datum))))))
+

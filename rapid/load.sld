@@ -7,6 +7,9 @@
     ;
     ; TODO Possibly use streams instead of loading the whole file into one huge
     ; list.
+    ;
+    ; FIXME Catch possible file errors.
+    ;
 
     (define (load)
       (let ((datum (read)))

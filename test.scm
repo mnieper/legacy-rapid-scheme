@@ -1,6 +1,11 @@
 (define-library (test)
   (export (rename + *))
-  (import (scheme base)))
+  (import (scheme base))
+  (begin
+    +
+    4 2
+    10
+    #\space))
 
 (define-library (test2)
   (import (rename (test) (* /))))
