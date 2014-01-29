@@ -1,7 +1,13 @@
 (define-library (rapid assemble)
   (export assemble-program)
-  (import (scheme base) (scheme cxr) (scheme write) (rapid base) (rapid srfi 111))
+  (import (scheme base) (scheme cxr) (scheme write) (rapid base) (rapid box))
   (begin
+
+    ; TODO Evaluate whether srfi 111 boxes are really necessary, as are
+    ; parameter objects and record types.
+    ;
+    ; TODO Eliminate (scheme write) amongst the libraries being imported and
+    ; depend on write-string.
   
     (define-record-type variables-record-type
       (make-variables-record counter variables)

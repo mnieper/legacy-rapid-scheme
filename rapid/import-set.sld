@@ -86,6 +86,9 @@
       ;
       ; `renames' is a list of a lists (<identifier1> <identifier2>).
       ;
+      ; TODO The list processing below using apply, append and twice map is
+      ; not very efficient.
+      ;
       (apply append
         (map
           (lambda (rename)

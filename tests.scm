@@ -4,7 +4,9 @@
   (scheme base)
   (rapid test)
   (rapid list)
-  (rapid import-set))
+  (rapid import-set)
+  (rapid sequence)
+  (rapid expand))
   
 (test-begin "Rapid-Scheme")
 
@@ -38,6 +40,19 @@
     
   (test '((identifier5 . value1) (identifier2 . value2))
     (import-set '(rename (library 1) (identifier1 identifier5)) export-sets)))
+
+(test-end)
+
+(test-begin "Sequence")
+
+  (test '()
+    (sequence->body (empty-sequence)))
+    
+  (test '()
+    (sequence->body (make-sequence (empty-sequence))))
+
+  (test '(1 2 3 4)
+    (sequence->body (make-sequence (make-sequence) '1 (make-sequence '2 '3) '4)))
 
 (test-end)
 

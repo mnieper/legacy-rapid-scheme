@@ -1,5 +1,5 @@
 (define-library (rapid base)
-  (export gensym atom? variable? if? lambda? set!? op define? tagged-list? *ops*)
+  (export gensym atom? variable? if? lambda? set!? op define? tagged-list? *ops* tagged-pair?)
   (import (scheme base) (scheme case-lambda))
   (begin
 
@@ -16,6 +16,9 @@
       (or (variable? expr) (number? expr)))
 
     (define (tagged-list? expr tag)
+      (and (pair? expr) (eq? (car expr) tag)))
+
+    (define (tagged-pair? expr tag)
       (and (pair? expr) (eq? (car expr) tag)))
       
     (define (variable? expr)

@@ -1,7 +1,12 @@
 (define-library (rapid load)
-  (export load)
+  (export load load-file)
   (import (scheme base) (scheme read) (scheme file) (rapid library)) 
   (begin
+
+    ; TODO Find better names for the procedure in this library.
+    ;
+    ; TODO Possibly use streams instead of loading the whole file into one huge
+    ; list.
 
     (define (load)
       (let ((datum (read)))
@@ -21,9 +26,9 @@
       (let ((datum (read)))
         (if (eof-object? datum)
           '()
-          `(,datum . ,(readfile)))))
+          `(,datum . ,(read-file)))))
     
      
     (define (load-file filename)
-      (with-input-from file
+      (with-input-from-file filename
         (read-file)))))
