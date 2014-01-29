@@ -8,7 +8,7 @@
       ?variables-record
       (counter variables-record-counter set-variables-record-counter!)
       (variables variables-record-variables set-variables-record-variables!))
-  
+    
     (define variables-record
       (make-parameter (make-variables-record 0 '())))
 
@@ -26,7 +26,6 @@
                     (set-variables-record-counter! (variables-record) (+ counter 1))
                     (set-variables-record-variables! (variables-record) `((,var ,counter) . ,variables))
                     counter))))))))
-          
 
     (define (assemble-program program)
       (display "importScripts('stdlib.js');")

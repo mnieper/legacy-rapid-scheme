@@ -1,5 +1,5 @@
 (define-library (rapid base)
-  (export gensym atom? variable? if? lambda? set!? op define? *ops*)
+  (export gensym atom? variable? if? lambda? set!? op define? tagged-list? *ops*)
   (import (scheme base) (scheme case-lambda))
   (begin
 
