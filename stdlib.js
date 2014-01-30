@@ -7,12 +7,16 @@ function trampoline(thunk) {
 
 function display(obj) {
   'use strict';
-  postMessage(obj.toString());
+  postMessage(obj.toString()); // TODO
+}
+
+function application(/* TODO */) {
+  'use strict';
 }
 
 function sum(obj1, obj2) {
   'use strict';
-  return obj1 + obj2; // TODO
+  return obj1 + obj2; // TODO, even for more than one object
 }
 
 function difference(obj1, obj2) {

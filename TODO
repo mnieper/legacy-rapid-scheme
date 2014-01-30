@@ -1,5 +1,7 @@
 - Think of and implement a good framework for compile-time error reporting.
-- Implement (begin ...) in libraries.
+  (Implement equivalents of error and syntax-error.)
+  There is the (current-error-port).
+- Continue to implement (begin ...) in libraries.
+- Reformulate programs as libraries.
 - Write tests of all implemented features.
-
 

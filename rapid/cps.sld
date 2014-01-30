@@ -3,6 +3,8 @@
   (import (scheme base) (scheme write) (scheme cxr) (rapid base))
   (begin
 
+    (define gensym (make-gensym)) ; FIXME
+
     (define (cps expr k)
       (cond
         ((atom? expr) (cps-atom expr k))

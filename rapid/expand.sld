@@ -3,34 +3,33 @@
   (import (scheme base) (scheme case-lambda)
     (rapid base)
     (rapid sequence)
-    (rapid standard-libraries)
+    (prefix (rapid standard-libraries) standard-libraries-)
     (rapid load)
     (rapid library)
     (rapid import-set))
   (begin
 
     (define (expand sources)
+      (define gensym (make-gensym))
       (sequence->body
-        (let loop ((sources sources) (export-sets export-sets))
-          (let ((source (car sources)) (sources (cdr sources)))
-            (if (null? sources)
-              (expand-program source export-sets)
-              (let-values (((code export-set) (expand-library source export-sets)))
-                (make-sequence code (loop sources (cons export-set export-sets)))))))))
+        (let-values (((code export-sets)
+                (standard-libraries-expand gensym)))
+          (make-sequence
+            (cons code
+              (let loop ((sources sources) (export-sets export-sets))
+                (if (null? sources)
+                  '()
+                  (let-values (((code export-set)
+                        (expand-library gensym (car sources) export-sets)))
+                    (cons code (loop (cdr sources) (cons export-set export-sets)))))))))))
 
-
-
-    ; TODO (e.g. implement in terms of libraries)
-    (define (expand-program source export-sets)
-      (apply make-sequence source))
-
-    (define (expand-library source export-sets)
+    (define (expand-library gensym source export-sets)
       (let ((library-name (list-ref source 1)))
         (when (assoc library-name export-sets)
           (error "double defintion of library" library-name))
-        (let* ((library (make-library library-name))
+        (let* ((library (make-library library-name gensym))
                (code
-                 (apply make-sequence
+                 (make-sequence
                    (map (lambda (declaration)
                        (expand-library-declaration declaration library export-sets))
                      (cddr source)))))
@@ -76,7 +75,7 @@
     (define (expand-begin-declaration body library)
       (unless (list? body)
         (error "invalid begin declaration in library" `(begin . ,body)))
-      (apply make-sequence
+      (make-sequence
         ; XXX When we change make-sequence to accept a list, we have to remove
         ; the apply here.
         (let loop ((body body))
@@ -88,22 +87,13 @@
     (define (expand-include-library-declarations filenames library export-sets)
       (if (null? filenames)
         (error "file name missing in include declaration")
-        (apply make-sequence
+        (make-sequence
           (map
             (lambda (filename)
-              (apply make-sequence
+              (make-sequence
                 (map
                   (lambda (declaration)
                     (expand-library-declaration declaration library export-sets))
                   (load-file filename))))
-            filenames))))
-    
-    (define (expand-command-or-definition datum library)
-      (cond
-        ((boolean? datum) datum)
-        ((number? datum) datum)
-        ((char? datum) datum)
-        ((string? datum) datum)
-        ((symbol? datum) ((library-named library datum) 'value library))
-        (else (error "invalid command or definition" datum))))))
+            filenames))))))
 

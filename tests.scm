@@ -2,6 +2,7 @@
 
 (import
   (scheme base)
+  (rapid base)
   (rapid test)
   (rapid list)
   (rapid import-set)
@@ -9,6 +10,10 @@
   (rapid expand))
   
 (test-begin "Rapid-Scheme")
+
+(test-begin "Base")
+
+(test-end)
 
 (test-begin "List")
 
@@ -49,10 +54,10 @@
     (sequence->body (empty-sequence)))
     
   (test '()
-    (sequence->body (make-sequence (empty-sequence))))
+    (sequence->body (make-sequence (list (empty-sequence)))))
 
   (test '(1 2 3 4)
-    (sequence->body (make-sequence (make-sequence) '1 (make-sequence '2 '3) '4)))
+    (sequence->body (make-sequence `(,(empty-sequence) 1 ,(make-sequence '(2 3)) 4))))
 
 (test-end)
 

@@ -3,6 +3,7 @@
   (import (scheme base))
   (begin
     +
+    (+ 3 4 +)
     4 2
     10
     #\space))

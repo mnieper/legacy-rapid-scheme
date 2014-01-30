@@ -1,14 +1,18 @@
 (define-library (rapid library)
   (export
-    library-name?
+    library-name? import-declaration?
     make-export-set export-set-library-name export-set-bindings
     make-binding binding-identifier binding-named
     make-naming naming-internal naming-external
     make-library library-name globals environment imports exports
-    import! export!
+    gensym
+    import! export! define!
     export-set
+    expand-command-or-definition ; XXX In which library does this belong?
     library-named)
-  (import (scheme base))
+  (import
+    (scheme base)
+    (rapid base))
   (begin
 
     (define (make-export-set library-name bindings)
@@ -29,6 +33,9 @@
     (define (binding-named binding)
       (cdr binding))
       
+    (define (binding-named-set! binding named)
+      (set-cdr! binding named))
+      
     (define (make-naming internal external)
       (cons internal external))
       
@@ -38,32 +45,35 @@
     (define (naming-external naming)
       (cdr naming))
 
-    (define (make-library library-name)
-      `#(,library-name () () () ()))
+    (define (make-library library-name gensym)
+      `#(,library-name ,gensym () () () ()))
 
     (define (library-name library)
       (vector-ref library 0))
 
-    (define (globals library)
-      (vector-ref library 1))
-      
-    (define (globals-set! library globals)
-      (vector-set! library 1 globals))
+    (define (gensym library . args)
+      (apply (vector-ref library 1) args))
 
-    (define (environment library)
+    (define (globals library)
       (vector-ref library 2))
       
-    (define (imports library)
+    (define (globals-set! library globals)
+      (vector-set! library 2 globals))
+
+    (define (environment library)
       (vector-ref library 3))
       
-    (define (imports-set! library imports)
-      (vector-set! library 3 imports))
-      
-    (define (exports library)
+    (define (imports library)
       (vector-ref library 4))
       
+    (define (imports-set! library imports)
+      (vector-set! library 4 imports))
+      
+    (define (exports library)
+      (vector-ref library 5))
+      
     (define (exports-set! library exports)
-      (vector-set! library 4 exports))
+      (vector-set! library 5 exports))
 
     (define (import! library binding)
       (let ((identifier (binding-identifier binding)) (globals (globals library)))
@@ -90,6 +100,18 @@
             (cons (apply make-naming (cdr export-spec)) 
               (exports library))))))
 
+    (define (define! library binding)
+      (let ((identifier (binding-identifier binding))
+            (globals (globals library)))
+        (cond
+          ((assq identifier globals) =>
+            (lambda (global-binding)
+              (binding-named-set! global-binding (binding-named binding))))
+          (else
+            (when (assq identifier (imports library))
+              (error "It is an error to redefine or mutate an imported binding" identifier))
+            (globals-set! library (cons binding globals))))))
+          
     (define (export-set library)
       (make-export-set (library-name library)
         (let loop ((exports (exports library)))
@@ -116,6 +138,21 @@
         ((assq identifier (globals library)) => binding-named)
         (else
           (error "identifier not bound" identifier))))
+
+    (define (expand-command-or-definition datum library)
+      ; TODO Some forms like define are not allowed to occur everywhere.
+      ; Maybe one should better split this into expand-expression and the rest.
+      (cond
+        ((boolean? datum) datum)
+        ((number? datum) datum)
+        ((char? datum) datum)
+        ((string? datum) datum)
+        ((symbol? datum) ((library-named library datum) library))
+        ((list? datum) ((library-named library (car datum)) library (cdr datum)))
+        (else (error "invalid command or definition" datum))))
+                  
+    (define (import-declaration? datum)
+      (tagged-list? datum 'import))
                   
     (define (library-name? datum)
       ; Return true if datum is a valid library name.

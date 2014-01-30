@@ -3,7 +3,7 @@
   (import (scheme base) (rapid base))
   (begin
   
-    (define (make-sequence . body)
+    (define (make-sequence body)
       (cons 'begin body))
   
     (define (sequence? sequence)
@@ -13,7 +13,7 @@
       (cdr sequence))
     
     (define (empty-sequence)
-      (make-sequence))
+      (make-sequence '()))
     
     (define (sequence->body sequence)
       (let loop ((body (sequence-body sequence)) (tail (list)))

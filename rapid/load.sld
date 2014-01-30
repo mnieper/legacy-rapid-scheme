@@ -10,6 +10,7 @@
     ;
     ; FIXME Catch possible file errors.
     ;
+    ; TODO: Refactor the load procedure in several smaller procedures
 
     (define (load)
       (let ((datum (read)))
@@ -22,9 +23,17 @@
               (error "invalid library definition" datum))
             (cons datum (load)))
           (else
-            (list
-              (cons datum (read-file)))))))
-    
+            `((define-library ()
+                ,@(begin
+                  (unless (import-declaration? datum)
+                    (error "program does not begin with import declaration" datum))
+                  (let loop ((datum datum))
+                    (if (eof-object? datum)
+                      `((begin))
+                      (if (import-declaration? datum)
+                        (cons datum (loop (read)))
+                        `((begin ,@(cons datum (read-file))))))))))))))
+              
     (define (read-file)
       (let ((datum (read)))
         (if (eof-object? datum)

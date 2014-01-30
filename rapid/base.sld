@@ -1,16 +1,17 @@
 (define-library (rapid base)
-  (export gensym atom? variable? if? lambda? set!? op define? tagged-list? *ops* tagged-pair?)
+  (export make-gensym atom? variable? if? lambda? set!? op define? tagged-list? *ops* tagged-pair?)
   (import (scheme base) (scheme case-lambda))
   (begin
 
-    (define gensym-counter 0)
-    
-    (define gensym
-      (case-lambda
-        (() (gensym "g"))
-        ((prefix)
-          (set! gensym-counter (+ gensym-counter 1))
-          (string->symbol (string-append prefix (number->string gensym-counter))))))
+    (define (make-gensym)
+      (define counter 0)
+      (letrec ((gensym
+          (case-lambda
+            (() (gensym "g"))
+            ((prefix)
+              (set! counter (+ counter 1))
+              (string->symbol (string-append prefix (number->string counter)))))))
+        gensym))
         
     (define (atom? expr)
       (or (variable? expr) (number? expr)))
@@ -44,6 +45,7 @@
 
     (define *ops*
       (list
+        '(apply application)
         '(= equality)
         '(+ sum)
         '(- difference)
