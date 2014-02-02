@@ -40,7 +40,7 @@
             (cond
               ((assoc import export-sets) =>
                 (lambda (export-set) (list-copy (export-set-bindings export-set))))
-              (else (raise-compile-error "in import set" "library not found" import))))))
+              (else (raise-compile-error "library not found" import))))))
                 
     (define (import-set-only imports identifiers)
       (if (null? identifiers)

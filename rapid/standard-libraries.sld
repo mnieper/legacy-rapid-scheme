@@ -3,6 +3,7 @@
   (import
     (scheme base)
     (scheme case-lambda)
+    (rapid error)
     (rapid sequence)
     (rapid library))
   (begin
@@ -21,21 +22,26 @@
         (export! library 'apply)
         (values (make-sequence body) (export-set library))))
 
-    (define (expand-operator-definition library operator length rest?)
+    (define (expand-operator-definition library operator len rest?)
       (define symbol (gensym library))
       (define params
         (do ((params '() (cons (gensym library) params))
              (i 0 (+ i 1)))
-          ((= i length) params)))
+          ((= i len) params)))
       (define! library
         (make-binding operator
           (case-lambda
             ((library) symbol)
             ((library args)
-              `(,operator
-                ; TODO Signal an error if the number of arguments in not correct
-                ; with respect to length and rest?
-                ,@(map (lambda (arg) (expand-command-or-definition arg library)) args))))))
+              (with-context ("in application of operator" operator)
+                (let ((arg-count (length args)))
+                  (if rest?
+                    (when (< arg-count len)
+                      (raise-compile-error "not enough arguments" arg-count))
+                    (when (not (= arg-count len))
+                      (raise-compile-error "wrong number of arguments" arg-count))))
+                `(,operator
+                  ,@(map (lambda (arg) (expand-command-or-definition arg library)) args)))))))
       `(define ,symbol
         ,(if rest?
           (let ((rest (gensym library)))

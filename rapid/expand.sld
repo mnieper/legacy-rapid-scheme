@@ -11,7 +11,7 @@
   (begin
 
     (define (expand sources)
-      (with-context "while expanding"
+      (with-context ("while expanding")
         (define gensym (make-gensym))
         (sequence->body
           (let-values (((code export-sets)

@@ -20,8 +20,8 @@
         (not (read-error? obj))
         (tagged-list? obj 'compile-error)))
 
-    (define (make-compile-error context message irritants)
-      `(compile-error (,context) ,message ,irritants))
+    (define (make-compile-error message irritants)
+      `(compile-error () ,message ,irritants))
     
     (define (compile-error-location compile-error)
       (list-ref compile-error 1))
@@ -54,11 +54,11 @@
 
     (define-syntax with-context
       (syntax-rules ()
-        ((with-context context . body) 
+        ((with-context (exp ...) . body) 
           (guard-compile-error (compile-error
-              ((compile-error-with-context! compile-error context)
+              ((compile-error-with-context! compile-error (list exp ...))
                 (raise compile-error))) . body))))
-            
+
     (define (compile-error-display compile-error)
       (parameterize ((current-output-port (current-error-port)))
         (write-string "COMPILE ERROR: ")
@@ -72,8 +72,13 @@
         (for-each 
           (lambda (context)
             (write-string "  ")
-            (write-string context)
+            (let loop ((delim ": ") (context context))
+              (unless (null? context))
+              (display (car context))
+              (unless (null? (cdr context))
+                (write-string delim)
+                (loop " " (cdr context))))
             (newline)) (reverse (compile-error-location compile-error)))))
 
-    (define (raise-compile-error context message . irritants)
-      (raise (make-compile-error context message irritants)))))
+    (define (raise-compile-error message . irritants)
+      (raise (make-compile-error message irritants)))))
