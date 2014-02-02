@@ -1,6 +1,10 @@
 (define-library (rapid import-set)
   (export import-set)
-  (import (scheme base) (rapid list) (rapid library))
+  (import
+    (scheme base)
+    (rapid error)
+    (rapid list)
+    (rapid library))
   (begin
 
     ; `export-sets' is an association list of pairs mapping a library name to a list of
@@ -36,7 +40,7 @@
             (cond
               ((assoc import export-sets) =>
                 (lambda (export-set) (list-copy (export-set-bindings export-set))))
-              (else (error "library not found" import))))))
+              (else (raise-compile-error "in import set" "library not found" import))))))
                 
     (define (import-set-only imports identifiers)
       (if (null? identifiers)

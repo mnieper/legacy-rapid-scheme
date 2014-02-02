@@ -9,6 +9,9 @@
     ; TODO Eliminate (scheme write) amongst the libraries being imported and
     ; depend on write-string.
   
+    ; TODO: Write everything into a string first before outputting everything
+    ; (in compiler.scm).
+  
     (define-record-type variables-record-type
       (make-variables-record counter variables)
       ?variables-record

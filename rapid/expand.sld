@@ -4,24 +4,26 @@
     (rapid base)
     (rapid sequence)
     (prefix (rapid standard-libraries) standard-libraries-)
+    (rapid error)
     (rapid load)
     (rapid library)
     (rapid import-set))
   (begin
 
     (define (expand sources)
-      (define gensym (make-gensym))
-      (sequence->body
-        (let-values (((code export-sets)
-                (standard-libraries-expand gensym)))
-          (make-sequence
-            (cons code
-              (let loop ((sources sources) (export-sets export-sets))
-                (if (null? sources)
-                  '()
-                  (let-values (((code export-set)
-                        (expand-library gensym (car sources) export-sets)))
-                    (cons code (loop (cdr sources) (cons export-set export-sets)))))))))))
+      (with-context "while expanding"
+        (define gensym (make-gensym))
+        (sequence->body
+          (let-values (((code export-sets)
+                  (standard-libraries-expand gensym)))
+            (make-sequence
+              (cons code
+                (let loop ((sources sources) (export-sets export-sets))
+                  (if (null? sources)
+                    '()
+                    (let-values (((code export-set)
+                          (expand-library gensym (car sources) export-sets)))
+                      (cons code (loop (cdr sources) (cons export-set export-sets))))))))))))
 
     (define (expand-library gensym source export-sets)
       (let ((library-name (list-ref source 1)))
