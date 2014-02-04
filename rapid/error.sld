@@ -1,18 +1,19 @@
 (define-library (rapid error)
-  (export raise-compile-error handle-compile-error with-context)
+  (export raise-compile-error handle-compile-error with-context log)
   (import
     (scheme base)
     (scheme process-context)
     (scheme write)
     (rapid base))
   (begin
-  
-    ; TODO Use this library.
-    ;
-    ; Idee: use a macro to catch and rethrow compile-error and runtime-error
-    ; exceptions.
     
-    
+    ; XXX Ad-hoc procedure.
+    (define (log obj)
+      (display "*** ")
+      (display obj)
+      (display " ***")
+      (newline))
+      
     (define (compile-error? obj)
       (and 
         (not (error-object? obj))

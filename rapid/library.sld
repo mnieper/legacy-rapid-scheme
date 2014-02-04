@@ -2,17 +2,18 @@
   (export
     library-name? import-declaration?
     make-export-set export-set-library-name export-set-bindings
-    make-binding binding-identifier binding-named
+    make-binding binding-identifier binding-expression
     make-naming naming-internal naming-external
     make-library library-name globals environment imports exports
     gensym
     import! export! define!
     export-set
-    expand-command-or-definition ; XXX In which library does this belong?
-    library-named)
+    with-new-frame
+    library-expression)
   (import
     (scheme base)
-    (rapid base))
+    (rapid base)
+    (rapid error))
   (begin
 
     (define (make-export-set library-name bindings)
@@ -24,17 +25,17 @@
     (define (export-set-bindings export-set)
       (cdr export-set))
 
-    (define (make-binding identifier named)
-      (cons identifier named))
+    (define (make-binding identifier expression)
+      (cons identifier expression))
       
     (define (binding-identifier binding)
       (car binding))
       
-    (define (binding-named binding)
+    (define (binding-expression binding)
       (cdr binding))
       
-    (define (binding-named-set! binding named)
-      (set-cdr! binding named))
+    (define (binding-expression-set! binding expression)
+      (set-cdr! binding expression))
       
     (define (make-naming internal external)
       (cons internal external))
@@ -54,6 +55,7 @@
     (define (gensym library . args)
       (apply (vector-ref library 1) args))
 
+    ; XXX check, e.g. whether this should be called "library-globals".
     (define (globals library)
       (vector-ref library 2))
       
@@ -62,6 +64,9 @@
 
     (define (environment library)
       (vector-ref library 3))
+      
+    (define (environment-set! library environment)
+      (vector-set! library 3 environment))
       
     (define (imports library)
       (vector-ref library 4))
@@ -80,7 +85,7 @@
         (cond
           ((assq identifier globals) =>
             (lambda (global-binding)
-              (unless (eq? (binding-named binding) (binding-named global-binding))
+              (unless (eq? (binding-expression binding) (binding-expression global-binding))
                 (error "identifier imported more than once with different bindings" identifier))))
           (else
             (imports-set! library (cons binding (imports library)))
@@ -100,17 +105,35 @@
             (cons (apply make-naming (cdr export-spec)) 
               (exports library))))))
 
+    (define (outermost-level? library)
+      (null? (environment library)))
+
     (define (define! library binding)
-      (let ((identifier (binding-identifier binding))
-            (globals (globals library)))
-        (cond
-          ((assq identifier globals) =>
-            (lambda (global-binding)
-              (binding-named-set! global-binding (binding-named binding))))
-          (else
-            (when (assq identifier (imports library))
-              (error "It is an error to redefine or mutate an imported binding" identifier))
-            (globals-set! library (cons binding globals))))))
+      ;
+      ; Create or update a binding in the current frame or in the library's globals.
+      ;
+      (define identifier (binding-identifier binding))
+      (if (outermost-level? library)      
+        (let ((globals (globals library)))
+          (cond
+            ((assq identifier globals) =>
+              (lambda (global-binding)
+                (binding-expression-set! global-binding (binding-expression binding))))
+            (else
+              (when (assq identifier (imports library))
+                (error "It is an error to redefine or mutate an imported binding" identifier))
+              (globals-set! library (cons binding globals)))))
+        (let* ((environment (environment library)) (frame (car environment)))
+          ; In the alternate, we are inside a body. Maybe check whether we are at the beginning of a body.
+          ; or reformulate everything in terms of a letrec* (mutual dependence possible).
+          ; Also: how to incorporate define-record-type in a letrec? and define-syntax?
+          ; Actually, I don't understand where define-syntax, for example, is allowed...
+          ; W.r.t. define-record-type: it seems to be just a couple of defines.
+          (cond
+            ((assq identifier frame)
+              (raise-compile-error "it is an error to define an identifier more than once" identifier)) ; XXX Or to have two equal formals
+            (else
+              (set-car! environment (cons binding frame)))))))
           
     (define (export-set library)
       (make-export-set (library-name library)
@@ -124,33 +147,38 @@
                     (cond
                       ((assq (naming-external export) bindings) =>
                         (lambda (binding)
-                          (unless (eq? (binding-named global) (binding-named binding))
+                          (unless (eq? (binding-expression global) (binding-expression binding))
                             (error "exported identifier does not name a single binding" (cadr export)))
                           bindings))
                       (else
-                        (cons (make-binding (naming-external export) (binding-named global)) bindings)))))
+                        (cons (make-binding (naming-external export) (binding-expression global)) bindings)))))
                 (else
                   (error "exported identifier not bound in library" (car export)))))))))
                   
-    (define (library-named library identifier)
-      ; FIXME Check whether the identifier in the current lexical environment
-      (cond
-        ((assq identifier (globals library)) => binding-named)
-        (else
-          (error "identifier not bound" identifier))))
-
-    (define (expand-command-or-definition datum library)
-      ; TODO Some forms like define are not allowed to occur everywhere.
-      ; Maybe one should better split this into expand-expression and the rest.
-      (cond
-        ((boolean? datum) datum)
-        ((number? datum) datum)
-        ((char? datum) datum)
-        ((string? datum) datum)
-        ((symbol? datum) ((library-named library datum) library))
-        ((list? datum) ((library-named library (car datum)) library (cdr datum)))
-        (else (error "invalid command or definition" datum))))
-                  
+    (define (library-expression library identifier)
+      ; XXX Use library- prefix?
+      ;
+      (let loop ((environment (environment library)))
+        (if (null? environment)
+          (cond
+            ((assq identifier (globals library)) => binding-expression)
+            (else
+              (raise-compile-error "identifier not bound" identifier)))
+          (cond
+            ((assq identifier (car environment)) => binding-expression)
+            (else
+              (loop (cdr environment)))))))
+  
+    (define (with-new-frame library thunk)    
+      (define frame '())
+      (define (before)
+        (environment-set! library (cons frame (environment library))))
+      (define (after)
+        (define env (environment library))
+        (set! frame (car env))
+        (environment-set! library (cdr env)))
+      (dynamic-wind before thunk after))
+        
     (define (import-declaration? datum)
       (tagged-list? datum 'import))
                   

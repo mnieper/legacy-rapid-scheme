@@ -1,17 +1,4 @@
-(define-library (test)
-  (export (rename + *))
-  (import (scheme base))
-  (begin
-    +
-    (+ 3 4 +)
-    4 2
-    10
-    #\space))
-
-(define-library (test2)
-  (import (rename (test) (* /))))
-
-(import (test test))
+(import (scheme base) (scheme write))
 
 (define f
   (lambda (n)

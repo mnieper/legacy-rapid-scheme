@@ -82,7 +82,7 @@
               (cons
                 (make-binding
                   (string->symbol (string-append prefix-string (symbol->string (car import))))
-                  (binding-named import))
+                  (binding-expression import))
                 (loop (cdr imports))))))))
 
     (define (import-set-rename imports renames)
@@ -103,7 +103,7 @@
             (cond
               ((assq (list-ref rename 0) imports) =>
                 (lambda (binding)
-                  (make-binding (list-ref rename 1) (binding-named binding))))
+                  (make-binding (list-ref rename 1) (binding-expression binding))))
               (else
                 (error "identifier not found in import set" (car rename)))))
           renames)

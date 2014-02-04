@@ -11,6 +11,8 @@
   
     ; TODO: Write everything into a string first before outputting everything
     ; (in compiler.scm).
+    
+    ; TODO: Assemble procedures whose formals are more than a list (may need to change cps as well)
   
     (define-record-type variables-record-type
       (make-variables-record counter variables)

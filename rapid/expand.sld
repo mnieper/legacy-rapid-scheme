@@ -2,6 +2,7 @@
   (export expand)
   (import (scheme base) (scheme case-lambda)
     (rapid base)
+    (rapid expression)
     (rapid sequence)
     (prefix (rapid standard-libraries) standard-libraries-)
     (rapid error)
@@ -10,6 +11,9 @@
     (rapid import-set))
   (begin
 
+    ; XXX put export-sets also in library structures?
+    ; In that case, we should rename library to program (storing the whole environment).
+    ; In the beginning of each library clear the globals... (maybe as in with-new-frame).
     (define (expand sources)
       (with-context ("while expanding")
         (define gensym (make-gensym))
@@ -78,13 +82,11 @@
       (unless (list? body)
         (error "invalid begin declaration in library" `(begin . ,body)))
       (make-sequence
-        ; XXX When we change make-sequence to accept a list, we have to remove
-        ; the apply here.
         (let loop ((body body))
           (if (null? body)
             (list)
-            (cons (expand-command-or-definition (car body) library)
-              (loop (cdr body)))))))
+            (let ((code (expand-command-or-definition (car body) library)))
+              (cons code (loop (cdr body))))))))
 
     (define (expand-include-library-declarations filenames library export-sets)
       (if (null? filenames)

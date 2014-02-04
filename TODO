@@ -1,7 +1,4 @@
-- Think of and implement a good framework for compile-time error reporting.
-  (Implement equivalents of error and syntax-error.)
-  There is the (current-error-port).
 - Continue to implement (begin ...) in libraries.
-- Reformulate programs as libraries.
 - Write tests of all implemented features.
-
+- What is a "named" exactly? (Would call it as an expression; either (type of) syntax or location.) Define it as a procedure or a record type. 
+- Check whether it is possible for an identifier to be defined and later modified by an import set. And check whether rapid allows this.
