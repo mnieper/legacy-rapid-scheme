@@ -101,9 +101,27 @@
                   (else (redefine!))))))))
       (empty-sequence))
 
+
+
+
+    ; primitive case-lambda implementierung
+    
+    (define x (case-lambda ....))
+    
+    Wenn: (x 3 0) oder (x 1) dann x(3,0) oder x(1) in JS.   
+    ; dann checke die length durch; einzige Alternative: x ist an mehrere prozeduren gebunden
+    ; Alternative: 
+    
     
     ; here: len and rest should allow a number of case-lambdas...
     ; so (?) a list of possible formals?
+    (define (expand-operator-definition library operator formals-list)
+      (define symbol (gensym library))
+      `(define ,symbol
+        (lambda 
+          ; is case-lambda primitive???   <--- 
+    
+    
     (define (expand-operator-definition library operator len rest?)
       (define symbol (gensym library))
       (define params
