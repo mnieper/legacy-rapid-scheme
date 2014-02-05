@@ -103,14 +103,22 @@
 
 
 
-
+#|
     ; primitive case-lambda implementierung
     
     (define x (case-lambda ....))
     
-    Wenn: (x 3 0) oder (x 1) dann x(3,0) oder x(1) in JS.   
+    ;Wenn: (x 3 0) oder (x 1) dann x(3,0) oder x(1) in JS.   
     ; dann checke die length durch; einzige Alternative: x ist an mehrere prozeduren gebunden
     ; Alternative: 
+    
+    ; Dazu ist zu klären, was eine Prozedur genau ist (also der Wert von einem x).
+    ; -> Ist es wirklich einfach eine JS-Funktion? (procedure?) würde ja darauf funktionieren.
+    ; Könnte auch ein Objekt sein... 
+    ; Problem: in der Regel wird die Prozedur mit der falschen Anzahl von Argumente aufgerufen
+    ; ---> doch Case-Lambda?
+    ;
+    ; Was ist dann +? Operator (+ x y) oder x = +. (Dann muß +
     
     
     ; here: len and rest should allow a number of case-lambdas...
@@ -120,7 +128,7 @@
       `(define ,symbol
         (lambda 
           ; is case-lambda primitive???   <--- 
-    
+  |#  
     
     (define (expand-operator-definition library operator len rest?)
       (define symbol (gensym library))
