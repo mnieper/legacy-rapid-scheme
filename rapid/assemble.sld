@@ -12,7 +12,17 @@
     (define variables-record
       (make-parameter (make-variables-record 0 '())))
 
-    (define (variable var)
+    (define counter 0)
+    (define (genvar)
+      (set! counter (+ counter 1))
+      (string-append "$"
+        (number->string counter)))
+    
+    ; TODO Should be local to assemble-program!
+    ; As the counter
+    (define variables '())
+
+    #;(define (variable var)
       (if (assq var *ops*)
         var
         (string-append "$"
@@ -26,7 +36,7 @@
                     (set-variables-record-counter! (variables-record) (+ counter 1))
                     (set-variables-record-variables! (variables-record) `((,var ,counter) . ,variables))
                     counter))))))))
-          
+     
 
     (define (assemble-program program)
       (display "importScripts('stdlib.js');")
@@ -38,7 +48,7 @@
       (cond
         ((number? expr) (assemble-number expr))
         ((variable? expr) (assemble-variable expr))
-        ((lambda? expr) (assemble-lambda (cadr expr) (cddr expr)))
+        ((case-lambda? expr) (assemble-case-lambda (cdr expr)))
         ((set!? expr) (assemble-set! (cadr expr) (caddr expr)))
         ((if? expr) (apply assemble-if (cdr expr)))
         ((op expr) => (lambda (op) (assemble-op op (cdr expr))))
@@ -47,16 +57,58 @@
 
     (define (assemble-number expr)
       (display expr)) ; FIXME
-      
+
     (define (assemble-variable var)
-      (display (variable var)))
+      (write-string
+        (cond
+          ((assq var variables) => cdr)
+          (else var))))
+
+    (define (assemble-case-lambda clauses)
+      (define args-var (genvar))
+      (write-string "new Procedure(function(") ; TODO: We may need the body???
+      (write-string args-var)
+      (write-string "){")
+      (write-string "var n=")
+      (write-string args-var)
+      (write-string ".length;")
+      (let loop ((clauses clauses) (stmt "if"))
+        (unless (null? clauses)
+          (let ((clause (car clauses)))
+            ;(display "### ") (display clause) (display " ***") (newline)
       
-    (define (assemble-lambda args body)
-      (display "new Procedure(function(")
-      (assemble-args args)
-      (display "){")
+            (write-string stmt)
+            (assemble-case-lambda-clause (car clause) (cdr clause) args-var)
+            (loop (cdr clauses) "else if"))))
+      (write-string "else{throw'WRONG # OF ARGS';}")
+      (write-string "})"))
+      
+    (define (assemble-case-lambda-clause formals body args-var)
+      (define rest #f)
+      (define n
+        (let loop ((formals formals) (i 0))
+          (cond
+            ((symbol? formals)
+              (set! rest (genvar))
+              (set! variables (cons (cons formals rest) variables))
+              i)
+            ((null? formals)
+              i)
+            ((pair? formals)
+              (set! variables (cons (cons (car formals) (string-append args-var "[" (number->string i) "]")) variables))
+              (loop (cdr formals) (+ i 1))))))
+      (write-string "(n")
+      (if rest
+        (write-string ">=")
+        (write-string "="))
+      (write-string (number->string n))
+      (write-string "){")
+      (when rest
+        (write-string "var ")
+        (write-string rest)
+        (write-string "=new ArrayList(args,n)"))
       (assemble-body body)
-      (display "})"))
+      (write-string "}"))
     
     (define (assemble-set! var expr)
       (assemble var)
@@ -79,18 +131,18 @@
       (display ")"))
     
     (define (assemble-application proc args)
-      (cond
-        ((lambda? proc)
-          (assemble-lambda-application (cadr proc) (cddr proc) args))        
-        (else
+;      (cond
+ ;       ((lambda? proc)
+  ;        (assemble-lambda-application (cadr proc) (cddr proc) args))        
+  ;      (else
           ; XXX Shall we handle procedures with no arguments in a special way?
-          (display "return [")
+          (write-string "return [")
           (assemble-args args)
-          (display ",")
+          (write-string ",")
           (assemble proc)
-          (display "]"))))
+          (write-string "]"));))
 
-    ; ((lambda (a b c) x) 1 2 3) --> change to new Procedure... Or something different...
+    ; let this work with new case-lambda
     (define (assemble-lambda-application formals body operands)
       (let loop ((formals formals) (operands operands))
         (unless (null? formals)

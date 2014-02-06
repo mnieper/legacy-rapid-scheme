@@ -1,5 +1,5 @@
 (define-library (rapid base)
-  (export gensym atom? variable? if? lambda? set!? op define? *ops*)
+  (export gensym atom? variable? if? lambda? case-lambda? set!? op define? *ops*)
   (import (scheme base) (scheme case-lambda))
   (begin
 
@@ -26,6 +26,9 @@
       
     (define (lambda? expr)
       (tagged-list? expr 'lambda))
+    
+    (define (case-lambda? expr)
+      (tagged-list? expr 'case-lambda))
     
     (define (set!? expr)
       (tagged-list? expr 'set!))

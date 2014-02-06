@@ -6,7 +6,7 @@
     (define (cps expr k)
       (cond
         ((atom? expr) (cps-atom expr k))
-        ((lambda? expr) (cps-lambda (cadr expr) (cddr expr) k))
+        ((case-lambda? expr) (cps-case-lambda (cdr expr) k))
         ((set!? expr) (cps-op 'set! (cdr expr) k))
         ((if? expr) (cps-if (cadr expr) (caddr expr) (cadddr expr) k))
         ((op expr) (cps-op (car expr) (cdr expr) k))
@@ -14,7 +14,7 @@
         (else (error "cps: unknown expression type" expr))))
 
     (define (atomic? expr)
-      (or (atom? expr) (lambda? expr)))
+      (or (atom? expr) (case-lambda? expr)))
   
     (define (cps-atom expr k)
       (if (not (procedure? k))
@@ -24,15 +24,24 @@
             (let ((cc (gensym "call/cc-cc-")) (proc (gensym "call/cc-proc-"))
                   (cc1 (gensym "call/cc-cc1-"))
                   (value (gensym "call/cc-value-")))
-              `(lambda (,cc ,proc) (,proc ,cc (lambda (,cc1 ,value) (,cc ,value)))))
+              `(case-lambda ((,cc ,proc) (,proc ,cc (case-lambda ((,cc1 ,value) (,cc ,value)))))))
             expr))))
 
-    (define (cps-lambda vars body k)
+    (define (cps-case-lambda clauses k)
       (if (not (procedure? k))
-        (cps-lambda vars body (lambda (a) `(,k ,a)))
-        (let ((c (gensym "c")))
-          (let-values ((a* (cps-body body c)))
-            (k `(lambda (,c . ,vars) . ,a*))))))
+        (cps-case-lambda clauses (lambda (a) `(,k ,a)))
+        (k `(case-lambda
+            ,@(let loop ((clauses clauses)) ; TODO Rewrite to for-each
+              (if (null? clauses)
+                '()
+                (let ((clause (car clauses)))
+                  (let ((formals (car clause)) (body (cdr clause)) (c (gensym "c")))
+                    (let-values ((a* (cps-body body c)))
+                      `(((,c . ,formals) . ,a*) . ,(loop (cdr clauses))))))))))))
+        
+     ;   (let ((c (gensym "c")))
+     ;     (let-values ((a* (cps-body body c)))
+     ;       (k `(lambda (,c . ,vars) . ,a*))))))
           
     (define (cps-body body k)
       (let ((expr (car body)) (tail (cdr body)))  
@@ -53,7 +62,7 @@
             (lambda (a)
               `(if ,a ,(cps con k) ,(cps alt k))))
           (let ((c (gensym)))
-            `((lambda (,c) ,(cps-if pred con alt c)) ,k)))))
+            `((case-lambda ((,c) ,(cps-if pred con alt c))) ,k)))))
 
     (define (cps-op op args k)
       (if (not (procedure? k))
@@ -81,5 +90,5 @@
     (define (continuation k)
       (let ((d (gensym)))
         (let-values ((body (k d)))
-          `(lambda (,d) . ,body))))))
+          `(case-lambda ((,d) . ,body)))))))
 

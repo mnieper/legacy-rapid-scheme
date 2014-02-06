@@ -3,6 +3,7 @@
   (import
     (scheme base)
     (scheme cxr)
+    (scheme write) ; XXX
     (rapid base)
     (rapid cps)
     (rapid optimize)
@@ -21,10 +22,11 @@
                   (let ((var (cadr expr)))
                     (values `(,var . ,globals) `((set! ,var ,(caddr expr)) . ,body)))
                   (values globals `(,expr . ,body))))))))
-        `(lambda (,@globals) . ,body)))
+        `(case-lambda ((,@globals) . ,body))))
   
     (define (compile source)
       (assemble-program
+        ;(display ; XXX
         (optimize
           (cps
             (link source)
