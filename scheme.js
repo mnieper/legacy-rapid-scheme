@@ -1,3 +1,5 @@
+// rename to rapid namespace
+
 this.Scheme = (function () {
   'use strict';
 

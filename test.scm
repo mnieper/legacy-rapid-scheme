@@ -6,7 +6,7 @@
       0
       (+ n (f (- n 1))))))
       
-(display (f 2000000))
+(display (f 2000))
 
 (display
   (+ 1 (call/cc

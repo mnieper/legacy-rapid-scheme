@@ -40,9 +40,9 @@
 
     (define (assemble-program program)
       (display "importScripts('stdlib.js');")
-      (display "init(function(data){'use strict';")
+      (display "init(new Procedure(function(data){'use strict';")
       (assemble program)
-      (display ";});"))
+      (display ";}));"))
 
     (define (assemble expr)
       (cond
@@ -62,11 +62,11 @@
       (display (variable var)))
       
     (define (assemble-lambda args body)
-      (display "function(")
+      (display "new Procedure(function(")
       (assemble-args args)
       (display "){")
       (assemble-body body)
-      (display "}"))
+      (display "})"))
     
     (define (assemble-set! var expr)
       (assemble var)
@@ -74,7 +74,7 @@
       (assemble expr))
     
     (define (assemble-if pred con alt)
-      (display "if((")
+      (display "if((") ; XXX The parentheses may be superfluous.
       (assemble pred)
       (display ")!==false){")
       (assemble con)
@@ -89,22 +89,19 @@
       (display ")"))
     
     (define (assemble-application proc args)
-      (if (lambda? proc)
-        (assemble-lambda-application (cadr proc) (cddr proc) args)
-        (cond
-          ((null? args)
-            (display "return ")
-            (assemble proc))
-          (else
-            (display "return function(){return ")
-            (assemble proc)
-            (display "")
-            (display "(")
-            (assemble-args args)
-            (display ")}")))))
+      (cond
+        ((lambda? proc)
+          (assemble-lambda-application (cadr proc) (cddr proc) args))        
+        (else
+          ; XXX Shall we handle procedures with no arguments in a special way?
+          (display "return [")
+          (assemble-args args)
+          (display ",")
+          (assemble proc)
+          (display "]"))))
 
+    ; ((lambda (a b c) x) 1 2 3) --> change to new Procedure... Or something different...
     (define (assemble-lambda-application formals body operands)
-      (display "return function(){")
       (let loop ((formals formals) (operands operands))
         (unless (null? formals)
           (display "var ")
@@ -119,8 +116,7 @@
               (assemble (car operands))
               (display ";")
               (loop (cdr formals) (cdr operands))))))
-      (assemble-body body)
-      (display "}"))
+      (assemble-body body))
 
     (define (assemble-body body)
       (unless (null? body)
