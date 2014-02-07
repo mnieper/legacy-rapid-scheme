@@ -22,27 +22,16 @@ function SchemeObject() {
 
 function Procedure(code) {
   SchemeObject.call(this);
-  // TODO: In general we want to code case-lambdas here, so the constructor should
-  // receive a number of cases, not just one.
-  //
-  // In particular, throw an error if there is no match.
-  //
-  // Or: we do this in code
   this.code = code;
 }
 inherits(Procedure, SchemeObject);
-
-Procedure.prototype.call = function(args) {
-  // TODO: Call function directly; use args array, do not unpack; maybe just pop
-  return this.code.apply(undefined, args);
-}
 
 function trampoline(thunk) {
   var procedure;
   while (1) {
     procedure = thunk.pop();
-    thunk = procedure.code.apply(undefined, thunk);
-  };
+    thunk = procedure.code(thunk);
+  }
 }
 
 function display(obj) {
