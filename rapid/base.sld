@@ -50,17 +50,18 @@
     (define (op expr)
       (and (pair? expr)
         (cond
-          ((assq (car expr) *ops*) => cadr)
+          ((assq (car expr) *ops*) => cdr)
           (else #f))))
 
     (define (define? expr)
       (tagged-list? expr 'define))
 
     (define *ops*
-      (list
-        '(apply application)
-        '(= equality)
-        '(+ sum)
-        '(- difference)
-        '(display display)
-        '(exit exit)))))
+      (letrec-syntax ((define-operators
+            (syntax-rules ()
+              ((_) '())
+              ((_ (operator name) definitions ...)
+                `((operator . name) . ,(define-operators definitions ...)))
+              ((_ operator definitions ...)
+                `((operator . operator) . ,(define-operators definitions ...))))))
+        (include "rapid/operator.scm")))))

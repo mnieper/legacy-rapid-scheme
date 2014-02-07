@@ -2,11 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>scheme2web</title>
-  <script src="scheme.js"></script>
+  <title>Rapid Scheme</title>
+  <script src="rapid.js"></script>
 </head>
 <body>
-  <script>Scheme.program('test.js').run();</script>
+  <h1>Rapid Scheme</h1>
+  <section>
+    <h2>Output</h2>
+    <pre id="output"></pre>
+  </section>
+  <script>
+    var program = new rapid.Program('test.js');
+    program.onoutput = function (output) {
+      document.querySelector('#output').appendChild(document.createTextNode(output));
+    }; 
+    program.onexit = function (data) {
+      document.querySelector('#output').appendChild(document.createTextNode('\nExit code: ' + data.code));
+    };
+    program.run();
+  </script>
 </body>
 </html>
 

@@ -26,11 +26,25 @@
     ; with parameterize, this list does not grow too long
     (define variables '())
 
+    ; should also be local
+    (define global-counter -1)
+    (define (gen-global-var)
+      (set! global-counter (+ global-counter 1))
+      (indexed-var "$" global-counter)) 
+
+    (define (indexed-var array-var index)
+      ;
+      ; TODO: Use at more places.
+      ;
+      (string-append array-var "["
+        (number->string index) "]"))
+        
     (define (assemble-program program)
-      (display "importScripts('stdlib.js');")
-      (display "init(new Procedure(function(data){'use strict';")
+      (write-string "'use strict';")
+      (write-string "importScripts('stdlib.js');")
+      (write-string "init(new rapid.Procedure(function(data){var $=[];")
       (assemble program)
-      (display ";}));"))
+      (write-string ";}));"))
 
     (define (assemble expr)
       (cond
@@ -49,18 +63,17 @@
     (define (assemble-variable var)
       (write-string
         (if (eq? var 'exit)
-          "exit"
+          "new rapid.Procedure(exit)"
           (cond
             ((assq var variables) => cdr)
             (else
-              (write-string "var ")
-              (let ((gv (genvar)))
+              (let ((gv (gen-global-var)))
                 (set! variables (cons (cons var gv) variables))
                 gv))))))
               
     (define (assemble-case-lambda clauses)
       (define args-var (genvar))
-      (write-string "new Procedure(function(") ; TODO: We may need the body???
+      (write-string "new rapid.Procedure(function(") ; TODO: We may need the body???
       (write-string args-var)
       (write-string "){")
       (write-string "var n=")
