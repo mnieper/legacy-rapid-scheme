@@ -15,11 +15,25 @@
     ; with parameterize, this list does not grow too long
     (define variables '())
 
+    ; should also be local
+    (define global-counter -1)
+    (define (gen-global-var)
+      (set! global-counter (+ global-counter 1))
+      (indexed-var "$" global-counter)) 
+
+    (define (indexed-var array-var index)
+      ;
+      ; TODO: Use at more places.
+      ;
+      (string-append array-var "["
+        (number->string index) "]"))
+        
     (define (assemble-program program)
-      (display "importScripts('stdlib.js');")
-      (display "init(new rapid.Procedure(function(data){'use strict';")
+      (write-string "'use strict';")
+      (write-string "importScripts('stdlib.js');")
+      (write-string "init(new rapid.Procedure(function(data){var $=[];")
       (assemble program)
-      (display ";}));"))
+      (write-string ";}));"))
 
     (define (assemble expr)
       (cond
@@ -42,8 +56,7 @@
           (cond
             ((assq var variables) => cdr)
             (else
-              (write-string "var ")
-              (let ((gv (genvar)))
+              (let ((gv (gen-global-var)))
                 (set! variables (cons (cons var gv) variables))
                 gv))))))
               
