@@ -100,7 +100,7 @@
       (write-string "(n")
       (if rest
         (write-string ">=")
-        (write-string "="))
+        (write-string "==="))
       (write-string (number->string n))
       (write-string "){")
       (when rest
