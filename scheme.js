@@ -1,37 +1,22 @@
-// rename to rapid namespace
+'use strict';
+var rapid = {};
 
-this.Scheme = (function () {
-  'use strict';
+rapid.Program = function Program(scriptURL) {
+  this._scriptURL = scriptURL;
+};
 
-  function toString() {
-    return '[object Scheme]';
-  }
-  
-  function program(scriptURL) {
-    var worker;
-    
-    // function compile analog?
+rapid.Program.prototype.run = function run() {
+  var worker = new Worker(this._scriptURL);
+  worker.onmessage = this._onmessage.bind(this);
+  worker.onerror = this._onerror.bind(this);
+  worker.postMessage('GO!'); // XXX
+};
 
-    function run() {
-      worker = new Worker(scriptURL);
-      worker.onmessage = function (event) {
-        console.log("Worker sent: ", event.data); /* XXX */
-      };
-      worker.onerror = function (event) {
-        console.log(event);
-      };
-      worker.postMessage('GO!'); /* XXX */ 
-      console.log("Worker started.");
-    };
-    
-    return {
-      run: run
-    }
-  }
-  
-  return Object.create(Object.prototype, {
-      program: { value: program },
-      toString: { value: toString }
-  });
-})();
+rapid.Program.prototype._onmessage = function _onmessage(event) {
+  console.log("Worker sent: ", event.data); // XXX
+};
+
+rapid.Program.prototype._onerror = function _onerror(event) {
+  console.log(event); // TODO
+};
 

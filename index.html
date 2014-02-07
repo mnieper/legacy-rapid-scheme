@@ -6,7 +6,10 @@
   <script src="scheme.js"></script>
 </head>
 <body>
-  <script>Scheme.program('test.js').run();</script>
+  <script>
+    var program = new rapid.Program('test.js');
+    program.run();
+  </script>
 </body>
 </html>
 
