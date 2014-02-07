@@ -3,15 +3,6 @@
   (import (scheme base) (scheme cxr) (scheme write) (rapid base) (rapid srfi 111))
   (begin
   
-    (define-record-type variables-record-type
-      (make-variables-record counter variables)
-      ?variables-record
-      (counter variables-record-counter set-variables-record-counter!)
-      (variables variables-record-variables set-variables-record-variables!))
-  
-    (define variables-record
-      (make-parameter (make-variables-record 0 '())))
-
     (define counter 0)
     (define (genvar)
       (set! counter (+ counter 1))
@@ -21,22 +12,6 @@
     ; TODO Should be local to assemble-program!
     ; As the counter
     (define variables '())
-
-    #;(define (variable var)
-      (if (assq var *ops*)
-        var
-        (string-append "$"
-          (number->string
-            (let ((variables (variables-record-variables (variables-record))))
-              (cond
-                ((assq var variables) => cadr)
-                (else
-                  (let ((variables (variables-record-variables (variables-record)))
-                        (counter (variables-record-counter (variables-record))))
-                    (set-variables-record-counter! (variables-record) (+ counter 1))
-                    (set-variables-record-variables! (variables-record) `((,var ,counter) . ,variables))
-                    counter))))))))
-     
 
     (define (assemble-program program)
       (display "importScripts('stdlib.js');")
