@@ -16,6 +16,9 @@
     program.onoutput = function (output) {
       document.querySelector('#output').appendChild(document.createTextNode(output));
     }; 
+    program.onexit = function (data) {
+      document.querySelector('#output').appendChild(document.createTextNode('\nExit code: ' + data.code));
+    };
     program.run();
   </script>
 </body>

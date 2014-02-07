@@ -1,10 +1,15 @@
 'use strict';
 var rapid = {};
 
+rapid.empty = function empty() {
+};
+
 rapid.Program = function Program(scriptURL) {
   this._scriptURL = scriptURL;
   this._worker = null;
-  this.onoutput = this._onoutput.bind(this);
+  this.onoutput = rapid.empty;
+  this.onerror = rapid.empty;
+  this.onexit = rapid.empty;
 };
 
 rapid.Program.prototype.run = function run() {
@@ -22,6 +27,7 @@ rapid.Program.prototype._onmessage = function _onmessage(event) {
     break;
   case 'exit': 
     this._worker.terminate();
+    this.onexit({code: 0});
     break;
   default:
     console.log("Unknown command", event.data); // XXX
@@ -29,8 +35,11 @@ rapid.Program.prototype._onmessage = function _onmessage(event) {
 };
 
 rapid.Program.prototype._onerror = function _onerror(event) {
-  console.log(event); // TODO
+  this.onexit({
+    code: 'error',
+    message: event.message,
+    filename: event.filename,
+    lineno: event.lineno
+  }); 
 };
 
-rapid.Program.prototype._onoutput = function _onoutput(output) {
-};
