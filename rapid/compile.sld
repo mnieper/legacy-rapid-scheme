@@ -2,18 +2,18 @@
   (export compile)
   (import
     (scheme base)
+    (scheme write) ; XXX
     (rapid base)
     (rapid link)
     (rapid cps)
     (rapid optimize)
     (rapid assemble))
   (begin
-  
-  
+    
     (define (compile source)
       (assemble-program
+        ;(display ; XXX
         (optimize
           (cps
-            (link
-              source)
+            `(case-lambda (() . ,(append source '(0))))
             (lambda (a) `(,a exit))))))))

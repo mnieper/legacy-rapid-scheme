@@ -3,3 +3,4 @@
 - What is a "named" exactly? (Would call it as an expression; either (type of) syntax or location.) Define it as a procedure or a record type. 
 - Check whether it is possible for an identifier to be defined and later modified by an import set. And check whether rapid allows this.
 - At the moment, everything that is a symbol? is regarded as an identifier (including _). We may change this.
+

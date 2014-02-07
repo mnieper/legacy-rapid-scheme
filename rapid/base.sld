@@ -1,5 +1,5 @@
 (define-library (rapid base)
-  (export uncons make-gensym atom? variable? if? lambda? set!? op define? tagged-list? *ops* tagged-pair?)
+  (export uncons make-gensym atom? variable? case-lambda? if? lambda? set!? op define? tagged-list? *ops* tagged-pair?)
   (import (scheme base) (scheme case-lambda))
   (begin
 
@@ -40,6 +40,9 @@
       
     (define (lambda? expr)
       (tagged-list? expr 'lambda))
+    
+    (define (case-lambda? expr)
+      (tagged-list? expr 'case-lambda))
     
     (define (set!? expr)
       (tagged-list? expr 'set!))

@@ -1,8 +1,18 @@
 'use strict';
+var rapid = {}; // TODO: Always use this namespace
 
-// TODO: Use rapid namespace
+rapid.error = function error(message /* irritants missing */) {
+  postMessage(message.toJSString());
+  throw exit;
+};
 
-function inherits(childCtor, parentCtor) {
+rapid.callError = function callError() {
+  postMessage('procedure called with wrong number of arguments');
+    // Add type field to message
+  throw exit; // TODO Add exit code
+};
+
+rapid.inherits = function inherits(childCtor, parentCtor) {
   return Object.defineProperties(childCtor, {
     prototype: {
       value: Object.create(parentCtor, {
@@ -12,37 +22,36 @@ function inherits(childCtor, parentCtor) {
       })
     }
   });
-}
+};
 
 function SchemeObject() {
   
 };
 
+rapid.String = function (string) {
+  SchemeObject.call(this);
+  this._string = string;
+}
+rapid.inherits(rapid.String, SchemeObject);
+
+rapid.String.prototype.toJSString = function toJSString() {
+  return this._string;
+}
+
 // TODO: schreibe exit als Prozedur wie hier um (oder im Linker)
 
 function Procedure(code) {
   SchemeObject.call(this);
-  // TODO: In general we want to code case-lambdas here, so the constructor should
-  // receive a number of cases, not just one.
-  //
-  // In particular, throw an error if there is no match.
-  //
-  // Or: we do this in code
   this.code = code;
 }
-inherits(Procedure, SchemeObject);
-
-Procedure.prototype.call = function(args) {
-  // TODO: Call function directly; use args array, do not unpack; maybe just pop
-  return this.code.apply(undefined, args);
-}
+rapid.inherits(Procedure, SchemeObject);
 
 function trampoline(thunk) {
   var procedure;
   while (1) {
     procedure = thunk.pop();
-    thunk = procedure.code.apply(undefined, thunk);
-  };
+    thunk = procedure.code(thunk);
+  }
 }
 
 function display(obj) {
@@ -69,7 +78,7 @@ function equality(obj1, obj2) {
 }
 
 // TODO: When used as a value, make it into a procedure not an operator.
-var exit = new Procedure(function exit() {
+var exit = new Procedure(function() {
   'use strict';
   postMessage('EXIT'); // FIXME
   throw exit;
