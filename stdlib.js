@@ -52,8 +52,8 @@ rapid.trampoline = function trampoline(thunk) {
 };
 
 function display(obj) {
-  'use strict';
-  postMessage(obj.toString());
+  // This is more string-write
+  postMessage({cmd: 'output', msg: obj.toString()});
 }
 
 function sum(obj1, obj2) {
@@ -71,8 +71,9 @@ function equality(obj1, obj2) {
 }
 
 // TODO: When used as a value, make it into a procedure not an operator.
-function exit() {
-  postMessage('EXIT'); // FIXME
+function exit(code) {
+  // TODO: turn code into a Javascript object
+  postMessage({cmd: 'exit', msg: code});
   throw exit;
 }
 
