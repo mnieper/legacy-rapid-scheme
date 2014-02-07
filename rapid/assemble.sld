@@ -81,8 +81,6 @@
       (let loop ((clauses clauses) (stmt "if"))
         (unless (null? clauses)
           (let ((clause (car clauses)))
-            ;(display "### ") (display clause) (display " ***") (newline)
-      
             (write-string stmt)
             (assemble-case-lambda-clause (car clause) (cdr clause) args-var)
             (loop (cdr clauses) "else if"))))
