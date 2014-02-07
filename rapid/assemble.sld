@@ -122,9 +122,9 @@
       (assemble expr))
 
     (define (assemble-if pred con alt)
-      (display "if((") ; XXX The parentheses may be superfluous.
+      (display "if(") 
       (assemble pred)
-      (display ")!==false){")
+      (display "!==false){")
       (assemble con)
       (display "}else{")
       (assemble alt)
