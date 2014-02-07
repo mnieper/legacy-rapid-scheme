@@ -8,6 +8,7 @@
         ((atom? expr) (cps-atom expr k))
         ((case-lambda? expr) (cps-case-lambda (cdr expr) k))
         ((set!? expr) (cps-op 'set! (cdr expr) k))
+        ;((define? expr) (cps-op 'define (cdr expr) k))
         ((if? expr) (cps-if (cadr expr) (caddr expr) (cadddr expr) k))
         ((op expr) (cps-op (car expr) (cdr expr) k))
         ((pair? expr) (cps-application expr k))

@@ -29,5 +29,6 @@
         ;(display ; XXX
         (optimize
           (cps
-            (link source)
+            `(case-lambda (() . ,(append source '(0))))
+            ;(link source)
             (lambda (a) `(,a exit))))))))

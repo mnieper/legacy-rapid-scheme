@@ -60,10 +60,16 @@
 
     (define (assemble-variable var)
       (write-string
-        (cond
-          ((assq var variables) => cdr)
-          (else var))))
-
+        (if (eq? var 'exit)
+          "exit"
+          (cond
+            ((assq var variables) => cdr)
+            (else
+              (write-string "var ")
+              (let ((gv (genvar)))
+                (set! variables (cons (cons var gv) variables))
+                gv))))))
+              
     (define (assemble-case-lambda clauses)
       (define args-var (genvar))
       (write-string "new Procedure(function(") ; TODO: We may need the body???
@@ -80,7 +86,7 @@
             (write-string stmt)
             (assemble-case-lambda-clause (car clause) (cdr clause) args-var)
             (loop (cdr clauses) "else if"))))
-      (write-string "else{throw'WRONG # OF ARGS';}")
+      (write-string "else{rapid.callError();}")
       (write-string "})"))
       
     (define (assemble-case-lambda-clause formals body args-var)
@@ -114,7 +120,7 @@
       (assemble var)
       (display "=")
       (assemble expr))
-    
+
     (define (assemble-if pred con alt)
       (display "if((") ; XXX The parentheses may be superfluous.
       (assemble pred)
@@ -131,16 +137,11 @@
       (display ")"))
     
     (define (assemble-application proc args)
-;      (cond
- ;       ((lambda? proc)
-  ;        (assemble-lambda-application (cadr proc) (cddr proc) args))        
-  ;      (else
-          ; XXX Shall we handle procedures with no arguments in a special way?
           (write-string "return [")
           (assemble-args args)
           (write-string ",")
           (assemble proc)
-          (write-string "]"));))
+          (write-string "]"))
 
     ; let this work with new case-lambda
     (define (assemble-lambda-application formals body operands)
