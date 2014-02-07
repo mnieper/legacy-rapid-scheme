@@ -17,7 +17,7 @@
 
     (define (assemble-program program)
       (display "importScripts('stdlib.js');")
-      (display "init(new Procedure(function(data){'use strict';")
+      (display "init(new rapid.Procedure(function(data){'use strict';")
       (assemble program)
       (display ";}));"))
 
@@ -38,7 +38,7 @@
     (define (assemble-variable var)
       (write-string
         (if (eq? var 'exit)
-          "exit"
+          "new rapid.Procedure(exit)"
           (cond
             ((assq var variables) => cdr)
             (else
@@ -49,7 +49,7 @@
               
     (define (assemble-case-lambda clauses)
       (define args-var (genvar))
-      (write-string "new Procedure(function(") ; TODO: We may need the body???
+      (write-string "new rapid.Procedure(function(") ; TODO: We may need the body???
       (write-string args-var)
       (write-string "){")
       (write-string "var n=")

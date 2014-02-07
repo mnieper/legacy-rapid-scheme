@@ -1,8 +1,8 @@
 'use strict';
-var rapid = {}; // TODO: Always use this namespace
+var rapid = {};
 
 rapid.error = function error(message /* irritants missing */) {
-  postMessage(message.toJSString());
+  postMessage(message.toString());
   throw exit;
 };
 
@@ -24,35 +24,32 @@ rapid.inherits = function inherits(childCtor, parentCtor) {
   });
 };
 
-function SchemeObject() {
-  
+rapid.SchemeObject = function SchemeObject() {
 };
 
-rapid.String = function (string) {
-  SchemeObject.call(this);
+rapid.SchemeString = function (string) {
+  rapid.SchemeObject.call(this);
   this._string = string;
-}
-rapid.inherits(rapid.String, SchemeObject);
+};
+rapid.inherits(rapid.SchemeString, rapid.SchemeObject);
 
-rapid.String.prototype.toJSString = function toJSString() {
+rapid.SchemeString.prototype.toString = function toString() {
   return this._string;
-}
+};
 
-// TODO: schreibe exit als Prozedur wie hier um (oder im Linker)
-
-function Procedure(code) {
-  SchemeObject.call(this);
+rapid.Procedure = function Procedure(code) {
+  rapid.SchemeObject.call(this);
   this.code = code;
-}
-rapid.inherits(Procedure, SchemeObject);
+};
+rapid.inherits(rapid.Procedure, rapid.SchemeObject);
 
-function trampoline(thunk) {
+rapid.trampoline = function trampoline(thunk) {
   var procedure;
   while (1) {
     procedure = thunk.pop();
     thunk = procedure.code(thunk);
   }
-}
+};
 
 function display(obj) {
   'use strict';
@@ -74,20 +71,19 @@ function equality(obj1, obj2) {
 }
 
 // TODO: When used as a value, make it into a procedure not an operator.
-var exit = new Procedure(function() {
-  'use strict';
+function exit() {
   postMessage('EXIT'); // FIXME
   throw exit;
-});
+}
 
 function init(continuation) {
   self.onmessage = function (event) {
     'use strict';
     try {
-      trampoline([event.data, continuation]);
+      rapid.trampoline([event.data, continuation]);
     } catch (c) {
       continuation = c;
     };
   };
-};
+}
 
