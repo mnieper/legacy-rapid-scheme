@@ -11,6 +11,8 @@
     
     ; TODO Should be local to assemble-program!
     ; As the counter
+
+    ; with parameterize, this list does not grow too long
     (define variables '())
 
     (define (assemble-program program)
@@ -85,7 +87,7 @@
       (when rest
         (write-string "var ")
         (write-string rest)
-        (write-string "=new ArrayList(args,n)"))
+        (write-string "=new ArrayList(args,n)")) ; FIXME args -> args-var
       (assemble-body body)
       (write-string "}"))
     
@@ -110,29 +112,50 @@
       (display ")"))
     
     (define (assemble-application proc args)
+      (cond
+        ((case-lambda? proc)
+          (assemble-case-lambda-application (cdr proc) args))
+        (else
           (write-string "return [")
           (assemble-args args)
           (write-string ",")
           (assemble proc)
-          (write-string "]"))
+          (write-string "]"))))
 
-    ; let this work with new case-lambda
-    (define (assemble-lambda-application formals body operands)
-      (let loop ((formals formals) (operands operands))
-        (unless (null? formals)
-          (display "var ")
-          (cond
-            ((null? operands)
-              (assemble (car formals))
-              (display ";")
-              (loop (cdr formals) '()))
-            (else
-              (assemble (car formals))
-              (display "=")
-              (assemble (car operands))
-              (display ";")
-              (loop (cdr formals) (cdr operands))))))
-      (assemble-body body))
+    (define (assemble-case-lambda-application clauses args)
+      (define n (length args))
+      (define args-var (genvar))
+      (write-string "var ")
+      (write-string args-var)
+      (write-string "=[")
+      (assemble-args args)
+      (write-string "];")
+      (let loop ((clauses clauses))
+        (when (null? clauses)
+          (error "wrong number of arguments in procedure call")) ; XXX raise-compile-error
+        (let ((clause (car clauses)))
+          (let loop2 ((formals (car clause)) (i 0))
+            (cond
+              ((symbol? formals)
+                (let ((rest (genvar)))
+                  (write-string "var ")
+                  (write-string rest)
+                  (write-string "=new ArrayList(")
+                  (write-string args-var)
+                  (write-string ",")
+                  (write-string (number->string i))
+                  (write-string ");")
+                  (set! variables (cons (cons formals rest) variables))
+                  (assemble-body (cdr clause))))
+              ((pair? formals)
+                (cond
+                  ((< i n)
+                    (set! variables (cons (cons (car formals) (string-append args-var "[" (number->string i) "]")) variables))
+                    (loop2 (cdr formals) (+ i 1)))
+                  (else
+                    (loop (cdr clauses)))))
+              ((null? formals)
+                (assemble-body (cdr clause))))))))
 
     (define (assemble-body body)
       (unless (null? body)
