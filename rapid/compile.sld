@@ -1,5 +1,5 @@
 (define-library (rapid compile)
-  (export compile) ; remove link here
+  (export compile)
   (import
     (scheme base)
     (scheme cxr)
@@ -9,23 +9,9 @@
     (rapid optimize)
     (rapid assemble))
   (begin
-  
-    (define (link source)
-      (let-values
-        (((globals body)
-          (let loop ((source source))
-            (if (null? source)
-              (values '() '(0))
-              (let-values (((globals body) (loop (cdr source)))
-                           ((expr) (car source)))
-                (if (define? expr)
-                  (let ((var (cadr expr)))
-                    (values `(,var . ,globals) `((set! ,var ,(caddr expr)) . ,body)))
-                  (values globals `(,expr . ,body))))))))
-        `(case-lambda ((,@globals) . ,body))))
-  
+    
     (define mygensym (make-gensym))
-  
+
     (define (compile source)
       (define v (mygensym "v")) ; XXX: one counter and environment for all    
       (assemble-program
@@ -33,7 +19,6 @@
         (optimize
           (cps
             `(case-lambda (() . ,(append source '(#t))))
-            ;(link source)
             (lambda (a) `(,a 
                 (case-lambda ((,v) (exit ,v)))))))))))
 

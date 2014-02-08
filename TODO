@@ -4,7 +4,3 @@
 - Write tests of all implemented features.
 - At the moment, everything that is a symbol? is regarded as an identifier (including _). We may change this.
 
-- Input, output and error window constructors in rapid.js
-- perf in running window
-
-- Next step: rewrite exit and exit handling
