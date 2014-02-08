@@ -24,8 +24,10 @@
                   (values globals `(,expr . ,body))))))))
         `(case-lambda ((,@globals) . ,body))))
   
+    (define mygensym (make-gensym))
+  
     (define (compile source)
-      (define v (gensym))    
+      (define v (mygensym "v")) ; XXX: one counter and environment for all    
       (assemble-program
         ;(display ; XXX
         (optimize
