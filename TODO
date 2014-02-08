@@ -1,2 +1,7 @@
 -> box & make-parameter & counter & gensym
+- Better error reporting (e.g. by attaching information to the generated symbols or by storing this information in assoc lists that are maintained throughout the stages). This information is a linked list giving the position inside the source code.
 
+- Input, output and error window constructors in rapid.js
+- perf in running window
+
+- Next step: rewrite exit and exit handling

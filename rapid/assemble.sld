@@ -33,7 +33,7 @@
       (write-string "importScripts('stdlib.js');")
       (write-string "init(new rapid.Procedure(function(data){var $=[];")
       (assemble program)
-      (write-string ";}));"))
+      (write-string "}));"))
 
     (define (assemble expr)
       (cond
@@ -138,7 +138,7 @@
           (assemble-args args)
           (write-string ",")
           (assemble proc)
-          (write-string "]"))))
+          (write-string "];"))))
 
     (define (assemble-case-lambda-application clauses args)
       (define n (length args))
@@ -178,7 +178,8 @@
     (define (assemble-body body)
       (unless (null? body)
         (assemble (car body))
-        (display ";")
+        (unless (null? (cdr body))
+          (write-string ";"))
         (assemble-body (cdr body))))
               
     (define (assemble-args args)

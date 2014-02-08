@@ -31,4 +31,4 @@
           (cps
             `(case-lambda (() . ,(append source '(#t))))
             ;(link source)
-            (lambda (a) `(,a exit))))))))
+            (lambda (a) `(,a exit))))))))  ; or (case-lambda ((c) (exit c)))
