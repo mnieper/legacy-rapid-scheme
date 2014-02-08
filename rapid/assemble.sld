@@ -1,18 +1,7 @@
 (define-library (rapid assemble)
   (export assemble-program)
-  (import (scheme base) (scheme cxr) (scheme write) (rapid base) (rapid box))
+  (import (scheme base) (scheme cxr) (scheme write) (rapid base))
   (begin
-
-    ; TODO Evaluate whether srfi 111 boxes are really necessary, as are
-    ; parameter objects and record types.
-    ;
-    ; TODO Eliminate (scheme write) amongst the libraries being imported and
-    ; depend on write-string.
-  
-    ; TODO: Write everything into a string first before outputting everything
-    ; (in compiler.scm).
-    
-    ; TODO: Assemble procedures whose formals are more than a list (may need to change cps as well)
   
     (define counter 0)
     (define (genvar)
@@ -44,11 +33,12 @@
       (write-string "importScripts('stdlib.js');")
       (write-string "init(new rapid.Procedure(function(data){var $=[];")
       (assemble program)
-      (write-string ";}));"))
+      (write-string "}));"))
 
     (define (assemble expr)
       (cond
         ((number? expr) (assemble-number expr))
+        ((boolean? expr) (assemble-boolean expr))
         ((variable? expr) (assemble-variable expr))
         ((case-lambda? expr) (assemble-case-lambda (cdr expr)))
         ((set!? expr) (assemble-set! (cadr expr) (caddr expr)))
@@ -60,16 +50,18 @@
     (define (assemble-number expr)
       (display expr)) ; FIXME
 
+    (define (assemble-boolean expr)
+      (write-string
+        (if expr "rapid.SchemeBoolean.true" "rapid.SchemeBoolean.false")))
+
     (define (assemble-variable var)
       (write-string
-        (if (eq? var 'exit)
-          "new rapid.Procedure(exit)"
-          (cond
-            ((assq var variables) => cdr)
-            (else
-              (let ((gv (gen-global-var)))
-                (set! variables (cons (cons var gv) variables))
-                gv))))))
+        (cond
+          ((assq var variables) => cdr)
+          (else
+            (let ((gv (gen-global-var)))
+              (set! variables (cons (cons var gv) variables))
+              gv)))))
               
     (define (assemble-case-lambda clauses)
       (define args-var (genvar))
@@ -123,13 +115,14 @@
     (define (assemble-if pred con alt)
       (display "if(") 
       (assemble pred)
-      (display "!==false){")
+      (display ".toBoolean()){")
       (assemble con)
       (display "}else{")
       (assemble alt)
       (display "}"))
     
     (define (assemble-op op args)
+      (write-string "rapid.")
       (display op)
       (display "(")
       (assemble-args args)
@@ -144,7 +137,7 @@
           (assemble-args args)
           (write-string ",")
           (assemble proc)
-          (write-string "]"))))
+          (write-string "];"))))
 
     (define (assemble-case-lambda-application clauses args)
       (define n (length args))
@@ -184,7 +177,8 @@
     (define (assemble-body body)
       (unless (null? body)
         (assemble (car body))
-        (display ";")
+        (unless (null? (cdr body))
+          (write-string ";"))
         (assemble-body (cdr body))))
               
     (define (assemble-args args)

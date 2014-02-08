@@ -15,8 +15,8 @@
     ; In that case, we should rename library to program (storing the whole environment).
     ; In the beginning of each library clear the globals... (maybe as in with-new-frame).
     (define (expand sources)
+      (define gensym (make-gensym))
       (with-context ("while expanding")
-        (define gensym (make-gensym))
         (sequence->body
           (let-values (((code export-sets)
                   (standard-libraries-expand gensym)))

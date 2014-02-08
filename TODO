@@ -1,6 +1,10 @@
+-> box & make-parameter & counter & gensym
+- Better error reporting (e.g. by attaching information to the generated symbols or by storing this information in assoc lists that are maintained throughout the stages). This information is a linked list giving the position inside the source code.
 - Continue to implement (begin ...) in libraries.
 - Write tests of all implemented features.
-- What is a "named" exactly? (Would call it as an expression; either (type of) syntax or location.) Define it as a procedure or a record type. 
-- Check whether it is possible for an identifier to be defined and later modified by an import set. And check whether rapid allows this.
 - At the moment, everything that is a symbol? is regarded as an identifier (including _). We may change this.
 
+- Input, output and error window constructors in rapid.js
+- perf in running window
+
+- Next step: rewrite exit and exit handling

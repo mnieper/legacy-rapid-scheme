@@ -24,9 +24,9 @@
         (cps-atom expr (lambda (a) `(,k ,a)))
         (k
           (if (eq? expr 'call/cc)
-            (let ((cc (gensym "call/cc-cc-")) (proc (gensym "call/cc-proc-"))
-                  (cc1 (gensym "call/cc-cc1-"))
-                  (value (gensym "call/cc-value-")))
+            (let ((cc (gensym)) (proc (gensym))
+                  (cc1 (gensym))
+                  (value (gensym)))
               `(case-lambda ((,cc ,proc) (,proc ,cc (case-lambda ((,cc1 ,value) (,cc ,value)))))))
             expr))))
 

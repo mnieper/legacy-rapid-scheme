@@ -3,23 +3,40 @@
 <head>
   <meta charset="utf-8">
   <title>Rapid Scheme</title>
-  <script src="rapid.js"></script>
+  <link rel="stylesheet" href="css/rapid.css">
+  <link rel="stylesheet" href="css/base.css">
+  <script src="js/rapid.js"></script>
 </head>
 <body>
-  <h1>Rapid Scheme</h1>
-  <section>
-    <h2>Output</h2>
-    <pre id="output"></pre>
-  </section>
+  <header id="header">
+    <h1>Rapid Scheme</h1>
+  </header>
+  <main>
+    <div id="buttons">
+      <button id="run">Run test program</button>
+    </div>
+    <div id="console"></div>
+    <div id="status">&nbsp;</div>
+  </main>
+  <footer id="footer">
+    Copyright © 2014 Marc Nieper-Wißkirchen    
+  </footer>
   <script>
-    var program = new rapid.Program('test.js');
-    program.onoutput = function (output) {
-      document.querySelector('#output').appendChild(document.createTextNode(output));
-    }; 
-    program.onexit = function (data) {
-      document.querySelector('#output').appendChild(document.createTextNode('\nExit code: ' + data.code));
-    };
-    program.run();
+    var console = new rapid.Console(document.querySelector('#console'));
+    function run() {      
+      var program = new rapid.ConsoleProgram('js/test.js', console);
+      var time;
+      program.onexit = function (data) {
+        time = performance.now() - time;
+        document.querySelector('#status').textContent =
+          (data.code ? 'Program exited normally.' : 'Program exited abnormally.') + 
+          ' Time taken: ' + Math.round(time) + ' milliseconds.';
+      };
+      document.querySelector('#status').textContent = 'Program running…';
+      time = performance.now();
+      program.run();      
+     }
+     document.querySelector('#run').onclick = run;
   </script>
 </body>
 </html>
