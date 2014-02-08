@@ -1,6 +1,6 @@
 (define-library (rapid assemble)
   (export assemble-program)
-  (import (scheme base) (scheme cxr) (scheme write) (rapid base) (rapid srfi 111))
+  (import (scheme base) (scheme cxr) (scheme write) (rapid base))
   (begin
   
     (define counter 0)
@@ -56,14 +56,12 @@
 
     (define (assemble-variable var)
       (write-string
-        (if (eq? var 'exitXXX)
-          "new rapid.Procedure(rapid.exit)"
-          (cond
-            ((assq var variables) => cdr)
-            (else
-              (let ((gv (gen-global-var)))
-                (set! variables (cons (cons var gv) variables))
-                gv))))))
+        (cond
+          ((assq var variables) => cdr)
+          (else
+            (let ((gv (gen-global-var)))
+              (set! variables (cons (cons var gv) variables))
+              gv)))))
               
     (define (assemble-case-lambda clauses)
       (define args-var (genvar))
