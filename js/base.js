@@ -4,7 +4,7 @@ var rapid = {};
 
 rapid.inherits = function inherits(childCtor, parentCtor) {
   return Object.defineProperties(childCtor, {
-    prototype: { value: Object.create(parentCtor, {
+    prototype: { value: Object.create(parentCtor.prototype, {
       constructor: { value: childCtor }
     })}
   });

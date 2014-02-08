@@ -1,0 +1,11 @@
+pre.rapid-output {
+  border: 1px solid #ccc;
+  padding: 4px;
+  min-height: 10em;
+  white-space: pre;
+}
+
+span.rapid-error {
+  color: red;
+  white-space: inherit;
+}
