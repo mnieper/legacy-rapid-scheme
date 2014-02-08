@@ -23,12 +23,12 @@
                     (values `(,var . ,globals) `((set! ,var ,(caddr expr)) . ,body)))
                   (values globals `(,expr . ,body))))))))
         `(case-lambda ((,@globals) . ,body))))
-  
+
     (define (compile source)
       (assemble-program
         ;(display ; XXX
         (optimize
           (cps
-            `(case-lambda (() . ,(append source '(0))))
+            `(case-lambda (() . ,(append source '(#t))))
             ;(link source)
             (lambda (a) `(,a exit))))))))

@@ -4,6 +4,14 @@
   <meta charset="utf-8">
   <title>Rapid Scheme</title>
   <script src="rapid.js"></script>
+  <style>
+    .error {
+      background-color: yellow;
+    }
+    .ok {
+      background-color: lightgreen;
+     }
+  </style>
 </head>
 <body>
   <h1>Rapid Scheme</h1>
@@ -11,13 +19,21 @@
     <h2>Output</h2>
     <pre id="output"></pre>
   </section>
+  <section>
+    <h2>Error</h2>
+    <pre id="error"></pre>
+  </section>
   <script>
     var program = new rapid.Program('test.js');
     program.onoutput = function (output) {
       document.querySelector('#output').appendChild(document.createTextNode(output));
     }; 
+    program.onerror = function (error) {
+      document.querySelector('#error').appendChild(document.createTextNode(error));
+    };
     program.onexit = function (data) {
-      document.querySelector('#output').appendChild(document.createTextNode('\nExit code: ' + data.code));
+      var cls = data.code ? 'ok' : 'error';
+      document.querySelector('#output').classList.add(cls);
     };
     program.run();
   </script>

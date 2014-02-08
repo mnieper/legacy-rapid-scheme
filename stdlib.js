@@ -1,31 +1,49 @@
+/* TODO
+* Add a number of constants, e.g.
+- rapid.exitProcedure
+- rapid.schemeBoolean.true
+- rapid.schemeBoolean.false
+*/
+
 'use strict';
 var rapid = {};
 
 rapid.error = function error(message /* irritants missing */) {
-  postMessage(message.toString());
-  throw exit;
+  postMessage({cmd: 'error', msg: message.toString()});
+  rapid.exit(rapid.SchemeBoolean.false);
 };
 
 rapid.callError = function callError() {
-  postMessage('procedure called with wrong number of arguments');
-    // Add type field to message
-  throw exit; // TODO Add exit code
+  postMessage({cmd: 'error', msg: 'procedure called with wrong number of arguments'});
+  rapid.exit(rapid.SchemeBoolean.false);
 };
 
 rapid.inherits = function inherits(childCtor, parentCtor) {
   return Object.defineProperties(childCtor, {
-    prototype: {
-      value: Object.create(parentCtor, {
-        constructor: {
-          value: childCtor
-        }
-      })
-    }
+    prototype: { value: Object.create(parentCtor, {
+      constructor: { value: childCtor }
+    })}
   });
 };
 
 rapid.SchemeObject = function SchemeObject() {
 };
+
+rapid.SchemeObject.prototype.toBoolean = function toBoolean() {
+  return true;
+};
+
+rapid.SchemeBoolean = function SchemeBoolean(boolean) {
+  this._boolean = boolean;
+};
+rapid.inherits(rapid.SchemeBoolean, rapid.SchemeObject);
+
+rapid.SchemeBoolean.prototype.toBoolean = function toBoolean() {
+  return this._boolean;
+};
+
+rapid.SchemeBoolean.true = new rapid.SchemeBoolean(true);
+rapid.SchemeBoolean.false = new rapid.SchemeBoolean(false);
 
 rapid.SchemeString = function (string) {
   rapid.SchemeObject.call(this);
@@ -43,14 +61,6 @@ rapid.Procedure = function Procedure(code) {
 };
 rapid.inherits(rapid.Procedure, rapid.SchemeObject);
 
-rapid.trampoline = function trampoline(thunk) {
-  var procedure;
-  while (1) {
-    procedure = thunk.pop();
-    thunk = procedure.code(thunk);
-  }
-};
-
 function display(obj) {
   // This is more string-write
   postMessage({cmd: 'output', msg: obj.toString()});
@@ -67,15 +77,24 @@ function difference(obj1, obj2) {
 }
 
 function equality(obj1, obj2) {
-  return obj1 === obj2; // TODO
+  return new rapid.SchemeBoolean(obj1 === obj2); // TODO
 }
 
-// TODO: When used as a value, make it into a procedure not an operator.
-function exit(code) {
-  // TODO: turn code into a Javascript object
-  postMessage({cmd: 'exit', msg: code});
-  throw exit;
-}
+/* This should be wrapped into a compiled lambda expression! */
+/* Maybe in the linker */
+rapid.exit = function exit(args) {
+  var code = args.length > 0 ? args[0] : new rapid.SchemeBoolean(true);
+  postMessage({cmd: 'exit', msg: code.toBoolean()});
+  throw new rapid.Procedure(rapid.exit);
+};
+
+rapid.trampoline = function trampoline(thunk) {
+  var procedure;
+  while (1) {
+    procedure = thunk.pop();
+    thunk = procedure.code(thunk);
+  }
+};
 
 function init(continuation) {
   self.onmessage = function (event) {
@@ -83,6 +102,11 @@ function init(continuation) {
     try {
       rapid.trampoline([event.data, continuation]);
     } catch (c) {
+      if (c instanceof Error) {
+        postMessage({cmd: 'error', msg: c.message});
+        postMessage({cmd: 'exit', msg: false});
+        continuation = new rapid.Procedure(rapid.exit);
+      }
       continuation = c;
     };
   };

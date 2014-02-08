@@ -25,12 +25,16 @@ rapid.Program.prototype._onmessage = function _onmessage(event) {
   case 'output':
     this.onoutput(data.msg);
     break;
+  case 'error':
+    this.onerror(data.msg);
+    break;
   case 'exit': 
     this._worker.terminate();
-    this.onexit({code: 0});
+    this.onexit({code: data.msg});
     break;
   default:
-    console.log("Unknown command", event.data); // XXX
+    this._worker.terminate();
+    this.onexit({code: 'error', command: data.cmd});
   }
 };
 

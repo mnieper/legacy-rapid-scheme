@@ -38,6 +38,7 @@
     (define (assemble expr)
       (cond
         ((number? expr) (assemble-number expr))
+        ((boolean? expr) (assemble-boolean expr))
         ((variable? expr) (assemble-variable expr))
         ((case-lambda? expr) (assemble-case-lambda (cdr expr)))
         ((set!? expr) (assemble-set! (cadr expr) (caddr expr)))
@@ -49,10 +50,14 @@
     (define (assemble-number expr)
       (display expr)) ; FIXME
 
+    (define (assemble-boolean expr)
+      (write-string
+        (if expr "rapid.SchemeBoolean.true" "rapid.SchemeBoolean.false")))
+
     (define (assemble-variable var)
       (write-string
         (if (eq? var 'exit)
-          "new rapid.Procedure(exit)"
+          "new rapid.Procedure(rapid.exit)"
           (cond
             ((assq var variables) => cdr)
             (else
@@ -112,7 +117,7 @@
     (define (assemble-if pred con alt)
       (display "if(") 
       (assemble pred)
-      (display "!==false){")
+      (display ".toBoolean()){")
       (assemble con)
       (display "}else{")
       (assemble alt)
