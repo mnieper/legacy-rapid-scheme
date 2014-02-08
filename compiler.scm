@@ -4,7 +4,5 @@
   (rapid load)
   (rapid compile))
 
-(write-string     
-  (compile
-    (read-file)))
+(write-string (compile (read-file)))
 

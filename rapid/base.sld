@@ -3,15 +3,11 @@
   (import (scheme base) (scheme case-lambda))
   (begin
 
-    (define (make-gensym)
+    (define (make-gensym prefix)
       (define counter 0)
-      (letrec ((gensym
-          (case-lambda
-            (() (gensym "g"))
-            ((prefix)
-              (set! counter (+ counter 1))
-              (string->symbol (string-append prefix (number->string counter)))))))
-        gensym))
+      (lambda ()
+        (set! counter (+ counter 1))
+        (string->symbol (string-append prefix (number->string counter)))))
     
     (define (uncons expr)
       ;

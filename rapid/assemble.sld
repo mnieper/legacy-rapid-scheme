@@ -1,34 +1,29 @@
 (define-library (rapid assemble)
   (export assemble)
   (import (scheme base) (scheme cxr) (scheme write) (rapid base))
-  (begin
-  
-    (define counter 0)
-    (define (genvar)
-      (set! counter (+ counter 1))
-      (string-append "$"
-        (number->string counter)))
-    
-    ; TODO Should be local to assemble-program!
-    ; As the counter
-
-    ; with parameterize, this list does not grow too long
-    (define variables '())
-
-    ; should also be local
-    (define global-counter -1)
-    (define (gen-global-var)
-      (set! global-counter (+ global-counter 1))
-      (indexed-var "$" global-counter)) 
-
-    (define (indexed-var array-var index)
-      ;
-      ; TODO: Use at more places.
-      ;
-      (string-append array-var "["
-        (number->string index) "]"))
+  (begin  
 
     (define (assemble program expression)
+
+      (define (genvar)
+        (define gensym (make-gensym "$"))
+        (symbol->string (gensym)))
+
+      ; with parameterize, this list does not grow too long
+      (define variables '())
+
+      ; should also be local
+      (define global-counter -1)
+      (define (gen-global-var)
+        (set! global-counter (+ global-counter 1))
+        (indexed-var "$" global-counter)) 
+
+      (define (indexed-var array-var index)
+        ;
+        ; TODO: Use at more places.
+        ;
+        (string-append array-var "["
+          (number->string index) "]"))
 
       (define (assemble expr)
         (cond

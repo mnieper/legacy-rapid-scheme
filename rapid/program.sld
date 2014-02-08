@@ -6,7 +6,7 @@
   (begin
   
     (define (make-program)
-      (vector (make-gensym)))
+      (vector (make-gensym "g")))
       
     (define (program-gensym program)
       (vector-ref program 0))))

@@ -8,11 +8,6 @@
     (rapid program))
   (begin
 
-    (define gensym (make-gensym)) ; FIXME
-
-    (define gensym
-      (make-parameter #f))
-
     (define (atomic? expr)
       (or (atom? expr) (case-lambda? expr)))
       
@@ -49,7 +44,7 @@
                 (if (null? clauses)
                   '()
                   (let ((clause (car clauses)))
-                    (let ((formals (car clause)) (body (cdr clause)) (c (gensym "c")))
+                    (let ((formals (car clause)) (body (cdr clause)) (c (gensym)))
                       (let-values ((a* (cps-body body c)))
                         `(((,c . ,formals) . ,a*) . ,(loop (cdr clauses))))))))))))
           
