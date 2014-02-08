@@ -90,7 +90,7 @@
                 (define expanded-expression (expand-command-or-definition expression library))
                 (define (redefine!)
                   (define! library (make-binding identifier (make-location symbol)))
-                  `(define ,symbol ,expanded-expression))
+                  `(define ,symbol ,expanded-expression))   ; XXX This has to be set!, see assemble. 
                 (cond
                   ((assq identifier (globals library)) =>
                     (lambda (binding)

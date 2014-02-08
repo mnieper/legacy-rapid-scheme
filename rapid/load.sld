@@ -1,5 +1,6 @@
 (define-library (rapid load)
-  (export load load-file)
+  (export load load-file
+    read-file) ; XXX May not need it
   (import (scheme base) (scheme read) (scheme file) (rapid library)) 
   (begin
 
