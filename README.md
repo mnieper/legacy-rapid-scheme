@@ -11,7 +11,7 @@ Rapid Scheme will be an R7RS compliant Scheme implementation including a compile
 Quick Start
 -----------
 
-At the moment, the implementation is work-in-progress.
+At the moment, the implementation is work-in-progress. A demo can be accessed under http://mnieper.github.io/rapid-scheme/.
 
 Implementation
 --------------
