@@ -25,7 +25,7 @@
     <pre id="error"></pre>
   </section>
   <script>
-    var program = new rapid.Program('test.js');
+    var program = new rapid.Program('js/test.js');
     program.onoutput = function (output) {
       document.querySelector('#output').appendChild(document.createTextNode(output));
     }; 
