@@ -25,10 +25,13 @@
         `(case-lambda ((,@globals) . ,body))))
 
     (define (compile source)
+      (define v (gensym))    
       (assemble-program
         ;(display ; XXX
         (optimize
           (cps
             `(case-lambda (() . ,(append source '(#t))))
             ;(link source)
-            (lambda (a) `(,a exit))))))))  ; or (case-lambda ((c) (exit c)))
+            (lambda (a) `(,a 
+                (case-lambda ((,v) (exit ,v)))))))))))
+

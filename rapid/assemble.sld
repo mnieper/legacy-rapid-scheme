@@ -56,7 +56,7 @@
 
     (define (assemble-variable var)
       (write-string
-        (if (eq? var 'exit)
+        (if (eq? var 'exitXXX)
           "new rapid.Procedure(rapid.exit)"
           (cond
             ((assq var variables) => cdr)
@@ -124,6 +124,7 @@
       (display "}"))
     
     (define (assemble-op op args)
+      (write-string "rapid.")
       (display op)
       (display "(")
       (assemble-args args)

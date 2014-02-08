@@ -25,31 +25,27 @@ rapid.inherits = function inherits(childCtor, parentCtor) {
 
 importScripts("schemeobject.js");
 
-function display(obj) {
+rapid.display = function display(obj) {
   // This is more string-write
   postMessage({cmd: 'output', msg: obj.toString()});
-}
+};
 
-function sum(obj1, obj2) {
-  'use strict';
+rapid.sum = function sum(obj1, obj2) {
   return obj1 + obj2; // TODO
-}
+};
 
-function difference(obj1, obj2) {
-  'use strict';
+rapid.difference = function difference(obj1, obj2) {
   return obj1 - obj2; // TODO, see above
-}
+};
 
-function equality(obj1, obj2) {
+rapid.equality = function equality(obj1, obj2) {
   return new rapid.SchemeBoolean(obj1 === obj2); // TODO
-}
+};
 
-/* This should be wrapped into a compiled lambda expression! */
-/* Maybe in the linker */
-rapid.exit = function exit(args) {
-  var code = args.length > 0 ? args[0] : new rapid.SchemeBoolean(true);
+rapid.exit = function exit(code) {
+  code = code !== undefined ? code : new rapid.SchemeBoolean(true);
   postMessage({cmd: 'exit', msg: code.toBoolean()});
-  throw new rapid.Procedure(rapid.exit);
+  throw undefined;
 };
 
 rapid.trampoline = function trampoline(thunk) {
@@ -69,9 +65,10 @@ function init(continuation) {
       if (c instanceof Error) {
         postMessage({cmd: 'error', msg: c.message});
         postMessage({cmd: 'exit', msg: false});
-        continuation = new rapid.Procedure(rapid.exit);
+        continuation = undefined;
+      } else {
+        continuation = c;
       }
-      continuation = c;
     };
   };
 }
