@@ -58,7 +58,7 @@
     ; XXX check, e.g. whether this should be called "library-globals".
     (define (globals library)
       (vector-ref library 2))
-      
+
     (define (globals-set! library globals)
       (vector-set! library 2 globals))
 

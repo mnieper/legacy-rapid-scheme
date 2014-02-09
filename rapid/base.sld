@@ -20,7 +20,11 @@
         (values '() expr)))
 
     (define (atom? expr)
-      (or (variable? expr) (number? expr) (boolean? expr)))
+      (or
+        (variable? expr)
+        (number? expr)
+        (boolean? expr)
+        (string? expr)))
 
     (define (tagged-list? expr tag)
       (and (pair? expr) (eq? (car expr) tag)))

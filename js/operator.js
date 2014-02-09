@@ -13,6 +13,18 @@ rapid.difference = function difference(obj1, obj2) {
   return obj1 - obj2; // TODO, see above
 };
 
+rapid.product = function product(obj1, obj2) {
+  return obj1 * obj2; // FIXME
+};
+
+rapid.truncateRemainder = function truncateRemainder(obj1, obj2) {
+  return obj1 % obj2; // TODO
+};
+
+rapid.isIncreasing = function isIncreasing(obj1, obj2) {
+  return new rapid.SchemeBoolean(obj1 < obj2);
+};
+
 rapid.equality = function equality(obj1, obj2) {
   return new rapid.SchemeBoolean(obj1 === obj2); // TODO
 };

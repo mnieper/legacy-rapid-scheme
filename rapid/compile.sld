@@ -6,6 +6,7 @@
     (rapid program)
     (rapid cps)
     (rapid link)
+    (scheme write) ; XXX
     (rapid optimize)
     (rapid assemble))
   (begin
@@ -13,6 +14,7 @@
     (define (compile source)
       (let ((program (make-program)))
         (assemble program
+          ;(display ; XX
           (optimize
             (cps program
               (link source))))))))

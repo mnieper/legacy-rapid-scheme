@@ -24,7 +24,7 @@
   <script>
     var console = new rapid.Console(document.querySelector('#console'));
     function run() {      
-      var program = new rapid.ConsoleProgram('js/test.js', console);
+      var program = new rapid.ConsoleProgram('js/example/primes.js', console);
       var time;
       program.onexit = function (data) {
         time = performance.now() - time;

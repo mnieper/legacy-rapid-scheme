@@ -5,8 +5,9 @@
 
     (define (assemble program expression)
 
+      (define gensym (make-gensym "$"))
+
       (define (genvar)
-        (define gensym (make-gensym "$"))
         (symbol->string (gensym)))
 
       ; with parameterize, this list does not grow too long
@@ -29,6 +30,7 @@
         (cond
           ((number? expr) (assemble-number expr))
           ((boolean? expr) (assemble-boolean expr))
+          ((string? expr) (assemble-string expr))
           ((variable? expr) (assemble-variable expr))
           ((case-lambda? expr) (assemble-case-lambda (cdr expr)))
           ((set!? expr) (assemble-set! (cadr expr) (caddr expr)))
@@ -39,6 +41,9 @@
 
       (define (assemble-number expr)
         (display expr)) ; FIXME
+
+      (define (assemble-string expr)
+        (write expr)) ; FIXME
 
       (define (assemble-boolean expr)
         (write-string
@@ -181,7 +186,7 @@
       
       (parameterize ((current-output-port (open-output-string)))
         (write-string "'use strict';")
-        (write-string "importScripts('stdlib.js');")
+        (write-string "importScripts('/js/stdlib.js');")
         (write-string "init(new rapid.Procedure(function(data){var $=[];")
         (assemble expression)
         (write-string "}));")
