@@ -4,7 +4,7 @@
 
 'use strict';
 
-importScripts("/js/base.js", "/js/schemeobject.js", "/js/operator.js");
+importScripts("base.js", "schemeobject.js", "operator.js");
 
 rapid.error = function error(message /* irritants missing */) {
   postMessage({cmd: 'error', msg: message.toString()});

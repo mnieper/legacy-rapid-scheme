@@ -186,7 +186,7 @@
       
       (parameterize ((current-output-port (open-output-string)))
         (write-string "'use strict';")
-        (write-string "importScripts('/js/stdlib.js');")
+        (write-string "importScripts('stdlib.js');")
         (write-string "init(new rapid.Procedure(function(data){var $=[];")
         (assemble expression)
         (write-string "}));")
