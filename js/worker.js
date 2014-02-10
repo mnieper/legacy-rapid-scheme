@@ -2,9 +2,13 @@
 
 var module;
 
-var heap = new ArrayBuffer(65536);
+var heap = new ArrayBuffer(Math.pow(2, 20));
 
 var foreign = {
+
+  getHeapSize: function () {
+    return Math.pow(2, 20);
+  },
 
   writeString: function (p) {
     var h = new Uint8Array(heap, p);

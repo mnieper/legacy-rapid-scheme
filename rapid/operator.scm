@@ -4,7 +4,7 @@
   (- difference)
   (* product)
   (< isIncreasing)
+  (write-string writeString)
   (truncate-remainder truncateRemainder)
-  display
   exit)
 

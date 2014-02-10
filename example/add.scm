@@ -1,3 +1,3 @@
 (write-string
-  (number->string 42))
+  (+ 1 2))
 

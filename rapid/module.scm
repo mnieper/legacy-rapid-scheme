@@ -9,6 +9,7 @@
     var p=0;\
     var exit=foreign.exit;\
     var writeString=foreign.writeString;\
+    var memoryError=foreign.memoryError;\
     var callError=foreign.callError;\
     var applicationError=foreign.applicationError;\
     var h32=new stdlib.Int32Array(heap);\
@@ -18,17 +19,18 @@
       var p=0;\
       p=f;\
       f=(f+s)|0;\
+      if(f>1000000){memoryError();}\
       return p|0;\
     }\
     function procedure(l,f){\
-      l=l|0;
-      f=f|0;
-      var p=0;
-      p=alloc(8);
-      h32[p>>2] = l;
-      h32[(p+4)>>2] = f;
-      p=p|0x02;
-      return p|0;
+      l=l|0;\
+      f=f|0;\
+      var p=0;\
+      p=alloc(8);\
+      h32[p>>2] = l;\
+      h32[(p+4)>>2] = f;\
+      p=p|0x02;\
+      return p|0;\
     }\
     function frame(n){\
       n=n|0;\

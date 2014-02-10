@@ -5,6 +5,8 @@
 
     (define *constant-true* "0x00010001")    
     (define *constant-false* "0x00000001")
+    
+    ; TODO: Write small procedures that assemble snippets
 
     (define (assemble program expression)
     
@@ -46,18 +48,18 @@
         (write-string
           (cond
             ((assq var variables) =>
-              (lambda vec)
-                (let ((d (- frame (vector-ref vec 0))) (i (vector-ref vec 1)))
+              (lambda (c)
+                (let ((d (- (frame) (vector-ref (cdr c) 0))) (i (vector-ref (cdr c) 1)))
                   (let loop ((e "e") (d d))                
                     (if (= d 0)
-                      (string-append "h32[(" e "+8+4*i)>>2]|0")
-                      (loop (string-append "h32[(" e "+4)>>2]|0") (- d 1))))))
+                      (string-append "h32[(" e "+" (number->string (+ 8 (* i 4))) ">>2]|0")
+                      (loop (string-append "h32[(" e "+4)>>2]|0") (- d 1)))))))
             (else
               (error "not implemented yet")
-              (let ((gv (gen-global-var)))
+              #;(let ((gv (gen-global-var)))
                 (set! variables (cons (cons var gv) variables))
                 gv)))))
-                
+       
       (define (assemble-case-lambda clauses)
         (define label next-label)
         (set! next-label (+ next-label 1))    
@@ -79,7 +81,7 @@
             (cons (get-output-string (current-output-port)) body*)))
         (write-string "procedure(")
         (write-string (number->string label))
-        (write-string ")"))
+        (write-string ",e+4)"))
 
       (define (assemble-case-lambda-clause formals body)
         ; FIXME At the moment this does not work with rest arguments because lists are not yet implemented
@@ -91,8 +93,9 @@
               ((null? formals)
                 i)
               ((pair? formals)
-                (set! variables (cons (cons (car formals) (vector (frame) i)) variables))))))
-        (write-string "(n==")
+                (set! variables (cons (cons (car formals) (vector (frame) i)) variables))
+                (loop (cdr formals) (+ i 1))))))
+        (write-string "(a==")
         (write-string (number->string n))
         (write-string "){")
         (assemble-body body)                
@@ -158,7 +161,7 @@
         (write-string "case 0:")
         (assemble expression)
         ; TODO Reverse the order of the following
-        (for-each write-string body))
+        (for-each write-string body*))
       
       (parameterize ((current-output-port (open-output-string)))
         (letrec-syntax (
