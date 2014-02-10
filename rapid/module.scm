@@ -19,25 +19,30 @@
       var p=0;\
       p=f;\
       f=(f+s)|0;\
-      if(f>1000000){memoryError();}\
+      if((f|0)>1000000){memoryError();}\
       return p|0;\
     }\
     function procedure(l,f){\
       l=l|0;\
       f=f|0;\
       var p=0;\
-      p=alloc(8);\
+      p=alloc(8)|0;\
       h32[p>>2] = l;\
       h32[(p+4)>>2] = f;\
       p=p|0x02;\
       return p|0;\
     }\
+    function sum(i1,i2){/*FIXME: sum gets a vector, list*/\
+      i1=i1|0;\
+      i2=i2|0;\
+      return (i1+i2)|0;\    
+    }\
     function frame(n){\
       n=n|0;\
       var p=0;\
-      p=alloc(((n+3)<<4)&0xfffffff8);\
+      p=alloc(((n+3)<<2)&0xfffffff8)|0;\
       h32[p>>2]=n;\
-      return p;\
+      return p|0;\
     }\
     function run(){\
       while(1){\

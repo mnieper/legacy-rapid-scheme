@@ -16,18 +16,23 @@ var foreign = {
     postMessage({cmd: 'output', msg: s});
   },
 
+  memoryError: function () {
+    postMessage({cmd: 'error', msg: 'out of memory\n'});
+    foreign.exit(1);
+  },
+
   applicationError: function () {
-    postMessage({cmd: 'error', msg: 'non-procedure application'});
+    postMessage({cmd: 'error', msg: 'non-procedure application\n'});
     foreign.exit(1);
   },
 
   callError: function () {
-    postMessage({cmd: 'error', msg: 'procedure called with wrong number of arguments'});
+    postMessage({cmd: 'error', msg: 'procedure called with wrong number of arguments\n'});
     foreign.exit(1);
   },
 
   exit: function (code) {
-    postMessage({cmd: 'exit', msg: !code});
+    postMessage({cmd: 'exit', msg: code !== 0x00000001});
     throw undefined;
   }
 
