@@ -1,27 +1,10 @@
-;;
-;; Machine model
-;;
-;; Small values that should fit into a scalar:
-;; boolean? char? null? pair? eof-object? fixnum? double? exact-integer?
-;; cells on the heap are 8 bytes long (for what?)
-;; for environments, etc: reserve 8 bits
-;;
-;; The most complicated type seems to be the pair.
-;; It consists of a scalar value and a pointer
-;;
-;; what is a float? a pointer to two cells
-;;
-;; On the heap, the gc algorithm must know how long an object is.
-;; By default, an object is exactly 64 bits long.
-;; longer objects (strings, vectors, etc. have their first byte marked)
-;;
-;;
-;; 
-
 (define-library (rapid assemble)
   (export assemble)
   (import (scheme base) (scheme cxr) (scheme write) (rapid base))
   (begin  
+
+    (define *constant-true* "0x00010001")    
+    (define *constant-false* "0x00000001")
 
     (define (assemble program expression)
     
@@ -32,26 +15,8 @@
       
       (define next-label 1)
 
-      (define gensym (make-gensym "$"))
-
-      (define (genvar)
-        (symbol->string (gensym)))
-
-      ; with parameterize, this list does not grow too long
+      ; with parameterize, this list won't grow too long
       (define variables '())
-
-      ; should also be local
-      (define global-counter -1)
-      (define (gen-global-var)
-        (set! global-counter (+ global-counter 1))
-        (indexed-var "$" global-counter)) 
-
-      (define (indexed-var array-var index)
-        ;
-        ; TODO: Use at more places.
-        ;
-        (string-append array-var "["
-          (number->string index) "]"))
 
       (define (assemble expr)
         (cond
@@ -72,10 +37,6 @@
       (define (assemble-string expr)
         (write expr)) ; FIXME
 
-      (define *constant-true* "0x0001000a")
-      
-      (define *constant-false* "0x0000000a")
-
       (define (assemble-boolean expr)
         (write-string
           (if expr *constant-true* *constant-false*)))
@@ -89,8 +50,8 @@
                 (let ((d (- frame (vector-ref vec 0))) (i (vector-ref vec 1)))
                   (let loop ((e "e") (d d))                
                     (if (= d 0)
-                      (string-append "heap[(" e "+8+4*i)>>2]|0")
-                      (loop (string-append "heap[(" e "+4)>>2]|0") (- d 1))))))
+                      (string-append "h32[(" e "+8+4*i)>>2]|0")
+                      (loop (string-append "h32[(" e "+4)>>2]|0") (- d 1))))))
             (else
               (error "not implemented yet")
               (let ((gv (gen-global-var)))
@@ -106,7 +67,7 @@
           (write-string "case ")
           (write-string (number->string label))
           (write-string ":")
-          (write-string "a=heap[e>>2]|0;")
+          (write-string "a=h32[e>>2]|0;")
           (let loop ((clauses clauses) (stmt "if"))
             (unless (null? clauses)
               (let ((clause (car clauses)))
@@ -137,11 +98,13 @@
         (assemble-body body)                
         (write-string "}"))
 
+      ; NOT YET DONE
       (define (assemble-set! var expr)
         (assemble var)
         (display "=")
         (assemble expr))
 
+      ; NOT YET DONE
       (define (assemble-if pred con alt)
         (display "if(") 
         (assemble pred)
@@ -169,9 +132,11 @@
         (write-string "a=")
         (assemble proc)
         (write-string ";")
-        (write-string "h32[(p+4)>>2]=h32[(a&0x7ffffff8+8)>>2]|0;")  ; FIXME: new procedure format (just 8 bytes)
+        (write-string "if((a&0x80000007)!=0x80000007){applicationError();}")
+        (write-string "a=a&0x7ffffff8;")
+        (write-string "h32[(p+4)>>2]=h32[(a+4)>>2]|0;")  ; FIXME: new procedure format (just 8 bytes)
         (write-string "e=p;p=0;")
-        (write-string "i=h32[(a&0x7ffffff8+4)>>2]|0;")
+        (write-string "i=h32[a>>2]|0;")
         (write-string "break;"))
 
       (define (assemble-body body)
@@ -192,6 +157,7 @@
       (define (assemble-code)
         (write-string "case 0:")
         (assemble expression)
+        ; TODO Reverse the order of the following
         (for-each write-string body))
       
       (parameterize ((current-output-port (open-output-string)))

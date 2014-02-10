@@ -10,6 +10,7 @@
     var exit=foreign.exit;\
     var writeString=foreign.writeString;\
     var callError=foreign.callError;\
+    var applicationError=foreign.applicationError;\
     var h32=new stdlib.Int32Array(heap);\
     var hu8=new stdlib.Uint8Array(heap);\
     function alloc(s){\
@@ -19,9 +20,15 @@
       f=(f+s)|0;\
       return p|0;\
     }\
-    function procedure(l){\
+    function procedure(l,f){\
       l=l|0;
-      
+      f=f|0;
+      var p=0;
+      p=alloc(8);
+      h32[p>>2] = l;
+      h32[(p+4)>>2] = f;
+      p=p|0x02;
+      return p|0;
     }\
     function frame(n){\
       n=n|0;\
