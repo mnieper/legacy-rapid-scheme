@@ -36,7 +36,7 @@
       (define (assemble-number expr)
         (write-string expr)) ; FIXME
 
-      (define (assemble-string expr)
+      (define (assemble-string expr)  ; Implement with call (for use with constants, for example).
         (write expr)) ; FIXME
 
       (define (assemble-boolean expr)
@@ -53,7 +53,7 @@
                   (let loop ((e "e") (d d))                
                     (if (= d 0)
                       (string-append "h32[(" e "+" (number->string (+ 8 (* i 4))) ")>>2]|0")
-                      (loop (string-append "h32[(" e "+4)>>2]|0") (- d 1)))))))
+                      (loop (string-append "(h32[(" e "+4)>>2]|0)") (- d 1)))))))
             (else
               (error "not implemented yet")
               #;(let ((gv (gen-global-var)))
@@ -81,7 +81,7 @@
             (cons (get-output-string (current-output-port)) body*)))
         (write-string "procedure(")
         (write-string (number->string label))
-        (write-string ",(e+4)|0)|0"))
+        (write-string ",h32[(e+4)>>2]|0)|0"))
 
       (define (assemble-case-lambda-clause formals body)
         ; FIXME At the moment this does not work with rest arguments because lists are not yet implemented
@@ -103,15 +103,17 @@
 
       ; NOT YET DONE
       (define (assemble-set! var expr)
-        (assemble var)
+        (assemble var) ; need lvalue
         (display "=")
         (assemble expr))
 
-      ; NOT YET DONE
       (define (assemble-if pred con alt)
-        (display "if(") 
+        ;
+        ; TODO: There are no semicola in the branches, but one at the end!
+        ;
+        (display "if((") 
         (assemble pred)
-        (display ".toBoolean()){")
+        (display ")>>>0!=0x00000001){")
         (assemble con)
         (display "}else{")
         (assemble alt)
@@ -123,6 +125,7 @@
         (assemble-args args)
         (write-string ")|0"))
 
+      ; special handling of ((case-lambda ...) b)? Can directly inline everything!
       (define (assemble-application proc args)
         (write-string "p=frame(")
         (write-string (length args))
