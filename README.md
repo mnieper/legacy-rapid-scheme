@@ -21,3 +21,22 @@ Rapid Scheme will be compatible to the small language as described in R7RS as mu
 - No matter how often a library or its definitions are referenced in a program, which includes referencing during runtime in the `environment` eval library procedure, the library is only loaded once.
 - Importing exported identifiers cause bindings to be created in the global environent that are bound to the same location as the exported identifier is bound to.
 - At the beginning of a top-level program, an import declaration takes precedence over an `import` form that may have been imported from a previous import declaration. An unambiguous way to separate the import declarations from the command and definitions of a top-level program is to wrap the command and definitions in a `begin` form.
+
+Internals
+---------
+
+In what follows, a *word* is a 32-bit word and a *cell* is a 64-bit word. Each Scheme value is described by at least
+one word, and possibly further data on the heap.
+
+### Number
+
+Internally, a number can be an exact integer, an exact number or an inexact number.
+
+#### Exact integer
+
+An exact integer is an integer between -2^30 and 2^30-1. It is represented by a word w with w & 0x1 == 0. Its value is w >> 1.
+
+
+### Procedure
+
+A procedure is represented by a word w with w & 0x7 == 1. TBC.
