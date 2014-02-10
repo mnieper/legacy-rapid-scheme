@@ -42,10 +42,10 @@ rapid.Program = function Program(scriptURL) {
 };
 
 rapid.Program.prototype.run = function run() {
-  this._worker = new Worker(this._scriptURL);
+  this._worker = new Worker('js/worker.js');
   this._worker.onmessage = this._onmessage.bind(this);
   this._worker.onerror = this._onerror.bind(this);
-  this._worker.postMessage({cmd: 'execute'}); // XXX Need command line.
+  this._worker.postMessage({cmd: 'execute', msg: this._scriptURL}); // XXX Need command line.
 };
 
 rapid.Program.prototype._onmessage = function _onmessage(event) {
@@ -57,7 +57,7 @@ rapid.Program.prototype._onmessage = function _onmessage(event) {
   case 'error':
     this.onerror(data.msg);
     break;
-  case 'exit': 
+  case 'exit':
     this._worker.terminate();
     this.onexit({code: data.msg});
     break;

@@ -1,1 +1,40 @@
-'use strict';importScripts('stdlib.js');init(new rapid.Procedure(function(data){var $=[];var $1=[new rapid.Procedure(function($2){var n=$2.length;if(n===1){rapid.exit($2[0])}else{rapid.callError();}})];$[0]=10000;rapid.display("Number of primes between 1 and ");rapid.display($[0]);rapid.display(": ");$[1]=new rapid.Procedure(function($3){var n=$3.length;if(n===2){return [$3[0],$3[1],2,$[1]];}else if(n===3){if(rapid.isIncreasing($3[1],rapid.product(2,$3[2])).toBoolean()){return [rapid.SchemeBoolean.true,$3[0]];}else{if(rapid.equality(rapid.truncateRemainder($3[1],$3[2]),0).toBoolean()){return [rapid.SchemeBoolean.false,$3[0]];}else{return [$3[0],$3[1],rapid.sum($3[2],1),$[1]];}}}else{rapid.callError();}});$[2]=new rapid.Procedure(function($4){var n=$4.length;if(n===2){if(rapid.isIncreasing($4[1],2).toBoolean()){return [0,$4[0]];}else{return [new rapid.Procedure(function($5){var n=$5.length;if(n===1){if($5[0].toBoolean()){return [new rapid.Procedure(function($6){var n=$6.length;if(n===1){return [rapid.sum($6[0],1),$4[0]];}else{rapid.callError();}}),rapid.difference($4[1],1),$[2]];}else{return [$4[0],rapid.difference($4[1],1),$[2]];}}else{rapid.callError();}}),$4[1],$[1]];}}else{rapid.callError();}});return [new rapid.Procedure(function($7){var n=$7.length;if(n===1){rapid.display($7[0]);rapid.display("\n");return [rapid.SchemeBoolean.true,$1[0]];}else{rapid.callError();}}),$[0],$[2]];}));
+function RapidModule(stdlib, foreign, heap) {
+  'use asm';
+
+  var pc = 0;
+  var i0 = 0, i1 = 0, i2 = 0, i3 = 0, i4 = 0, i5 = 0, i6 = 0, i7 = 0;
+  var f = 0;
+  var exit = foreign.exit;
+  var writeString = foreign.writeString;
+  var h32 = new stdlib.Int32Array(heap);
+  var hu8 = new stdlib.Uint8Array(heap);
+  
+  function alloc(s) {
+    s = s|0;
+    var p = 0;
+    p = f;
+    f = (f + s)|0;
+    return p|0;
+  }
+
+  function run() {
+    while (1) {
+      switch (pc|0) {
+      case 0:
+        // Initialize heap
+        i0 = alloc(4)|0;
+        hu8[i0] = 0x41;
+        hu8[(i0 + 1)|0] = 0x42;
+        hu8[(i0 + 2)|0] = 0x43;
+        hu8[(i0 + 3)|0] = 0x00;
+        pc = 1;
+        break;
+      case 1:
+        writeString(i0|0);
+        exit(0);
+      }
+    }
+  }
+
+  return run;
+}

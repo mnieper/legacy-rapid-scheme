@@ -1,3 +1,23 @@
+;;
+;; Machine model
+;;
+;; Small values that should fit into a scalar:
+;; boolean? char? null? pair? eof-object? fixnum? double? exact-integer?
+;; cells on the heap are 8 bytes long (for what?)
+;; for environments, etc: reserve 8 bits
+;;
+;; The most complicated type seems to be the pair.
+;; It consists of a scalar value and a pointer
+;;
+;; what is a float? a pointer to two cells
+;;
+;; On the heap, the gc algorithm must know how long an object is.
+;; By default, an object is exactly 64 bits long.
+;; longer objects (strings, vectors, etc. have their first byte marked)
+;;
+;;
+;; 
+
 (define-library (rapid assemble)
   (export assemble)
   (import (scheme base) (scheme cxr) (scheme write) (rapid base))
@@ -183,12 +203,23 @@
             (unless (null? rest)
               (display ",")
               (assemble-args rest)))))
+       
+      (define (assemble-code)
+        (write-string "CODE"))
       
       (parameterize ((current-output-port (open-output-string)))
-        (write-string "'use strict';")
-        (write-string "importScripts('stdlib.js');")
-        (write-string "init(new rapid.Procedure(function(data){var $=[];")
-        (assemble expression)
-        (write-string "}));")
+        (letrec-syntax (
+            (write-module (syntax-rules (code)
+                ((write-module code element ...)
+                    (begin
+                      (assemble-code)
+                      (write-module element ...)))
+                ((write-module element1 element2 ...)
+                    (begin
+                      (write-string element1)
+                      (write-module element2 ...)))
+                ((write-module)
+                    (begin)))))
+          (include "rapid/module.scm"))
         (get-output-string (current-output-port))))))
 
