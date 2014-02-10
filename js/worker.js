@@ -12,6 +12,11 @@ var foreign = {
     postMessage({cmd: 'output', msg: s});
   },
 
+  callError: function () {
+    postMessage({cmd: 'error', msg: 'procedure called with wrong number of arguments'});
+    foreign.exit(1);
+  },
+
   exit: function (code) {
     postMessage({cmd: 'exit', msg: !code});
     throw undefined;

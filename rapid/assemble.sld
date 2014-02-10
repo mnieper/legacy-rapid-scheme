@@ -24,6 +24,13 @@
   (begin  
 
     (define (assemble program expression)
+    
+      (define frame
+        (make-parameter 0))
+    
+      (define body* '())
+      
+      (define next-label 1)
 
       (define gensym (make-gensym "$"))
 
@@ -60,68 +67,76 @@
           (else (error "assemble: unknown expression type" expr))))
 
       (define (assemble-number expr)
-        (display expr)) ; FIXME
+        (write-string expr)) ; FIXME
 
       (define (assemble-string expr)
         (write expr)) ; FIXME
 
+      (define *constant-true* "0x0001000a")
+      
+      (define *constant-false* "0x0000000a")
+
       (define (assemble-boolean expr)
         (write-string
-          (if expr "rapid.SchemeBoolean.true" "rapid.SchemeBoolean.false")))
-
+          (if expr *constant-true* *constant-false*)))
+      
       (define (assemble-variable var)
+        ; for set!, we may need this as an lvalue!
         (write-string
           (cond
-            ((assq var variables) => cdr)
+            ((assq var variables) =>
+              (lambda vec)
+                (let ((d (- frame (vector-ref vec 0))) (i (vector-ref vec 1)))
+                  (let loop ((e "e") (d d))                
+                    (if (= d 0)
+                      (string-append "heap[(" e "+8+4*i)>>2]|0")
+                      (loop (string-append "heap[(" e "+4)>>2]|0") (- d 1))))))
             (else
+              (error "not implemented yet")
               (let ((gv (gen-global-var)))
                 (set! variables (cons (cons var gv) variables))
                 gv)))))
                 
       (define (assemble-case-lambda clauses)
-        (define args-var (genvar))
-        (write-string "new rapid.Procedure(function(") ; TODO: We may need the body???
-        (write-string args-var)
-        (write-string "){")
-        (write-string "var n=")
-        (write-string args-var)
-        (write-string ".length;")
-        (let loop ((clauses clauses) (stmt "if"))
-          (unless (null? clauses)
-            (let ((clause (car clauses)))
-              (write-string stmt)
-              (assemble-case-lambda-clause (car clause) (cdr clause) args-var)
-              (loop (cdr clauses) "else if"))))
-        (write-string "else{rapid.callError();}")
-        (write-string "})"))
-        
-      (define (assemble-case-lambda-clause formals body args-var)
-        (define rest #f)
+        (define label next-label)
+        (set! next-label (+ next-label 1))    
+        (parameterize (
+            (current-output-port (open-output-string))
+            (frame (+ (frame) 1)))
+          (write-string "case ")
+          (write-string (number->string label))
+          (write-string ":")
+          (write-string "a=heap[e>>2]|0;")
+          (let loop ((clauses clauses) (stmt "if"))
+            (unless (null? clauses)
+              (let ((clause (car clauses)))
+                (write-string stmt)
+                (assemble-case-lambda-clause (car clause) (cdr clause))
+                (loop (cdr clauses) "else if"))))
+          (write-string "else{callError();}")
+          (set! body* 
+            (cons (get-output-string (current-output-port)) body*)))
+        (write-string "procedure(")
+        (write-string (number->string label))
+        (write-string ")"))
+
+      (define (assemble-case-lambda-clause formals body)
+        ; FIXME At the moment this does not work with rest arguments because lists are not yet implemented
         (define n
           (let loop ((formals formals) (i 0))
             (cond
               ((symbol? formals)
-                (set! rest (genvar))
-                (set! variables (cons (cons formals rest) variables))
-                i)
+                (error "not yet implemented, see above"))
               ((null? formals)
                 i)
               ((pair? formals)
-                (set! variables (cons (cons (car formals) (string-append args-var "[" (number->string i) "]")) variables))
-                (loop (cdr formals) (+ i 1))))))
-        (write-string "(n")
-        (if rest
-          (write-string ">=")
-          (write-string "==="))
+                (set! variables (cons (cons (car formals) (vector (frame) i)) variables))))))
+        (write-string "(n==")
         (write-string (number->string n))
         (write-string "){")
-        (when rest
-          (write-string "var ")
-          (write-string rest)
-          (write-string "=new ArrayList(args,n)")) ; FIXME args -> args-var
-        (assemble-body body)
+        (assemble-body body)                
         (write-string "}"))
-      
+
       (define (assemble-set! var expr)
         (assemble var)
         (display "=")
@@ -137,57 +152,27 @@
         (display "}"))
       
       (define (assemble-op op args)
-        (write-string "rapid.")
-        (display op)
-        (display "(")
+        (write-string op)
+        (write-string "(")
         (assemble-args args)
-        (display ")"))
-      
-      (define (assemble-application proc args)
-        (cond
-          ((case-lambda? proc)
-            (assemble-case-lambda-application (cdr proc) args))
-          (else
-            (write-string "return [")
-            (assemble-args args)
-            (write-string ",")
-            (assemble proc)
-            (write-string "];"))))
+        (write-string ")"))
 
-      (define (assemble-case-lambda-application clauses args)
-        (define n (length args))
-        (define args-var (genvar))
-        (write-string "var ")
-        (write-string args-var)
-        (write-string "=[")
-        (assemble-args args)
-        (write-string "];")
-        (let loop ((clauses clauses))
-          (when (null? clauses)
-            (error "wrong number of arguments in procedure call")) ; XXX raise-compile-error
-          (let ((clause (car clauses)))
-            (let loop2 ((formals (car clause)) (i 0))
-              (cond
-                ((symbol? formals)
-                  (let ((rest (genvar)))
-                    (write-string "var ")
-                    (write-string rest)
-                    (write-string "=new ArrayList(")
-                    (write-string args-var)
-                    (write-string ",")
-                    (write-string (number->string i))
-                    (write-string ");")
-                    (set! variables (cons (cons formals rest) variables))
-                    (assemble-body (cdr clause))))
-                ((pair? formals)
-                  (cond
-                    ((< i n)
-                      (set! variables (cons (cons (car formals) (string-append args-var "[" (number->string i) "]")) variables))
-                      (loop2 (cdr formals) (+ i 1)))
-                    (else
-                      (loop (cdr clauses)))))
-                ((null? formals)
-                  (assemble-body (cdr clause))))))))
+      (define (assemble-application proc args)
+        (write-string "p=frame(")
+        (write-string (length args))
+        (write-string ");")
+        (let loop ((args args) (i 0))
+          (unless (null? args)
+            (write-string "h32[(p+8+4*i)>>2]=")
+            (assemble (car args))
+            (write-string ";")))
+        (write-string "a=")
+        (assemble proc)
+        (write-string ";")
+        (write-string "h32[(p+4)>>2]=h32[(a&0x7ffffff8+8)>>2]|0;")  ; FIXME: new procedure format (just 8 bytes)
+        (write-string "e=p;p=0;")
+        (write-string "i=h32[(a&0x7ffffff8+4)>>2]|0;")
+        (write-string "break;"))
 
       (define (assemble-body body)
         (unless (null? body)
@@ -201,11 +186,13 @@
           (assemble (car args))
           (let ((rest (cdr args)))
             (unless (null? rest)
-              (display ",")
+              (write-string ",")
               (assemble-args rest)))))
        
       (define (assemble-code)
-        (write-string "CODE"))
+        (write-string "case 0:")
+        (assemble expression)
+        (for-each write-string body))
       
       (parameterize ((current-output-port (open-output-string)))
         (letrec-syntax (
