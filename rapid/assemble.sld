@@ -6,8 +6,14 @@
     (define *constant-true* "0x00010001")    
     (define *constant-false* "0x00000001")
     
+    ; FIXME: Integers have to be shifted by 2 for type tags
+    ; Internal procedure numberToString has shift back
+    ; TODO: numberToString in scheme code
+    
     ; TODO: Write small procedures that assemble snippets
     ; TODO: Rename foreign procedures into g1,g2,g3, etc. to save space.
+
+    ; TODO Define library template with define-template macro for compile-time string expansion
 
     (define (assemble program expression)
     
@@ -17,6 +23,15 @@
       (define body* '())
       
       (define next-label 1)
+      
+      (define last-global -1)
+      
+      (define (global-var i)
+        (string-append "g" (number->string i)))
+
+      (define (gen-global)
+        (set! last-global (+ last-global 1))
+        (string-append "g" (number->string last-global)))
 
       ; with parameterize, this list won't grow too long
       (define variables '())
@@ -66,17 +81,16 @@
           (cond
             ((assq var variables) =>
               (lambda (c)
-                (let ((d (- (frame) (vector-ref (cdr c) 0))) (i (vector-ref (cdr c) 1)))
-                  (let loop ((e "e") (d d))                
-                    (if (= d 0)
-                      (string-append "h32[(" e "+" (number->string (+ 8 (* i 4))) ")>>2]|0")
-                      (loop (string-append "(h32[(" e "+4)>>2]|0)") (- d 1)))))))
+                (if (string? (cdr c))
+                  (cdr c)
+                  (let ((d (- (frame) (vector-ref (cdr c) 0))) (i (vector-ref (cdr c) 1)))
+                    (let loop ((e "e") (d d))                
+                      (if (= d 0)
+                        (string-append "h32[(" e "+" (number->string (+ 8 (* i 4))) ")>>2]|0")
+                        (loop (string-append "(h32[(" e "+4)>>2]|0)") (- d 1))))))))
             (else
-              (error "not implemented yet")
-              #;(let ((gv (gen-global-var)))
-                (set! variables (cons (cons var gv) variables))
-                gv)))))
-       
+              (error "undefined!")))))
+              
       (define (assemble-case-lambda clauses)
         (define label next-label)
         (set! next-label (+ next-label 1))    
@@ -118,9 +132,24 @@
         (assemble-body body)                
         (write-string "}"))
 
-      ; NOT YET DONE
       (define (assemble-set! var expr)
-        (assemble var) ; need lvalue
+      
+        ; TODO Refactor.
+        (write-string
+          (cond
+            ((assq var variables) =>
+              (lambda (c)
+                (if (string? (cdr c))
+                  (cdr c)
+                  (let ((d (- (frame) (vector-ref (cdr c) 0))) (i (vector-ref (cdr c) 1)))
+                    (let loop ((e "e") (d d))                
+                      (if (= d 0)
+                        (string-append "h32[(" e "+" (number->string (+ 8 (* i 4))) ")>>2]")
+                        (loop (string-append "(h32[(" e "+4)>>2]|0)") (- d 1))))))))
+            (else
+              (let ((gv (gen-global)))
+                (set! variables (cons (cons var gv) variables))
+                gv))))
         (display "=")
         (assemble expr))
 
@@ -178,25 +207,36 @@
               (assemble-args rest)))))
        
       (define (assemble-code)
-        (write-string "case 0:")
-        (assemble expression)
-        (write-string ";")
-        ; TODO Reverse the order of the following
-        (for-each write-string body*))
+        (parameterize ((current-output-port (open-output-string)))
+          (write-string "case 0:")
+          (assemble expression)
+          (write-string ";")
+          ; TODO Reverse the order of the following
+          (for-each write-string body*)
+          (get-output-string (current-output-port))))
+      
+      (define code (assemble-code))
+      
+      (define globals
+        (parameterize ((current-output-port (open-output-string)))
+          (do ((i 0 (+ i 1))) ((> i last-global) (get-output-string (current-output-port)))
+            (write-string "var ") (write-string (global-var i)) (write-string "=0;"))))
       
       (parameterize ((current-output-port (open-output-string)))
         (letrec-syntax (
-            (write-module (syntax-rules (code)
+            (write-module (syntax-rules (globals code)
+                ((write-module globals element ...)
+                  (begin (write-string globals) (write-module element ...)))                    
                 ((write-module code element ...)
-                    (begin
-                      (assemble-code)
-                      (write-module element ...)))
+                  (begin
+                    (write-string code)
+                    (write-module element ...)))
                 ((write-module element1 element2 ...)
-                    (begin
-                      (write-string element1)
-                      (write-module element2 ...)))
+                  (begin
+                    (write-string element1)
+                    (write-module element2 ...)))
                 ((write-module)
-                    (begin)))))
+                  (begin)))))
           (include "rapid/module.scm"))
         (get-output-string (current-output-port))))))
 
