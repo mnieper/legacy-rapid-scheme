@@ -38,6 +38,31 @@
       i2=i2|0;\
       return (i1+i2)|0;\    
     }\
+    function numberToString(i){\
+      i=i|0;\
+      var n=0;\
+      var j=0;\
+      var d=0;\
+      var p=0;\
+      var m=0;\
+      if((i|0)<0){i=-i|0;d=1;n=n+1|0;}\
+      if((i|0)==0){n=1}else{\
+        for(j=i;(j|0)!=0;j=(j|0)/10|0){n=n+1|0;}\
+      }\
+      s=alloc(n+16&0xfffffff8)|0;\
+      h32[s>>2]=0x0;\
+      h32[s+4>>2]=n|0;\
+      if((d|0)==1){\
+        hu8[s+8|0]=0x2d;\
+      }\
+      hu8[(s+8|0)+n|0]=0x0;\
+      for(j=n-1|0;(j|0)>=0;j=j-1|0){\
+        m=(i|0)%10|0;\
+        hu8[(s+8|0)+j|0]=m+0x30|0;\
+        i=((i-m)|0)/10|0;\
+      }\
+      return s|0;\
+    }\
     function frame(n){\
       n=n|0;\
       var p=0;\

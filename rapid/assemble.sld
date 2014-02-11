@@ -41,18 +41,20 @@
         ;
         ; FIXME: Report an error if expr contains null bytes
         ;
+        ; TODO: Simplify the following
+        ;
         (define utf8 (string->utf8 expr))
         (write-string "(s=alloc(")
         (write-string (number->string (* 8 (quotient (+ 16 (bytevector-length utf8)) 8))))
-        (write-string "),h32[s>>2]=0x0,h32[s+4>>2]=")
+        (write-string ")|0,h32[s>>2]=0x0,h32[s+4>>2]=")
         (write-string (number->string (bytevector-length utf8)))
         (do ((i 0 (+ i 1))) ((= i (bytevector-length utf8)))
           (write-string ",hu8[s+")
           (write-string (number->string (+ i 8)))
           (write-string "|0]=0x")
           (write-string (number->string (bytevector-u8-ref utf8 i) 16)))
-        (write-string ",hu8[s+") (write-string (number->string (bytevector-length utf8))) (write-string "|0]=0x0")
-        (write-string ",s)"))
+        (write-string ",hu8[s+") (write-string (number->string (+ 8 (bytevector-length utf8)))) (write-string "|0]=0x0")
+        (write-string ",s)|0"))
 
       (define (assemble-boolean expr)
         (write-string
