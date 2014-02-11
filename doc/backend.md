@@ -16,7 +16,7 @@ Format for scalars  | Interpretation
 xxxx xxxx xxxx xxx0 | Exact integer between -2^30 and 2^30-1 in two's complement
 0000 0000 0000 0001 | Boolean false
 0000 0001 0000 0001 | Boolean true
-0xxx xxxx xxxx x010 | Procedure with a pointer to a closure on the heap
+0xxx xxxx xxxx x011 | Procedure with a pointer to a closure on the heap
 xxxx xxxx xxxx xxxx | Label
 xxxx xxxx xxxx xxxx | Integer
 

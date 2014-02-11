@@ -6,14 +6,21 @@
     (define *constant-true* "0x00010001")    
     (define *constant-false* "0x00000001")
     
+    ; Analoguously one may want to define macros for the module... (e.g. IS_PROCEDURE; POINTER(...); etc.)
+    ; For use with expand macro
+    
     ; FIXME: Integers have to be shifted by 2 for type tags
     ; Internal procedure numberToString has shift back
     ; TODO: numberToString in scheme code
     
     ; TODO: Write small procedures that assemble snippets
-    ; TODO: Rename foreign procedures into g1,g2,g3, etc. to save space.
+    ; TODO: Rename foreign procedures into j1,j2,j3,j4, etc. to save space.
 
     ; TODO Define library template with define-template macro for compile-time string expansion
+
+    ; FIXME In our current implementation, strings have a fixed number of utf-8 bytes.
+    ; This will make problems when implementing "string-set!". Easiest solution: Use utf-16 encoding.
+    ; (Or utf-32).
 
     (define (assemble program expression)
     
@@ -50,7 +57,7 @@
           (else (error "assemble: unknown expression type" expr))))
 
       (define (assemble-number expr)
-        (write-string expr)) ; FIXME
+        (write-string (* 2 expr))) ; FIXME
 
       (define (assemble-string expr)
         ;
@@ -76,7 +83,6 @@
           (if expr *constant-true* *constant-false*)))
       
       (define (assemble-variable var)
-        ; for set!, we may need this as an lvalue!
         (write-string
           (cond
             ((assq var variables) =>
@@ -89,8 +95,8 @@
                         (string-append "h32[(" e "+" (number->string (+ 8 (* i 4))) ")>>2]|0")
                         (loop (string-append "(h32[(" e "+4)>>2]|0)") (- d 1))))))))
             (else
-              (error "undefined!")))))
-              
+              (error "undefined!"))))) ; XXX Or fail silently; this should not happen in prescheme on the right hand side
+
       (define (assemble-case-lambda clauses)
         (define label next-label)
         (set! next-label (+ next-label 1))    
@@ -101,18 +107,21 @@
           (write-string (number->string label))
           (write-string ":")
           (write-string "a=h32[e>>2]|0;")
+          (assemble-case-lambda-body clauses)
+          (set! body* 
+            (cons (get-output-string (current-output-port)) body*)))
+        (write-string "procedure(")
+        (write-string (number->string label))
+        (write-string ",e)|0"))
+
+      (define (assemble-case-lambda-body clauses)          
           (let loop ((clauses clauses) (stmt "if"))
             (unless (null? clauses)
               (let ((clause (car clauses)))
                 (write-string stmt)
                 (assemble-case-lambda-clause (car clause) (cdr clause))
                 (loop (cdr clauses) "else if"))))
-          (write-string "else{callError();}")
-          (set! body* 
-            (cons (get-output-string (current-output-port)) body*)))
-        (write-string "procedure(")
-        (write-string (number->string label))
-        (write-string ",e)|0"))
+          (write-string "else{callError();}"))
 
       (define (assemble-case-lambda-clause formals body)
         ; FIXME At the moment this does not work with rest arguments because lists are not yet implemented
@@ -126,14 +135,13 @@
               ((pair? formals)
                 (set! variables (cons (cons (car formals) (vector (frame) i)) variables))
                 (loop (cdr formals) (+ i 1))))))
-        (write-string "(a|0==")
+        (write-string "((a|0)==")
         (write-string (number->string n))
         (write-string "){")
         (assemble-body body)                
         (write-string "}"))
 
       (define (assemble-set! var expr)
-      
         ; TODO Refactor.
         (write-string
           (cond
@@ -171,8 +179,8 @@
         (assemble-args args)
         (write-string ")|0"))
 
-      ; special handling of ((case-lambda ...) b)? Can directly inline everything!
       (define (assemble-application proc args)
+        (define n (length args))
         (write-string "p=frame(")
         (write-string (length args))
         (write-string ")|0;")
@@ -180,16 +188,35 @@
           (unless (null? args)
             (write-string "h32[(p+") (write-string (number->string (+ 8 (* i 4)))) (write-string ")>>2]=")
             (assemble (car args))
-            (write-string ";")))
-        (write-string "a=")
-        (assemble proc)
-        (write-string ";")
-        (write-string "if((a&0x80000007)>>>0!=0x02){applicationError();}")
-        (write-string "a=a&0x7ffffff8;")
-        (write-string "h32[(p+4)>>2]=h32[a+4>>2]|0;")
-        (write-string "e=p;p=0;")
-        (write-string "i=h32[a>>2]|0;")
-        (write-string "break"))
+            (write-string ";")
+            (loop (cdr args) (+ i 1))))
+        (cond
+          ((case-lambda? proc)
+            (write-string "e=p;p=0;")
+            (let outer-loop ((clauses (cdr proc)))
+              (if (null? clauses)
+                (error "procedure called with wrong number of arguments") ; FIXME
+                (let loop ((formals (caar clauses)) (i 0))
+                  (cond
+                    ((symbol? formals)
+                      (error "not yet implemented, see above"))
+                    ((null? formals)
+                      (if (= i n)
+                        (assemble-body (cdar clauses))
+                        (outer-loop (cdr clauses))))
+                    ((pair? formals)
+                      (set! variables (cons (cons (car formals) (vector (frame) i)) variables))
+                      (loop (cdr formals) (+ i 1))))))))
+          (else
+            (write-string "a=")
+            (assemble proc)
+            (write-string ";")
+            (write-string "if((a&0x80000007)>>>0!=0x3){applicationError();}")
+            (write-string "a=a&0x7ffffff8;")
+            (write-string "h32[(p+4)>>2]=h32[a+4>>2]|0;")
+            (write-string "e=p;p=0;")
+            (write-string "i=h32[a>>2]|0;")
+            (write-string "break"))))
 
       (define (assemble-body body)
         (unless (null? body)

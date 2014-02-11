@@ -2,12 +2,12 @@
 
 var module;
 
-var heap = new ArrayBuffer(Math.pow(2, 20));
+var heap = new ArrayBuffer(Math.pow(2, 27));
 
 var foreign = {
 
   getHeapSize: function () {
-    return Math.pow(2, 20);
+    return Math.pow(2, 27);
   },
 
   writeString: function (p) {

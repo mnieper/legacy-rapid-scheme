@@ -6,9 +6,9 @@
 
 (set! n 10000)
 
-(display "Number of primes between 1 and ")
-(display n)
-(display ": ")
+(write-string "Number of primes between 1 and ")
+(write-string (number->string n))
+(write-string ": ")
 
 (set! isprim
   (case-lambda
@@ -28,7 +28,7 @@
         (if (isprim c)
           (+ (count (- c 1)) 1)
           (count (- c 1)))))))
-          
-(display (count n))
-(display "\n")
+
+(write-string (number->string (count n)))
+(write-string "\n")
 

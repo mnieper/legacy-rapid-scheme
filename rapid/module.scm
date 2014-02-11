@@ -7,8 +7,10 @@
     var f=8;\
     var e=0;\
     var p=0;\
-    var s=0;"
+    var s=0;
+    var m=0;"
     globals"\
+    var imul=stdlib.Math.imul;\
     var exit=foreign.exit;\
     var writeString=foreign.writeString;\
     var memoryError=foreign.memoryError;\
@@ -21,7 +23,7 @@
       var p=0;\
       p=f;\
       f=(f+s)|0;\
-      if((f|0)>1000000){memoryError();}\
+      if((f|0)>100000000){memoryError();}\
       return p|0;\
     }\
     function procedure(l,f){\
@@ -31,13 +33,38 @@
       p=alloc(8)|0;\
       h32[p>>2] = l;\
       h32[(p+4)>>2] = f;\
-      p=p|0x02;\
+      p=p|0x3;\
       return p|0;\
+    }\
+    function equality(i1,i2){\
+      i1=i1|0;\
+      i2=i2|0;\
+      return ((i1|0)==(i2|0)?0x10001:0x1)|0;\
     }\
     function sum(i1,i2){/*FIXME: sum gets a vector, list*/\
       i1=i1|0;\
       i2=i2|0;\
       return (i1+i2)|0;\    
+    }\
+    function difference(i1,i2){\
+      i1=i1|0;\
+      i2=i2|0;\
+      return (i1-i2)|0;\
+    }\
+    function product(i1,i2){\
+      i1=i1|0;\
+      i2=i2|0;\
+      return ((imul(i1>>1,i2>>1)|0)<<1)|0;\
+    }\
+    function isIncreasing(i1,i2){\
+      i1=i1|0;\
+      i2=i2|0;\
+      return ((i1|0)<(i2|0)?0x00010001:0x00000001)|0;\
+    }\
+    function truncateRemainder(i1,i2){\
+      i1=i1|0;\
+      i2=i2|0;\
+      return ((i1>>1)%(i2>>1))<<1|0;\
     }\
     function numberToString(i){\
       i=i|0;\
@@ -46,6 +73,7 @@
       var d=0;\
       var p=0;\
       var m=0;\
+      i=i>>1;\
       if((i|0)<0){i=-i|0;d=1;n=n+1|0;}\
       if((i|0)==0){n=1}else{\
         for(j=i;(j|0)!=0;j=(j|0)/10|0){n=n+1|0;}\
