@@ -1,5 +1,7 @@
 (define-library (rapid base)
-  (export uncons make-gensym atom? variable? case-lambda? if? lambda? set!? op define? tagged-list? *ops* tagged-pair?)
+  (export
+    output-from 
+    uncons make-gensym atom? variable? case-lambda? if? lambda? set!? op define? tagged-list? *ops* tagged-pair?)
   (import (scheme base) (scheme case-lambda))
   (begin
 
@@ -8,6 +10,13 @@
       (lambda ()
         (set! counter (+ counter 1))
         (string->symbol (string-append prefix (number->string counter)))))
+
+    (define-syntax output-from
+      (syntax-rules ()
+        ((output body1 body2 ...)
+          (parameterize ((current-output-port (open-output-string)))
+            body1 body2 ...
+            (get-output-string (current-output-port))))))
     
     (define (uncons expr)
       ;

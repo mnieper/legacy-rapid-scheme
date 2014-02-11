@@ -7,7 +7,7 @@
     var f=8;\
     var e=0;\
     var p=0;\
-    var s=0;
+    var s=0;\
     var m=0;"
     globals"\
     var imul=stdlib.Math.imul;\

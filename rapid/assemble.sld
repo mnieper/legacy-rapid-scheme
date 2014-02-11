@@ -21,27 +21,60 @@
     ; FIXME In our current implementation, strings have a fixed number of utf-8 bytes.
     ; This will make problems when implementing "string-set!". Easiest solution: Use utf-16 encoding.
     ; (Or utf-32).
+    ;
+    ; XXX TODO: Was soll Strings herausgeben? Was soll writes machen? Wie heißen die Prozeduren? Was ist h32[...]?
 
     (define (assemble program expression)
-    
-      (define frame
-        (make-parameter 0))
-    
-      (define body* '())
-      
-      (define next-label 1)
-      
-      (define last-global -1)
-      
+
+      (define block* '())
+      (define block-label -1)
+      (define-syntax new-block
+        (syntax-rules ()
+          ((new-block body1 body2 ...)
+            (begin
+              (set! block-label (+ block-label 1))
+              (let* ((block-label block-label)
+                     (block       
+                       (output-from
+                         (write-string "case ")
+                         (write block-label)
+                         (write-string ":")
+                         (let ()
+                           body1 body2 ...))))
+                (set! block* (cons block block*))
+                block-label)))))
+
+      (define frame (make-parameter 0))
+      (define-syntax new-frame
+        (syntax-rules ()
+          ((new-frame body1 body2 ...)
+            (parameterize ((frame (+ (frame) 1)))
+              body1 body2 ...))))
+
       (define (global-var i)
-        (string-append "g" (number->string i)))
-
-      (define (gen-global)
+        (write-string "g")
+        (write i))
+      (define environment '())
+      (define last-global -1)
+      (define (new-global identifier)
         (set! last-global (+ last-global 1))
-        (string-append "g" (number->string last-global)))
+        (let* ((global last-global)
+               (assemble (lambda (lvalue?) (global-var global))))
+          (set! environment (cons (cons identifier assemble) environment))
+          (assemble #f)))
 
-      ; with parameterize, this list won't grow too long
-      (define variables '())
+      (define (new-local! identifier displacement)
+        (let ((f (frame)))
+          (set! environment (cons
+              (cons identifier
+                (lambda (lvalue?)
+                  (write-string        
+                    (let loop ((e "e") (d (- (frame) f)))    
+                      (if (= d 0)
+                        (string-append "h32[(" e "+" (number->string (+ 8 (* displacement 4))) ")>>2]")
+                        (loop (string-append "(h32[(" e "+4)>>2])|0") (- d 1)))))
+                  (unless lvalue? (write-string "|0"))))
+            environment))))
 
       (define (assemble expr)
         (cond
@@ -61,8 +94,7 @@
 
       (define (assemble-string expr)
         ;
-        ; FIXME: Report an error if expr contains null bytes
-        ;
+        ; work with utf-8
         ; TODO: Simplify the following
         ;
         (define utf8 (string->utf8 expr))
@@ -81,35 +113,23 @@
       (define (assemble-boolean expr)
         (write-string
           (if expr *constant-true* *constant-false*)))
-      
+ 
       (define (assemble-variable var)
-        (write-string
-          (cond
-            ((assq var variables) =>
-              (lambda (c)
-                (if (string? (cdr c))
-                  (cdr c)
-                  (let ((d (- (frame) (vector-ref (cdr c) 0))) (i (vector-ref (cdr c) 1)))
-                    (let loop ((e "e") (d d))                
-                      (if (= d 0)
-                        (string-append "h32[(" e "+" (number->string (+ 8 (* i 4))) ")>>2]|0")
-                        (loop (string-append "(h32[(" e "+4)>>2]|0)") (- d 1))))))))
-            (else
-              (error "undefined!"))))) ; XXX Or fail silently; this should not happen in prescheme on the right hand side
+        ((cdr (assq var environment)) #f))
+
+      (define (assemble-set! var expr)
+        (cond
+          ((assq var environment) => (lambda (pair) ((cdr pair) #t)))
+          (else (new-global var)))
+        (write-string "=")
+        (assemble expr))
 
       (define (assemble-case-lambda clauses)
-        (define label next-label)
-        (set! next-label (+ next-label 1))    
-        (parameterize (
-            (current-output-port (open-output-string))
-            (frame (+ (frame) 1)))
-          (write-string "case ")
-          (write-string (number->string label))
-          (write-string ":")
-          (write-string "a=h32[e>>2]|0;")
-          (assemble-case-lambda-body clauses)
-          (set! body* 
-            (cons (get-output-string (current-output-port)) body*)))
+        (define label
+          (new-block
+             (new-frame
+               (write-string "a=h32[e>>2]|0;")
+               (assemble-case-lambda-body clauses))))
         (write-string "procedure(")
         (write-string (number->string label))
         (write-string ",e)|0"))
@@ -133,7 +153,7 @@
               ((null? formals)
                 i)
               ((pair? formals)
-                (set! variables (cons (cons (car formals) (vector (frame) i)) variables))
+                (new-local! (car formals) i)
                 (loop (cdr formals) (+ i 1))))))
         (write-string "((a|0)==")
         (write-string (number->string n))
@@ -141,25 +161,6 @@
         (assemble-body body)                
         (write-string "}"))
 
-      (define (assemble-set! var expr)
-        ; TODO Refactor.
-        (write-string
-          (cond
-            ((assq var variables) =>
-              (lambda (c)
-                (if (string? (cdr c))
-                  (cdr c)
-                  (let ((d (- (frame) (vector-ref (cdr c) 0))) (i (vector-ref (cdr c) 1)))
-                    (let loop ((e "e") (d d))                
-                      (if (= d 0)
-                        (string-append "h32[(" e "+" (number->string (+ 8 (* i 4))) ")>>2]")
-                        (loop (string-append "(h32[(" e "+4)>>2]|0)") (- d 1))))))))
-            (else
-              (let ((gv (gen-global)))
-                (set! variables (cons (cons var gv) variables))
-                gv))))
-        (display "=")
-        (assemble expr))
 
       (define (assemble-if pred con alt)
         ;
@@ -205,7 +206,7 @@
                         (assemble-body (cdar clauses))
                         (outer-loop (cdr clauses))))
                     ((pair? formals)
-                      (set! variables (cons (cons (car formals) (vector (frame) i)) variables))
+                      (new-local! (car formals) i)
                       (loop (cdr formals) (+ i 1))))))))
           (else
             (write-string "a=")
@@ -233,30 +234,23 @@
               (write-string ",")
               (assemble-args rest)))))
        
-      (define (assemble-code)
-        (parameterize ((current-output-port (open-output-string)))
-          (write-string "case 0:")
-          (assemble expression)
-          (write-string ";")
-          ; TODO Reverse the order of the following
-          (for-each write-string body*)
-          (get-output-string (current-output-port))))
-      
-      (define code (assemble-code))
-      
-      (define globals
-        (parameterize ((current-output-port (open-output-string)))
-          (do ((i 0 (+ i 1))) ((> i last-global) (get-output-string (current-output-port)))
-            (write-string "var ") (write-string (global-var i)) (write-string "=0;"))))
-      
-      (parameterize ((current-output-port (open-output-string)))
+      (new-block
+        ; ENTER ASM.JS INIT CODE HERE
+        (assemble expression)
+        (write-string ";"))    
+
+      (define (globals)
+        (do ((i 0 (+ i 1))) ((> i last-global))
+          (write-string "var ") (global-var i) (write-string "=0;")))
+
+      (output-from
         (letrec-syntax (
             (write-module (syntax-rules (globals code)
                 ((write-module globals element ...)
-                  (begin (write-string globals) (write-module element ...)))                    
+                  (begin (globals) (write-module element ...)))                    
                 ((write-module code element ...)
                   (begin
-                    (write-string code)
+                    (for-each write-string block*)
                     (write-module element ...)))
                 ((write-module element1 element2 ...)
                   (begin
@@ -264,6 +258,4 @@
                     (write-module element2 ...)))
                 ((write-module)
                   (begin)))))
-          (include "rapid/module.scm"))
-        (get-output-string (current-output-port))))))
-
+          (include "rapid/module.scm"))))))
