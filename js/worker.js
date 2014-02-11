@@ -11,7 +11,8 @@ var foreign = {
   },
 
   writeString: function (p) {
-    var h = new Uint8Array(heap, p);
+    // TODO: Check whether *p is a string.
+    var h = new Uint8Array(heap, p + 8);
     var s = decodeString(h);
     postMessage({cmd: 'output', msg: s});
   },

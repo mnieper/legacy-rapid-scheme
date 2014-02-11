@@ -24,5 +24,5 @@ Heap elements | Format                    | Interpretation
 --------------------------------------------------------------------------------------------
 Closure       | label pointer             | label: points to procedure's body; pointer: to parent frame
 Frame         | integer pointer value ... | integer: number of values; pointer: to parent frame; value... : arguments
-
+String data   | 0x0000 integer bytes ...  | 0x0000: type of string; integer: length of string; bytes: utf-8 encoded
 
