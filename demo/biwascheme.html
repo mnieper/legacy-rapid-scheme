@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>BiwaScheme Demo</title>  
+  <link rel="stylesheet" href="../css/base.css">
+  <style>
+    div#bs-console {
+      margin: 1em 0;
+      border: 1px solid #ccc;
+      padding: 4px;
+      min-height: 10em;
+      white-space: pre;
+    }
+  </style>
+  <script src="http://www.biwascheme.org/release/biwascheme.js"></script>
+</head>
+<body>
+  <script id="program" type="text/scheme">
+      (define n 10000)
+
+      (display "Number of primes between 1 and ")
+      (display (number->string n))
+      (display ": ")
+
+      (define (isprim a)
+        (let isprim ((b a) (i 2))
+          (if (< b (* 2 i))
+          #t
+          (if (= (mod b i) 0)
+            #f
+            (isprim b (+ i 1))))))
+
+      (define (count c)
+        (if (< c 2)
+          0
+          (if (isprim c)
+            (+ (count (- c 1)) 1)
+            (count (- c 1)))))
+
+      (display (number->string (count n)))
+      (display "\n")
+  </script>
+  <header>
+    <h1>BiwaScheme Demo</h1>
+  </header>
+  <main>
+    <div id="buttons">
+      <button id="run">Run test program</button>
+    </div>
+    <div id="bs-console"></div>
+    <div id="status">&nbsp;</div>
+  </main>
+  <footer id="footer">
+    Copyright © 2014 Marc Nieper-Wißkirchen    
+  </footer>
+  <script>
+    var biwascheme = new BiwaScheme.Interpreter(function(e) { console.log(e.message); });
+    function run() {      
+      var time;
+      document.querySelector('#status').textContent = 'Program running…';
+      time = performance.now();
+      biwascheme.evaluate(document.querySelector('#program').textContent);
+      time = performance.now() - time;
+      document.querySelector('#status').textContent = 'Program exited.' + 
+        ' Time taken: ' + Math.round(time) + ' milliseconds.';
+     }
+     document.querySelector('#run').onclick = run;
+  </script>
+</body>
+</html>

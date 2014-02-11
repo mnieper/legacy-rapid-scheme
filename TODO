@@ -1,4 +1,6 @@
--> box & make-parameter & counter & gensym
+- Implement a garbage collector (note: check whether a, e, p registers may hold pointers)
+- Minimize heap usage by putting current frame in registers
+- Check whether calling is better than a large switch statement
 - Better error reporting (e.g. by attaching information to the generated symbols or by storing this information in assoc lists that are maintained throughout the stages). This information is a linked list giving the position inside the source code.
 - Continue to implement (begin ...) in libraries.
 - Write tests of all implemented features.
