@@ -7,6 +7,7 @@
     (define *constant-false* "0x00000001")
     
     ; TODO: Write small procedures that assemble snippets
+    ; TODO: Rename foreign procedures into g1,g2,g3, etc. to save space.
 
     (define (assemble program expression)
     
@@ -81,7 +82,7 @@
             (cons (get-output-string (current-output-port)) body*)))
         (write-string "procedure(")
         (write-string (number->string label))
-        (write-string ",h32[(e+4)>>2]|0)|0"))
+        (write-string ",e)|0"))
 
       (define (assemble-case-lambda-clause formals body)
         ; FIXME At the moment this does not work with rest arguments because lists are not yet implemented
@@ -140,7 +141,7 @@
         (write-string ";")
         (write-string "if((a&0x80000007)>>>0!=0x02){applicationError();}")
         (write-string "a=a&0x7ffffff8;")
-        (write-string "h32[(p+4)>>2]=h32[(a+4)>>2]|0;")
+        (write-string "h32[(p+4)>>2]=h32[a+4>>2]|0;")
         (write-string "e=p;p=0;")
         (write-string "i=h32[a>>2]|0;")
         (write-string "break"))
