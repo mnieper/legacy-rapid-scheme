@@ -23,7 +23,7 @@ rapid.Console = function Console(parent) {
 };
 
 rapid.Console.prototype.write = function write(s) {
-  // XXX Will it scroll?
+  // XXX Will it scroll? See issue
   this._output.appendChild(this._document.createTextNode(s));
 };
 

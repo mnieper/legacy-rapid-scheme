@@ -7,6 +7,7 @@
     var f=8;\
     var e=0;\
     var p=0;\
+    var s=0;\
     var exit=foreign.exit;\
     var writeString=foreign.writeString;\
     var memoryError=foreign.memoryError;\

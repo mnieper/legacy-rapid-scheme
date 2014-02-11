@@ -11,10 +11,17 @@ var foreign = {
   },
 
   writeString: function (p) {
-    // TODO: Check whether *p is a string.
+    if (new Int32Array(heap, p)[0] !== 0x0) {
+      foreign.typeError();
+    }
     var h = new Uint8Array(heap, p + 8);
     var s = decodeString(h);
     postMessage({cmd: 'output', msg: s});
+  },
+
+  typeError: function () {
+    postMessage({cmd: 'error', msg: 'argument type mismatch\n'});
+    foreign.exit(1);
   },
 
   memoryError: function () {
