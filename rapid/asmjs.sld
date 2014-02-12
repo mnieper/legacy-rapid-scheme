@@ -1,90 +1,166 @@
 (define-library (rapid asmjs)
   (export
-    boolean true false number string
-    global-reg
-    environment-ptr
-    local-location
-    local-value
-    heap-location
-    heap-value)
-  (import
-    (scheme base)
-    (only (rapid base) output-from))
+    emit module
+    function use-asm variable-declaration variable literal return
+    member-expression
+    switch while
+    signed stdlib math foreign
+    import-stdlib import-math)  
+  (import (scheme base))
   (begin
-     
-    (define (global-reg index)
-      (string-append "g" (number->string index)))
-     
-    (define (environment-ptr)
-      "e")
-    
-    (define (parent-frame-ptr frame-pointer)
-      (heap-value (string-append "(" frame-pointer ")+4")))
-      
-    (define (arg-location frame-pointer displacement)
-      (heap-location (string-append "(" frame-pointer ")+" (number->string (+ 8 (* displacement 4))))))
+  
+    (define (module identifier variables functions tables exports)
+      (apply function identifier '("stdlib" "foreign" "heap")
+        (use-asm) `(,@variables ,@functions ,@tables ,exports)))
+  
+    (define (function identifier args . body)
+      `(function ,identifier ,args . ,body))
 
-    (define (arg-value frame-pointer displacement)
-      (location->value (arg-location frame-pointer displacement)))
+    (define (use-asm)
+      '(use-asm))
 
-    (define (local-location depth displacement)
-      (let loop ((frame-pointer (environment-ptr)) (depth depth))
-        (if (= depth 0)
-          (arg-location frame-pointer displacement)
-          (loop (parent-frame-ptr frame-pointer) (- depth 1)))))
-          
-    (define (local-value frame displacement)
-      (location->value (local-location frame displacement)))
-      
-    (define (heap-location pointer)
-      (string-append "h32[(" pointer ")>>2]"))
-      
-    (define (location->value location) 
-      (string-append location "|0")) 
-      
-    (define (heap-value pointer)
-      (location->value (heap-location pointer)))
-      
-    (define (empty-body) 
-      "")
-      
-    (define (number expression)
-      (number->string expression)) ; FIXME
-    
-    (define (boolean true?)
-      (if true? "0x10001" "0x1"))
-    
-    (define (true)
-      (boolean #t))
-      
-    (define (false)
-      (boolean #f))
+    (define (variable-declaration identifier init)
+      `(variable-declaration ,identifier ,init))
 
-    (define (string expression)
-      (output-from
-        ;
-        ; TODO: Simplify the following
-        ; work with utf-32
-        ;
-        (define utf8 (string->utf8 expr))
-        (write-string "(s=alloc(")
-        (write-string (number->string (* 8 (quotient (+ 16 (bytevector-length utf8)) 8))))
-        (write-string ")|0,h32[s>>2]=0x0,h32[s+4>>2]=")
-        (write-string (number->string (bytevector-length utf8)))
-        (do ((i 0 (+ i 1))) ((= i (bytevector-length utf8)))
-          (write-string ",hu8[s+")
-          (write-string (number->string (+ i 8)))
-          (write-string "|0]=0x")
-          (write-string (number->string (bytevector-u8-ref utf8 i) 16)))
-        (write-string ",hu8[s+") (write-string (number->string (+ 8 (bytevector-length utf8)))) (write-string "|0]=0x0")
-        (write-string ",s)|0")))
+    (define (variable identifier)
+      `(variable ,identifier))
 
-    (define (assignment variable expression)
-      (string-append variable "=" expression))
+    (define (while test . body)
+      `(while ,test . ,body))
+
+    (define (switch discriminant . cases)
+      `(switch ,discriminant . ,cases))
+
+    (define (literal literal)
+      `(literal ,literal))
+
+    (define (return argument)
+      `(return ,argument))
+
+    (define (member-expression object expression)
+      `(member ,object ,expression))
+
+    (define (signed expression)
+      `(binary "|" ,expression ,(literal 0)))
+
+    (define (double expression)
+      `(unary "+" ,expression))
+
+    (define (stdlib identifier)
+      (member-expression (variable "stdlib") identifier))
       
-    (define (call operation args)
-      (string-append operation "(" TODO ")|0")) 
+    (define (math identifier)
+      (member-expression (member-expression (variable "stdlib") "Math") identifier))
 
-    (define (conditional test consequent alternate)
-      (string-append "if((" test ")>>>0!=" (false) "){" consequent "}else{" alternate "}"))
+    (define (foreign identifier)
+      (member-expression (variable "foreign") identifier))
 
+    (define (import-stdlib variable identifier)
+      (variable-declaration (cadr variable) (stdlib identifier)))
+      
+    (define (import-math variable identifier)
+      (variable-declaration (cadr variable) (math identifier)))
+
+    (define (foreign-function variable identifier)
+      (variable-declaration (cadr variable) (foreign identifier)))
+
+    (define (foreign-int variable identifier)
+      (variable-declaratio (cadr variable) (signed (foreign identifier))))
+      
+    (define (foreign-double variable identifier)
+      (variable-declaration (cadr variable) (double (foreign identifier))))
+
+    (define (emit node)
+      (case (car node)
+        ((function) (apply emit-function (cdr node)))
+        ((variable-declaration) (apply emit-variable-declaration (cdr node)))
+        ((use-asm) (emit-use-asm))
+        ((variable) (apply emit-variable (cdr node)))
+        ((while) (apply emit-while (cdr node)))
+        ((switch) (apply emit-switch (cdr node)))
+        ((literal) (apply emit-literal (cdr node)))
+        ((binary) (apply emit-binary (cdr node)))
+        ((unary) (apply emit-unary (cdr node)))
+        ((return) (apply emit-return (cdr node)))
+        ((member) (apply emit-member (cdr node)))
+        (else (error node)))) ; REMOVE ME
+
+    (define (emit-function identifier args . body)
+      (write-string "function ")
+      (write-string identifier)
+      (emit-args args)
+      (write-string "{")
+      (for-each emit body)
+      (write-string "}"))
+
+    (define (emit-use-asm)
+      (write-string "'use asm';"))
+
+    (define (emit-variable-declaration identifier init)
+      (write-string "var ")
+      (write-string identifier)
+      (write-string "=")
+      (emit init)
+      (write-string ";"))
+
+    (define (emit-variable variable) 
+      (write-string variable))
+
+    (define (emit-while test . body)
+      (write-string "while(")
+      (emit test)
+      (write-string "){")
+      (for-each emit body)
+      (write-string "}"))
+
+    (define (emit-switch discriminant . cases)
+      (write-string "switch(")
+      (emit discriminant)
+      (write-string "){")
+      (for-each emit cases)
+      (write-string "}"))
+
+    (define (emit-literal literal)
+      (write-string literal))
+
+    (define (emit-binary operator left right)
+      (emit-parenthesized left)
+      (write-string operator)
+      (emit-parenthesized right))
+
+    (define (emit-unary operator argument) 
+      (write-string operator)
+      (emit argument))
+
+    (define (emit-return argument)
+      (write-string "return ")
+      (emit argument)
+      (write-string ";"))
+
+    (define (emit-member object expression)
+      (emit-parenthesized object)
+      (cond
+        ((string? expression)
+          (write-string ".")
+          (write-string expression))
+        (else
+          (write-string "[")
+          (emit expression)
+          (write-string "]"))))
+
+    (define (emit-parenthesized expression)
+      (case (car expression)
+        ((literal variable member) (emit expression))
+        (else
+          (write-string "(")
+          (emit expression)
+          (write-string ")"))))
+
+    (define (emit-args args)
+      (write-string "(")
+      (let loop ((args args) (d ""))
+        (unless (null? args)
+          (write-string d)
+          (write-string (car args))
+          (loop (cdr args) ",")))
+      (write-string ")"))))

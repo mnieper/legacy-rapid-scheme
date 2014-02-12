@@ -10,11 +10,13 @@
 Assembler
 ---------
 
+- Rename to translate
 - Recognize constants (i.e. global identifiers just set! once or local identifiers never set!) and emit special code.
 - Offer an optimized mode that skips all non-obligatory runtime error checks.
 
 asm.js
 ------
 
+- Rename to assemble
 - Tell the asm.js backend about operator precedence
 
