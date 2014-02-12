@@ -6,3 +6,15 @@
 - Write tests of all implemented features.
 - At the moment, everything that is a symbol? is regarded as an identifier (including _). We may change this.
 
+
+Assembler
+---------
+
+- Recognize constants (i.e. global identifiers just set! once or local identifiers never set!) and emit special code.
+- Offer an optimized mode that skips all non-obligatory runtime error checks.
+
+asm.js
+------
+
+- Tell the asm.js backend about operator precedence
+

@@ -13,9 +13,9 @@
 
     (define (compile source)
       (let ((program (make-program)))
-        (assemble program
+        (assemble
           ;(display ; XX
           (optimize
             (cps program
-              (link source))))))))
+              (link source))) program)))))
 

@@ -36,7 +36,7 @@
         (string? expr)))
 
     (define (tagged-list? expr tag)
-      (and (pair? expr) (eq? (car expr) tag)))
+      (and (list? expr) (eq? (car expr) tag)))
 
     (define (tagged-pair? expr tag)
       (and (pair? expr) (eq? (car expr) tag)))

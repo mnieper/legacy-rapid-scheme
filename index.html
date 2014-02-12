@@ -23,7 +23,7 @@
   </footer>
   <script>
     var console = new rapid.Console(document.querySelector('#console'));
-    function run() {      
+    function run() {
       var program = new rapid.ConsoleProgram('example/primes.js', console);
       var time;
       program.onexit = function (data) {
