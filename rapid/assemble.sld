@@ -1,6 +1,6 @@
 (define-library (rapid assemble)
   (export
-    assemble
+    assemble import
     boolean true false number string
     global-reg
     environment-ptr
@@ -14,14 +14,14 @@
     (rapid asmjs))
   (begin
 
-    (define (assemble global-count imports)   ; IDEA: map imports to 
+    (define (assemble global-count imports)
       (parameterize ((current-output-port (open-output-string)))
-        (emit (rapid-module global-count))
+        (emit (rapid-module global-count imports))
         (get-output-string (current-output-port))))
 
-    (define (rapid-module global-count)
+    (define (rapid-module global-count imports)
       (module "RapidModule"
-        `(,@(globals global-count) ,@(imports))
+        `(,@(globals global-count) ,@(import-declarations imports))
         `(,(run))
         '()
         (return (variable "run"))))
@@ -31,36 +31,32 @@
         (if (= i global-count)
           '()
           `(,(variable-declaration (cadr (global-reg i)) (literal 0)) . ,(loop (+ i 1))))))
-    
-    (define externs
-      '((imul math "imul")
-        (exit function "exit")
-        (writeString function "writeString")
-        (memoryError function "memoryError")
-        (callError function "callError")
-        (applicationError function "applicationError")))
-        
-    (define (extern identifier)
-      (let loop ((i 0) (externs externs))
-        (if (eq? (caar externs) identifier)
-          (variable (string-append "x" (string->number i)))
-          (loop (+ i 1) (cdr externs)))))
 
-    (define (imports)
-      (let loop ((i 0) (externs externs))
-        (if (null? externs)
+    (define (import type identifier)
+      (vector type identifier))
+      
+    (define (import-type import)
+      (vector-ref import 0))
+
+    (define (import-identifier import)
+      (vector-ref import 1))
+
+    (define (import-declarations imports)
+      (let loop ((i 0) (imports imports))
+        (if (null? imports)
           '()
           (cons
-            (let* ((extern (car externs)) (identifier (caddr extern)))
-              (case (cadr extern)
-                ((math) (import-math 
-    
-      (list
-        (import-math (ff-imul) "imul")
-        (foreign-function (ff-exit) "exit") 
-        (foreign-function (ff-write-string) "writeString")
-        (foreign-function (ff-memory-error) "memoryError")
-        (foreign-function (ff-application-error) "applicationError"))) 
+            (let* ((import (car imports)) (identifier (import-identifier import)))
+              (case (import-type import)
+                ((math) (import-math (extern i) identifier))
+                ((stdlib) (import-math (extern i) identifier))
+                ((function) (foreign-function (extern i) identifier))
+                ((int) (foreign-int (extern i) identifier))
+                ((double) (foreign-double (extern i) identifier))))
+            (loop (+ i 1) (cdr imports))))))
+
+    (define (extern i)
+      (variable (string-append "x" (number->string i))))
 
     (define (run)
       (function "run" '()
