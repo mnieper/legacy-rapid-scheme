@@ -1,24 +1,17 @@
 (define-library (rapid asmjs)
   (export
-    boolean true false
+    boolean true false number string
     global-reg
     environment-ptr
     local-location
     local-value
     heap-location
     heap-value)
-  (import (scheme base))
+  (import
+    (scheme base)
+    (only (rapid base) output-from))
   (begin
      
-    (define (boolean true?)
-      (if true? "0x10001" "0x1"))
-      
-    (define (true)
-      (boolean #t))
-      
-    (define (false)
-      (boolean #f))
-      
     (define (global-reg index)
       (string-append "g" (number->string index)))
      
@@ -50,5 +43,48 @@
       (string-append location "|0")) 
       
     (define (heap-value pointer)
-      (location->value (heap-location pointer)))))
+      (location->value (heap-location pointer)))
+      
+    (define (empty-body) 
+      "")
+      
+    (define (number expression)
+      (number->string expression)) ; FIXME
+    
+    (define (boolean true?)
+      (if true? "0x10001" "0x1"))
+    
+    (define (true)
+      (boolean #t))
+      
+    (define (false)
+      (boolean #f))
+
+    (define (string expression)
+      (output-from
+        ;
+        ; TODO: Simplify the following
+        ; work with utf-32
+        ;
+        (define utf8 (string->utf8 expr))
+        (write-string "(s=alloc(")
+        (write-string (number->string (* 8 (quotient (+ 16 (bytevector-length utf8)) 8))))
+        (write-string ")|0,h32[s>>2]=0x0,h32[s+4>>2]=")
+        (write-string (number->string (bytevector-length utf8)))
+        (do ((i 0 (+ i 1))) ((= i (bytevector-length utf8)))
+          (write-string ",hu8[s+")
+          (write-string (number->string (+ i 8)))
+          (write-string "|0]=0x")
+          (write-string (number->string (bytevector-u8-ref utf8 i) 16)))
+        (write-string ",hu8[s+") (write-string (number->string (+ 8 (bytevector-length utf8)))) (write-string "|0]=0x0")
+        (write-string ",s)|0")))
+
+    (define (assignment variable expression)
+      (string-append variable "=" expression))
+      
+    (define (call operation args)
+      (string-append operation "(" TODO ")|0")) 
+
+    (define (conditional test consequent alternate)
+      (string-append "if((" test ")>>>0!=" (false) "){" consequent "}else{" alternate "}"))
 

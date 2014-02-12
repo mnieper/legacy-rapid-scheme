@@ -1,8 +1,8 @@
 (define-library (rapid scheme)
-  (export variable? if? lambda? set!? op
+  (export variable? lambda? set!? op
     set!-expression set!-variable
     case-lambda? case-lambda-clauses case-lambda-clause-formals case-lambda-clause-body)
-  
+    if? if-test if-consequent if-alternate
   (import
     (scheme base)
     (only (rapid base) tagged-list?))
@@ -10,9 +10,6 @@
   
     (define (variable? expr)
       (symbol? expr))
-      
-    (define (if? expr)
-      (tagged-list? expr 'if))
       
     (define (lambda? expr)
       (tagged-list? expr 'lambda))
@@ -29,6 +26,18 @@
           ((assq (car expr) *ops*) => cdr)
           (else #f))))
 
+    (define (if? expr)
+      (tagged-list? expr 'if))
+      
+    (define (if-test expression)
+      (list-ref expression 1))
+      
+    (define (if-consequent expression)
+      (list-ref expression 2))
+
+    (define (if-alternate expression)
+      (list-ref expression 3))
+      
     (define (set!-variable form)
       (list-ref form 1))
       

@@ -8,7 +8,10 @@
     (rapid scheme)
     (rapid asmjs))
   (begin
-  
+
+    ; Naming: environment extracts information about the variables
+    ;         translate translates an expression and accumulates a body
+
     (define (make-location assemble)
       (vector assemble))
 
@@ -18,16 +21,15 @@
     (define (make-global counter)
       (let ((name (global-reg counter)))
         (make-location
-          (lambda (frames value?) (write-string name))))) 
+          (lambda (frames value?) name)))) 
 
     (define (make-local frame displacement)
       (make-location
         (lambda (frames value?)
-          (write-string
-            (let ((depth (list-ref frames frame)))
-              (if value?
-                (local-value depth displacement)
-                (local-location depth displacement)))))))
+          (let ((depth (list-ref frames frame)))
+            (if value?
+              (local-value depth displacement)
+              (local-location depth displacement))))))
 
     ; TODO: Find a better name for environment
     (define environment
@@ -69,6 +71,8 @@
                       ((null? formals) locations)
                       ((pair? formals) `((,(car formals) . ,(make-local frame i)) . ,(loop-formals (cdr formals) (+ i 1)))))))))))))   
 
+
+
     ; Analoguously one may want to define macros for the module... (e.g. IS_PROCEDURE; POINTER(...); etc.)
     ; For use with expand macro
     
@@ -77,17 +81,78 @@
     ; TODO Define library template with define-template macro for compile-time string expansion
 
     ; FIXME In our current implementation, strings have a fixed number of utf-8 bytes.
-    ; This will make problems when implementing "string-set!". Easiest solution: Use utf-16 encoding.
-    ; (Or utf-32).
-    ;
-    ; XXX TODO: Was soll Strings herausgeben? Was soll writes machen? Wie heißen die Prozeduren? Was ist h32[...]?
+    ; (solution: utf-32).
+  
+    (define translate
+      (case-lambda
+        ((expression locations) (body expression '(0) 1 locations))
+        ((expression frame-depths next-label locations)
+          (cond
+            ((number? expression) (translate-number expression))
+            ((boolean? expression) (translate-boolean expression))
+            ((string? expression) (translate-string expression))
+            ((variable? expression) (translate-variable expression frame-depths locations))
+            ((set!? expression) (translate-set! (set!-variable expression) (set!-expression expression) frame-depths next-label locations))
+            ((op expression) => (lambda (op) (translate-operation op (cdr expression) frame-depths next-label locations)))
+            ((if? expression) (translate-if (if-test expression) (if-consequent expression) (if-alternate expression)))
+            ((case-lambda? expression) (assemble-case-lambda (cdr expr)))
+            ((pair? expression) (assemble-application (car expr) (cdr expr)))))))
 
-    
+    (define (translate* expression* frame-depths next-label locations)
+      (if (null? expression*)
+        (values '() (empty-body))
+        (let-values (((code* assembled-body) (translate* (cdr expression*) frame-depths next-label locations))
+            ((code body) (translate (car expression*) frame-depths next-label locations)))
+          (values `(,code . ,code*) (string-append body assembled-body))))) ; TODO move string-append to asmjs
+
+    (define (translate-number expression)
+      (values
+        (write-string (number expression)) (empty-body)))
+
+    (define (translate-boolean expression)
+      (values
+        (write-string (boolean expression)) (empty-body)))
+
+    (define (translate-string expression)
+      (values
+        (write-string (string expression) (empty-body))))
+
+    (define (translate-variable variable frame-depths locations)
+      (values
+        (let ((location (cdr (assq variable locations))))
+          ((location-assemble location) frame-depths #t))
+        (empty-body)))
+
+    (define (translate-set! variable expression frame-depths next-label locations)
+      (let ((location (cdr (assq var locations))))
+        (let-values (((code body) (translate expression frame-depths next-label locations)))
+          (values
+            (assignment ((location-assemble location) (frames) #f) code)
+            body))))
+      
+    (define (translate-operation operation args frame-depths next-label locations)
+      (let-values (((code* body)) (translate* args frame-depths next-label locations))
+        (values (call operation code*) body)))
+
+    (define (translate-if test consequent alternate frame-depths next-label locations)
+      (let-values (((code* body) (translate* (list test consequent alternate) frame-depths next-label locations)))
+        (values (apply conditional code*) body)))
 
     (define (assemble expression program)
       (let-values (((global-count locations)
                     (environment expression)))
-     
+
+        ; wie funktioniert das neue Assemble:
+        ; Erzeuge blocks; außerdem sollte frames weitergeben werden; frames ist das neue depths
+        ;   
+
+        ; mitzuschleppen: environment, frame-depths, block-label?
+        
+
+                
+                
+            
+            
         (define block* '())
         (define block-label -1)
         (define-syntax new-block
