@@ -1,166 +1,442 @@
 (define-library (rapid asmjs)
   (export
-    emit module
-    function use-asm variable-declaration variable literal return
-    member-expression
-    switch while
-    signed stdlib math foreign
-    import-stdlib import-math)  
+    emit
+    js-function js-return js-var js-block js-statement js-if js-while js-do
+    js-for js-break js-continue js-labelled js-switch js-case js-default
+    js-expression js-number js-id js-member js-assignment js-conditional
+    js-call js-object js-~ js-!
+    js-+ js-- js-* js-/ js-% js-| js-& js-^ js-<< js->> js->>> js-< js-<=
+    js-> js->= js-== js-!=
+    js-module js-signed js-double js-stdlib-import js-math-import
+    js-foreign-function js-foreign-int js-foreign-double js-heap-view)
   (import (scheme base))
   (begin
-  
-    (define (module identifier variables functions tables exports)
-      (apply function identifier '("stdlib" "foreign" "heap")
-        (use-asm) `(,@variables ,@functions ,@tables ,exports)))
-  
-    (define (function identifier args . body)
+
+    (define (js-function identifier args . body)
       `(function ,identifier ,args . ,body))
-
-    (define (use-asm)
-      '(use-asm))
-
-    (define (variable-declaration identifier init)
-      `(variable-declaration ,identifier ,init))
-
-    (define (variable identifier)
-      `(variable ,identifier))
-
-    (define (while test . body)
+            
+    (define (js-return . argument*)
+      `(return . ,argument*))
+       
+    (define (js-var identifier expression)
+      `(var ,identifier ,expression))
+      
+    (define (js-block . body)
+      `(block . ,body))
+      
+    (define (js-statement . expression*)
+      `(statement . ,expression*))
+      
+    (define (js-if test consequent . alternate*)
+      `(if ,test ,consequent . ,alternate*))
+      
+    (define (js-while test . body)
       `(while ,test . ,body))
-
-    (define (switch discriminant . cases)
-      `(switch ,discriminant . ,cases))
-
-    (define (literal literal)
-      `(literal ,literal))
-
-    (define (return argument)
-      `(return ,argument))
-
-    (define (member-expression object expression)
-      `(member ,object ,expression))
-
-    (define (signed expression)
-      `(binary "|" ,expression ,(literal 0)))
-
-    (define (double expression)
-      `(unary "+" ,expression))
-
-    (define (stdlib identifier)
-      (member-expression (variable "stdlib") identifier))
       
-    (define (math identifier)
-      (member-expression (member-expression (variable "stdlib") "Math") identifier))
-
-    (define (foreign identifier)
-      (member-expression (variable "foreign") identifier))
-
-    (define (import-stdlib variable identifier)
-      (variable-declaration (cadr variable) (stdlib identifier)))
+    (define (js-do test . body)
+      `(do ,test . ,body))
       
-    (define (import-math variable identifier)
-      (variable-declaration (cadr variable) (math identifier)))
-
-    (define (foreign-function variable identifier)
-      (variable-declaration (cadr variable) (foreign identifier)))
-
-    (define (foreign-int variable identifier)
-      (variable-declaratio (cadr variable) (signed (foreign identifier))))
+    (define (js-for init* test* update* . body)
+      `(for ,init* ,test* ,update* . ,body))
       
-    (define (foreign-double variable identifier)
-      (variable-declaration (cadr variable) (double (foreign identifier))))
+    (define (js-break . identifier*)
+      `(break . ,identifier*))
+      
+    (define (js-continue . identifier*)
+      `(continue . ,identifier*))
+      
+    (define (js-labelled identifier statement)
+      `(labelled ,identifier ,statement))
+      
+    (define (js-switch discriminant . clauses)
+      `(switch ,discriminant . ,clauses))
+      
+    (define (js-case test . body)
+      `(case ,test . ,body))
+      
+    (define (js-default . body)
+      `(default . ,body))
+      
+    (define (js-expression . expression*)
+      `(expression . ,expression*))
+      
+    (define (js-number number)
+      `(number ,number))
+      
+    (define (js-string string)
+      `(string ,string))
+      
+    (define (js-id . identifier)
+      `(id . ,identifier))
+      
+    (define (js-new callee . arguments*)
+      `(new ,callee . ,arguments*))
+      
+    (define (js-member object property)
+      `(member ,object ,property))
+      
+    (define (js-assignment identifier expression)
+      `(assignment ,identifier ,expression))
+      
+    (define (js-unary operator expression)
+      `(unary ,operator ,expression))
+      
+    (define (js-binary operator left right)
+      `(binary ,operator ,left ,right))
+    
+    (define (js-conditional test consequent alternate)
+      `(condition ,test ,consequent ,alternate))
 
-    (define (emit node)
+    (define (js-call identifier . arguements*)
+      `(call ,identifier . ,arguments*))
+
+    (define (js-object . properties*)
+      `(object . ,properties))
+
+    (define (js-module identifier variables functions tables exports)
+      (apply js-function identifier '((js-id "stdlib") (js-id "foreign") (js-id "heap"))
+        (js-use-asm) ,@variables ,@functions ,@tables ,exports))
+          
+    (define (js-use-asm)
+      (js-statement (js-string "use asm")))
+
+    (define (js-signed expression)
+      (js-binary "|" expression (number 0)))
+
+    (define (js-double expression)
+      (js-unary "+" expression))
+    
+    (define (js-stdlib identifier)
+      (js-member (js-id "stdlib") (js-id identifier)))
+
+    (define (js-math identifier)
+      (js-member (js-member (js-id "stdlib") (js-id "Math")) (js-id identifier)))
+
+    (define (js-foreign identifier)
+      (js-member (js-id "foreign") (js-id identifier)))
+
+    (define (js-stdlib-import variable identifier)
+      (js-var variable (js-stdlib identifier)))
+      
+    (define (js-math-import variable identifier)
+      (js-var variable (js-math identifier)))
+      
+    (define (js-foreign-function variable identifier)
+      (js-var variable (js-foreign identifier)))
+
+    (define (js-foreign-int variable identifier)
+      (js-var variable (js-signed (js-foreign identifier))))
+      
+    (define (js-foreign-double variable identifier)
+      (js-var variable (js-double (js-foreign identifier))))
+
+    (define (js-heap-view variable view)
+      (js-var variable (js-new (js-stdlib view) (js-id "heap"))))
+
+    (define (js-~ argument)
+      (js-unary "~" argument))
+
+    (define (js-! argument)
+      (js-unary "!" argument))
+
+    (define (make-js-operator operator)
+      (letrec ((js-operator
+            (lambda arguments*
+              (if (null? (cdr arguments*))
+                (car arguments*)
+                (js-binary operator (js-operator (cdr *arguments)) (car arguments*))))))
+        js-operator))
+
+    (define js-+ (make-js-operator "+"))
+    (define js-- (make-js-operator "-"))
+    (define js-* (make-js-operator "*"))
+    (define js-/ (make-js-operator "/"))
+    (define js-% (make-js-operator "%"))
+    (define js-| (make-js-operator "|"))
+    (define js-& (make-js-operator "&"))
+    (define js-^ (make-js-operator "^"))
+    (define js-<< (make-js-operator "<<"))
+    (define js->> (make-js-operator ">>"))
+    (define js->>> (make-js-operator ">>>"))
+    (define js-< (make-js-operator "<"))
+    (define js-<= (make-js-operator "<="))
+    (define js-> (make-js-operator ">"))
+    (define js->= (make-js-operator ">="))
+    (define js-== (make-js-operator "=="))
+    (define js-!= (make-js-operator "!="))
+
+    (define (emit js)
       (case (car node)
         ((function) (apply emit-function (cdr node)))
-        ((variable-declaration) (apply emit-variable-declaration (cdr node)))
-        ((use-asm) (emit-use-asm))
-        ((variable) (apply emit-variable (cdr node)))
-        ((while) (apply emit-while (cdr node)))
-        ((switch) (apply emit-switch (cdr node)))
-        ((literal) (apply emit-literal (cdr node)))
-        ((binary) (apply emit-binary (cdr node)))
-        ((unary) (apply emit-unary (cdr node)))
         ((return) (apply emit-return (cdr node)))
+        ((var) (apply emit-var (cdr node)))
+        ((block) (apply emit-block (cdr node)))
+        ((statement) (apply emit-statement (cdr node)))
+        ((if) (apply emit-if (cdr node)))
+        ((while) (apply emit-while (cdr node)))
+        ((do) (apply emit-do (cdr node)))
+        ((for) (apply emit-for (cdr node)))
+        ((break) (apply emit-break (cdr node)))
+        ((continue) (apply emit-continue (cdr node)))
+        ((labelled) (apply emit-labelled (cdr node)))
+        ((switch) (apply emit-switch (cdr node)))
+        ((case) (apply emit-case (cdr node)))
+        ((default) (apply emit-default (cdr node)))
+        ((expression) (apply emit-expression (cdr node)))
+        ((number) (apply emit-number (cdr node)))
+        ((string) (apply emit-string (cdr node)))
+        ((id) (apply emit-id (cdr node)))
+        ((new) (apply emit-new (cdr node)))
         ((member) (apply emit-member (cdr node)))
-        (else (error node)))) ; REMOVE ME
+        ((assignment) (apply emit-assignment (cdr node)))
+        ((unary) (apply emit-unary (cdr node)))
+        ((binary) (apply emit-binary (cdr node)))
+        ((conditional) (apply emit-conditional (cdr node)))
+        ((call) (apply emit-call (cdr node)))
+        ((object) (apply emit-object (cdr node)))))
 
     (define (emit-function identifier args . body)
-      (write-string "function ")
-      (write-string identifier)
+      (write-string "function")
+      (unless (string=? (cadr identifier) "")
+        (write-string " ")
+        (emit identifier))
       (emit-args args)
       (write-string "{")
-      (for-each emit body)
+      (emit-body body)
       (write-string "}"))
 
-    (define (emit-use-asm)
-      (write-string "'use asm';"))
+    (define (emit-return . argument*)
+      (write-string "return")
+      (unless (null? argument*)
+        (write-string " ")
+        (emit-js (car argument*)))
+      (write-string ";"))        
 
-    (define (emit-variable-declaration identifier init)
+    (define (emit-var identifier expression)
       (write-string "var ")
-      (write-string identifier)
+      (emit identifier)
       (write-string "=")
-      (emit init)
+      (emit-parenthesized (eq? (car expression) 'expression) expression)
       (write-string ";"))
 
-    (define (emit-variable variable) 
-      (write-string variable))
-
+    (define (emit-block . body)
+      (write-string "{")
+      (emit-body body)
+      (write-string "}"))
+      
+    (define (emit-statement . expression*)
+      (unless (null? expression*)
+        (emit (car expression)))
+      (emit ";"))
+      
+    (define (emit-if test consequent . alternate*)
+      (write-string "if(")
+      (emit test)
+      (write-string "){")
+      (emit consequent)
+      (write-string "}")
+      (unless (null? alternate*)
+        (write-string "else{")
+        (emit alternate)
+        (write-string "}")))
+        
     (define (emit-while test . body)
       (write-string "while(")
       (emit test)
       (write-string "){")
-      (for-each emit body)
+      (emit-body body)
+      (write-string "}"))
+      
+    (define (emit-do test . body)
+      (write-string "do{")
+      (emit-body body)
+      (write-string "}while(")
+      (emit test)
+      (write-string ")"))
+      
+    (define (emit-for init* test* update* . body)
+      (write-string "for(")
+      (unless (null? init*)
+        (emit (car init*)))
+      (write-string ";")
+      (unless (null? test*)
+        (emit (car test*)))
+      (write-string ";")
+      (unless (null? update*)
+        (emit (car update*)))
+      (write-string "){")
+      (emit-body body)
       (write-string "}"))
 
-    (define (emit-switch discriminant . cases)
+    (define (emit-break . identifier*)
+      (write-string "break")
+      (unless (null? identifier*)
+        (write-string " ")
+        (emit (car identifier*)))
+      (write-string ";"))
+
+    (define (emit-continue . identifier*)
+      (write-string "continue")
+      (unless (null? identifier*)
+        (write-string " ")
+        (emit (car identifier*)))
+      (write-string ";"))
+
+    (define (emit-labelled identifier statement)
+      (emit identifier)
+      (write-string ":")
+      (emit statement))
+      
+    (define (emit-switch discriminant . clauses)
       (write-string "switch(")
       (emit discriminant)
       (write-string "){")
-      (for-each emit cases)
+      (for-each emit clauses)
       (write-string "}"))
-
-    (define (emit-literal literal)
-      (write-string literal))
-
-    (define (emit-binary operator left right)
-      (emit-parenthesized left)
-      (write-string operator)
-      (emit-parenthesized right))
-
-    (define (emit-unary operator argument) 
-      (write-string operator)
-      (emit argument))
-
-    (define (emit-return argument)
-      (write-string "return ")
-      (emit argument)
-      (write-string ";"))
-
-    (define (emit-member object expression)
-      (emit-parenthesized object)
+      
+    (define (emit-case test . body)
+      (write-string "case ")
+      (emit test)
+      (write-string ":")
+      (emit-body body))
+      
+    (define (emit-default . body)
+      (write-string "default:")
+      (emit-body body))
+      
+    (define (emit-expression . expression*)
+      (let loop ((expression* expression*) (d ""))
+        (unless (null? expression*)
+          (write-string d)
+          (emit (car expression*))
+          (loop (cdr expression*) ","))))
+          
+    (define (emit-number number)
+      (write-string (number->string number)))
+      
+    (define (emit-string string)
+      (write-string "'")
+      (write-string string)
+      (write-string "'"))
+      
+    (define (emit-id identifier)
+      (write-string identifier))
+      
+    (define (emit-new callee . arguments*)
+      (emit "new ")
+      (emit-parenthesized (not (eq? (car callee) 'member)) callee)
+      (emit-args arguments*))
+      
+    (define (emit-member object property)
+      (emit-parenthesized (not (new-expression? object) object))
+      (emit object)
       (cond
-        ((string? expression)
+        ((eq? (car property 'id))
           (write-string ".")
-          (write-string expression))
+          (emit identifier))
         (else
           (write-string "[")
-          (emit expression)
+          (emit property)
           (write-string "]"))))
 
-    (define (emit-parenthesized expression)
-      (case (car expression)
-        ((literal variable member) (emit expression))
-        (else
-          (write-string "(")
-          (emit expression)
-          (write-string ")"))))
+    (define (emit-assignment identifier expression)
+      (emit identifier)
+      (emit "=")
+      (emit-parenthized (eq? (car expression) 'expression) expression))
+    
+    (define (emit-unary operator expression)
+      (case operator
+        (("+" "-") (write-string " ")))
+      (write-string operator)
+      (emit-parenthesized (not (unary-expression? expression) expression)))
+      
+    (define (emit-binary operator left right)
+      (emit-parenthesized
+        (or (not (logical-or-expression? left))  
+          (and (eq? (car left) 'binary) (> (precedence (cadr left)) (precendence operator)))) 
+        left)
+      (case operator
+        (("+" "-") (write-string " ")))
+      (write-string operator)   
+      (emit-parenthesized
+        (or (not (logical-or-expression? left))  
+          (and (eq? (car left) 'binary) (>= (precedence (cadr right)) (precendence operator)))) 
+        right))
+
+    (define (emit-conditional test consequent alternate)
+      (emit-parenthesized (not (logical-or-expression? test)) test)
+      (write-string "?")
+      (emit-parenthesized (eq (car consequent) 'expression) consequent)
+      (write-string ":")
+      (emit-parenthesized (eq (car alternate) 'expression) alternate))
+    
+    (define (emit-call identifier . arguments*)
+      (emit identifier)
+      (emit-args arguments*))
+    
+    (define (emit-object . property*)
+      (string-append "{")
+      (let loop ((property* property*) (d ""))
+        (unless (null? property*)
+          (emit (caar property*))
+          (emit ":")
+          (emit (cdar property))
+          (loop (cdr property*) ",")))
+      (string-append "}"))
+    
+    (define (emit-body body)
+      (unless (null? body)
+        (emit (car body))
+        (when (expression? (car body))
+          (write-string ";"))
+        (emit-body (cdr body))))
 
     (define (emit-args args)
       (write-string "(")
       (let loop ((args args) (d ""))
         (unless (null? args)
           (write-string d)
-          (write-string (car args))
+          (emit-parenthesized (eq? (caar args) 'expression)
+            (car args))
           (loop (cdr args) ",")))
-      (write-string ")"))))
+      (write-string ")"))
+
+    (define (emit-parenthesized condition js)
+      (cond
+        (condition
+          (write-string "(")
+          (emit js)
+          (write-string ")"))
+        (else (emit js))))
+
+    (define (expression? js)
+      (case (car js)
+        ((expression number id member assignment unary binary conditional) #t)
+        (else #f)))
+
+    (define (new-expression? js)
+      (case (car js)
+        ((member new) #t)
+        (else #f)))
+
+    (define (unary-expression? js)
+      (case (car js) 
+        ((member new call unary) #t)
+        (else #f)))
+        
+    (define (logical-or-expression? js)
+      (case (car js)
+        ((member new call unary binary)) #t)
+        (else #f))
+        
+    (define (precedence operator)
+      (case operator
+        (("*" "/" "%") 5)
+        (("+" "-") 6)
+        (("<<" ">>" ">>>") 7)
+        (("<" ">" "<=" ">=") 8)
+        (("==" "!=") 9)
+        (("&") 10)
+        (("^") 11)
+        (("|") 12)))))
+

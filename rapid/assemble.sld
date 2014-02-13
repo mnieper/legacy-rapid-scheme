@@ -1,6 +1,6 @@
 (define-library (rapid assemble)
   (export
-    assemble import
+    assemble 
     boolean true false number string
     global-reg
     environment-ptr
@@ -13,6 +13,8 @@
     (only (rapid base) output-from)
     (rapid asmjs))
   (begin
+
+    ; idee: nur die foreigns als import liste
 
     (define (assemble global-count imports)
       (parameterize ((current-output-port (open-output-string)))
@@ -32,27 +34,12 @@
           '()
           `(,(variable-declaration (cadr (global-reg i)) (literal 0)) . ,(loop (+ i 1))))))
 
-    (define (import type identifier)
-      (vector type identifier))
-      
-    (define (import-type import)
-      (vector-ref import 0))
-
-    (define (import-identifier import)
-      (vector-ref import 1))
-
     (define (import-declarations imports)
       (let loop ((i 0) (imports imports))
         (if (null? imports)
           '()
           (cons
-            (let* ((import (car imports)) (identifier (import-identifier import)))
-              (case (import-type import)
-                ((math) (import-math (extern i) identifier))
-                ((stdlib) (import-math (extern i) identifier))
-                ((function) (foreign-function (extern i) identifier))
-                ((int) (foreign-int (extern i) identifier))
-                ((double) (foreign-double (extern i) identifier))))
+            (foreign-function (extern i) (car imports))
             (loop (+ i 1) (cdr imports))))))
 
     (define (extern i)
