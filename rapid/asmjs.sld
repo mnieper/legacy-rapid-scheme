@@ -5,7 +5,7 @@
     js-for js-break js-continue js-labelled js-switch js-case js-default
     js-expression js-number js-id js-member js-assignment js-conditional
     js-call js-object js-~ js-!
-    js-+ js-- js-* js-/ js-% js-| js-& js-^ js-<< js->> js->>> js-< js-<=
+    js-+ js-- js-* js-/ js-% js-or js-& js-^ js-<< js->> js->>> js-< js-<=
     js-> js->= js-== js-!=
     js-module js-signed js-double js-stdlib-import js-math-import
     js-foreign-function js-foreign-int js-foreign-double js-heap-view)
@@ -87,21 +87,21 @@
     (define (js-conditional test consequent alternate)
       `(condition ,test ,consequent ,alternate))
 
-    (define (js-call identifier . arguements*)
+    (define (js-call identifier . arguments*)
       `(call ,identifier . ,arguments*))
 
-    (define (js-object . properties*)
-      `(object . ,properties))
+    (define (js-object . property*)
+      `(object . ,property*))
 
     (define (js-module identifier variables functions tables exports)
       (apply js-function identifier '((js-id "stdlib") (js-id "foreign") (js-id "heap"))
-        (js-use-asm) ,@variables ,@functions ,@tables ,exports))
+        (js-use-asm) `(,@variables ,@functions ,@tables ,exports)))
           
     (define (js-use-asm)
       (js-statement (js-string "use asm")))
 
     (define (js-signed expression)
-      (js-binary "|" expression (number 0)))
+      (js-binary "\|" expression (js-number 0)))
 
     (define (js-double expression)
       (js-unary "+" expression))
@@ -138,13 +138,13 @@
 
     (define (js-! argument)
       (js-unary "!" argument))
-
+    
     (define (make-js-operator operator)
       (letrec ((js-operator
-            (lambda arguments*
-              (if (null? (cdr arguments*))
-                (car arguments*)
-                (js-binary operator (js-operator (cdr *arguments)) (car arguments*))))))
+            (lambda args
+              (if (null? (cdr args))
+                (car args)
+                (js-binary operator (apply js-operator (cdr args)) (car args))))))
         js-operator))
 
     (define js-+ (make-js-operator "+"))
@@ -152,7 +152,7 @@
     (define js-* (make-js-operator "*"))
     (define js-/ (make-js-operator "/"))
     (define js-% (make-js-operator "%"))
-    (define js-| (make-js-operator "|"))
+    (define js-or (make-js-operator "\|"))
     (define js-& (make-js-operator "&"))
     (define js-^ (make-js-operator "^"))
     (define js-<< (make-js-operator "<<"))
@@ -165,35 +165,36 @@
     (define js-== (make-js-operator "=="))
     (define js-!= (make-js-operator "!="))
 
+
     (define (emit js)
-      (case (car node)
-        ((function) (apply emit-function (cdr node)))
-        ((return) (apply emit-return (cdr node)))
-        ((var) (apply emit-var (cdr node)))
-        ((block) (apply emit-block (cdr node)))
-        ((statement) (apply emit-statement (cdr node)))
-        ((if) (apply emit-if (cdr node)))
-        ((while) (apply emit-while (cdr node)))
-        ((do) (apply emit-do (cdr node)))
-        ((for) (apply emit-for (cdr node)))
-        ((break) (apply emit-break (cdr node)))
-        ((continue) (apply emit-continue (cdr node)))
-        ((labelled) (apply emit-labelled (cdr node)))
-        ((switch) (apply emit-switch (cdr node)))
-        ((case) (apply emit-case (cdr node)))
-        ((default) (apply emit-default (cdr node)))
-        ((expression) (apply emit-expression (cdr node)))
-        ((number) (apply emit-number (cdr node)))
-        ((string) (apply emit-string (cdr node)))
-        ((id) (apply emit-id (cdr node)))
-        ((new) (apply emit-new (cdr node)))
-        ((member) (apply emit-member (cdr node)))
-        ((assignment) (apply emit-assignment (cdr node)))
-        ((unary) (apply emit-unary (cdr node)))
-        ((binary) (apply emit-binary (cdr node)))
-        ((conditional) (apply emit-conditional (cdr node)))
-        ((call) (apply emit-call (cdr node)))
-        ((object) (apply emit-object (cdr node)))))
+      (case (car js)
+        ((function) (apply emit-function (cdr js)))
+        ((return) (apply emit-return (cdr js)))
+        ((var) (apply emit-var (cdr js)))
+        ((block) (apply emit-block (cdr js)))
+        ((statement) (apply emit-statement (cdr js)))
+        ((if) (apply emit-if (cdr js)))
+        ((while) (apply emit-while (cdr js)))
+        ((do) (apply emit-do (cdr js)))
+        ((for) (apply emit-for (cdr js)))
+        ((break) (apply emit-break (cdr js)))
+        ((continue) (apply emit-continue (cdr js)))
+        ((labelled) (apply emit-labelled (cdr js)))
+        ((switch) (apply emit-switch (cdr js)))
+        ((case) (apply emit-case (cdr js)))
+        ((default) (apply emit-default (cdr js)))
+        ((expression) (apply emit-expression (cdr js)))
+        ((number) (apply emit-number (cdr js)))
+        ((string) (apply emit-string (cdr js)))
+        ((id) (apply emit-id (cdr js)))
+        ((new) (apply emit-new (cdr js)))
+        ((member) (apply emit-member (cdr js)))
+        ((assignment) (apply emit-assignment (cdr js)))
+        ((unary) (apply emit-unary (cdr js)))
+        ((binary) (apply emit-binary (cdr js)))
+        ((conditional) (apply emit-conditional (cdr js)))
+        ((call) (apply emit-call (cdr js)))
+        ((object) (apply emit-object (cdr js)))))
 
     (define (emit-function identifier args . body)
       (write-string "function")
@@ -209,7 +210,7 @@
       (write-string "return")
       (unless (null? argument*)
         (write-string " ")
-        (emit-js (car argument*)))
+        (emit (car argument*)))
       (write-string ";"))        
 
     (define (emit-var identifier expression)
@@ -226,7 +227,7 @@
       
     (define (emit-statement . expression*)
       (unless (null? expression*)
-        (emit (car expression)))
+        (emit (car expression*)))
       (emit ";"))
       
     (define (emit-if test consequent . alternate*)
@@ -237,7 +238,7 @@
       (write-string "}")
       (unless (null? alternate*)
         (write-string "else{")
-        (emit alternate)
+        (emit (car alternate*))
         (write-string "}")))
         
     (define (emit-while test . body)
@@ -331,9 +332,9 @@
       (emit-parenthesized (not (new-expression? object) object))
       (emit object)
       (cond
-        ((eq? (car property 'id))
+        ((eq? (car property) 'id)
           (write-string ".")
-          (emit identifier))
+          (emit property))
         (else
           (write-string "[")
           (emit property)
@@ -342,7 +343,7 @@
     (define (emit-assignment identifier expression)
       (emit identifier)
       (emit "=")
-      (emit-parenthized (eq? (car expression) 'expression) expression))
+      (emit-parenthesized (eq? (car expression) 'expression) expression))
     
     (define (emit-unary operator expression)
       (case operator
@@ -353,22 +354,22 @@
     (define (emit-binary operator left right)
       (emit-parenthesized
         (or (not (logical-or-expression? left))  
-          (and (eq? (car left) 'binary) (> (precedence (cadr left)) (precendence operator)))) 
+          (and (eq? (car left) 'binary) (> (precedence (cadr left)) (precedence operator)))) 
         left)
       (case operator
         (("+" "-") (write-string " ")))
       (write-string operator)   
       (emit-parenthesized
         (or (not (logical-or-expression? left))  
-          (and (eq? (car left) 'binary) (>= (precedence (cadr right)) (precendence operator)))) 
+          (and (eq? (car left) 'binary) (>= (precedence (cadr right)) (precedence operator)))) 
         right))
 
     (define (emit-conditional test consequent alternate)
       (emit-parenthesized (not (logical-or-expression? test)) test)
       (write-string "?")
-      (emit-parenthesized (eq (car consequent) 'expression) consequent)
+      (emit-parenthesized (eq? (car consequent) 'expression) consequent)
       (write-string ":")
-      (emit-parenthesized (eq (car alternate) 'expression) alternate))
+      (emit-parenthesized (eq? (car alternate) 'expression) alternate))
     
     (define (emit-call identifier . arguments*)
       (emit identifier)
@@ -380,7 +381,7 @@
         (unless (null? property*)
           (emit (caar property*))
           (emit ":")
-          (emit (cdar property))
+          (emit (cdar property*))
           (loop (cdr property*) ",")))
       (string-append "}"))
     
@@ -404,8 +405,8 @@
     (define (emit-parenthesized condition js)
       (cond
         (condition
-          (write-string "(")
           (emit js)
+          (write-string "(")
           (write-string ")"))
         (else (emit js))))
 
@@ -426,8 +427,8 @@
         
     (define (logical-or-expression? js)
       (case (car js)
-        ((member new call unary binary)) #t)
-        (else #f))
+        ((member new call unary binary) #t)
+        (else #f)))
         
     (define (precedence operator)
       (case operator
