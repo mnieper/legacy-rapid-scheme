@@ -4,7 +4,6 @@
 - Better error reporting (e.g. by attaching information to the generated symbols or by storing this information in assoc lists that are maintained throughout the stages). This information is a linked list giving the position inside the source code.
 - Continue to implement (begin ...) in libraries.
 - Write tests of all implemented features.
-- At the moment, everything that is a symbol? is regarded as an identifier (including _). We may change this.
 
 
 Assembler
@@ -14,9 +13,12 @@ Assembler
 - Recognize constants (i.e. global identifiers just set! once or local identifiers never set!) and emit special code.
 - Offer an optimized mode that skips all non-obligatory runtime error checks.
 
-asm.js
-------
 
-- Rename to assemble
-- Tell the asm.js backend about operator precedence
+Documentation
+-------------
+
+- Describe general working of the compiler, e.g. that it translates something
+  written in meta-scheme into something written in pre-scheme that is then
+  assembled into asm.js code.
+- Describe the languages meta-scheme and pre-scheme.
 

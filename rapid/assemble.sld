@@ -14,55 +14,134 @@
     (rapid asmjs))
   (begin
 
-    ; idee: nur die foreigns als import liste
-
-    (define (assemble global-count imports)
+    (define (assemble global-count)
       (parameterize ((current-output-port (open-output-string)))
-        (emit (rapid-module global-count imports))
+        (emit (rapid-module global-count))
         (get-output-string (current-output-port))))
 
-    (define (rapid-module global-count imports)
-      (module "RapidModule"
-        `(,@(globals global-count) ,@(import-declarations imports))
-        `(,(run))
+    (define variables '())
+
+    (letrec-syntax ((define-global-vars
+          (syntax-rules ()
+            ((define-vars (type id name) global ...)
+              (define id (js-id name))
+              (set! globals `(,@globals ,(type id))))))
+        (signed
+          (syntax-rules ()
+            ((signed id) (js-signed-var id))))
+        (double
+          (syntax-rules ()
+            ((double id) (js-double-var id)))))
+      (import "assemble/global-vars.scm"))
+
+    (let
+
+              
+    
+    (define imul (js-id "imul"))
+    (define code-reg (js-id "i"))
+    
+    (define run (js-id "c"))
+    (define free-ptr (js-id "f"))
+    (define heap-size (js-id "z"))
+
+    (define (variables) (list
+        (js-signed-var code-reg)
+        (js-signed-var free-ptr)
+        ))
+
+    (define (imports)
+      (list
+        (js-math-import imul "imul")
+        (js-foreign-int heap-size "heapSize")))
+
+
+
+    (letrec-syntax ((define-ffi
+          (syntax-rules ()
+            ((define-ffi ffi function ...)
+              (define-ffi-aux ffi 0 '() function ...))))
+        (define-ffi-aux
+          (syntax-rules ()
+            ((define-ffi-aux ffi count js*)
+              (define (ffi) js*))
+            ((define-ffi-aux ffi count js* (identifier foreign) function ...)
+              (begin
+                (define identifier (js-id (string-append "x" (number->string count))))
+                (define-ffi-aux ffi (+ count 1) (cons (js-foreign-function identifier foreign) js*) function ...))))))
+      (include "rapid/ffi.scm"))
+ 
+    ; TODO: Move this into a library "define-functions"; let functions import this library and export everything else
+    ; globals should also be defined in define-functions...
+    ; TODO: All the lists and conses and macros below should be made by macros 
+    
+    (letrec-syntax ((define-functions
+          (syntax-rules ()
+            ((define-functions functions declaration ...)
+              (define-functions-aux functions 0 '() declaration ...))))
+        (define-functions-aux
+          (syntax-rules ()
+            ((define-functions-aux functions count js*)
+              (define (functions) js*))
+            ((define-functions-aux functions count js* (type identifier params . body) declaration ...)
+              (begin
+                (define identifier (js-id (string-append "q" (number->string count))))
+                (define-functions-aux functions (+ count 1) (cons (function type identifier params . body) js*) declaration ...)))))
+        (function
+          (syntax-rules ()
+            ((function type id params . body)
+              (apply js-function id (function-aux 0 type params . body)))))
+        (function-aux
+          (syntax-rules (signed double)
+            ((function-aux count type ((signed identifier) param ...) . body)
+              (let ((identifier (js-id (string-append "l" (number->string count)))))
+                (function-aux (+ count 1) type (param ... identifier) (js-signed-param identifier) . body)))
+            ((function-aux count type ((double identifier) param ...) . body)
+              (let ((identifier (js-id (string-append "l" (number->string count)))))
+                (function-aux (+ count 1) type (param ... identifier) (js-double-param identifier) . body)))
+            ((function-aux count type (identifier ...) . body)
+              (cons (list identifier ...) (function-body count type . body)))))  ; splice list ... has to be done in function body
+        (function-body
+          (syntax-rules (signed double return)
+            ((function-body count type (signed identifier) . body)
+              (let ((identifier (js-id (string-append "l" (number->string count)))))
+                (cons (js-signed-var identifier)
+                  (function-body (+ count 1) type . body))))
+            ((function-body count type (double identifier) . body)
+              (let ((identifier (js-id (string-append "l" (number->string count)))))
+                (cons (js-double-var identifier)
+                  (function-body (+ count 1) type . body))))
+            ((function-body count signed (return argument))
+              (list (js-return (js-signed argument))))
+            ((function-body count double (return argument))
+              (list (js-return (js-double argument))))
+            ((function-body count type statement . body)
+              (cons statement (function-body count type . body)))
+            ((function-body count type)
+              (list)))))
+      (include "rapid/functions.scm"))
+
+    (define (rapid-module global-count)
+      (js-module (js-id "RapidModule")
+        `(,@(globals global-count) ,@(variables) ,@(imports) ,@(ffi))
+        `(,@(functions) ,(run-function))
         '()
-        (return (variable "run"))))
-        
+        (js-return run)))
+
     (define (globals global-count)
       (let loop ((i 0))
         (if (= i global-count)
           '()
-          `(,(variable-declaration (cadr (global-reg i)) (literal 0)) . ,(loop (+ i 1))))))
+          `(,(js-signed-var (global-reg i)) . ,(loop (+ i 1))))))
 
-    (define (import-declarations imports)
-      (let loop ((i 0) (imports imports))
-        (if (null? imports)
-          '()
-          (cons
-            (foreign-function (extern i) (car imports))
-            (loop (+ i 1) (cdr imports))))))
-
-    (define (extern i)
-      (variable (string-append "x" (number->string i))))
-
-    (define (run)
-      (function "run" '()
-        (while (literal 1)
-          (switch (signed (code-reg))))))
-
-    (define (ff-imul) "imul")
-    (define (ff-exit) "exit")
-    (define (ff-write-string) "writeString")
-    (define (ff-memory-error) "memoryError")
-    (define (ff-call-error) "callError")
-    (define (ff-application-error) "applicationError")
+    (define (run-function)
+      (js-function run '()
+        (js-while (number 1)
+          (js-switch (js-signed code-reg)))))
 
     (define (global-reg index)
-      (variable (string-append "g" (number->string index))))
+      (js-id (string-append "g" (number->string index))))
 
-    (define (code-reg)
-      (variable "i"))
-     
     (define (environment-ptr)
       "e")
     
@@ -97,11 +176,11 @@
       "")
       
     (define (number expression)
-      (number->string expression)) ; FIXME
+      (js-number expression)) ; FIXME
     
     (define (boolean true?)
-      (if true? "0x10001" "0x1"))
-    
+      (if true? (number #x00010001) (number #x0000001)))
+
     (define (true)
       (boolean #t))
       

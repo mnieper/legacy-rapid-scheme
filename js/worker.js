@@ -6,9 +6,7 @@ var heap = new ArrayBuffer(Math.pow(2, 27));
 
 var foreign = {
 
-  getHeapSize: function () {
-    return Math.pow(2, 27);
-  },
+  heapSize: Math.pow(2, 27),
 
   writeString: function (p) {
     if (new Int32Array(heap, p)[0] !== 0x0) {
