@@ -11,6 +11,7 @@
 
     ; Naming: environment extracts information about the variables
     ;         translate translates an expression and accumulates a body
+    ; Oder doch compile nennen?
 
     (define (make-location assemble)
       (vector assemble))
@@ -71,18 +72,6 @@
                       ((null? formals) locations)
                       ((pair? formals) `((,(car formals) . ,(make-local frame i)) . ,(loop-formals (cdr formals) (+ i 1)))))))))))))   
 
-
-
-    ; Analoguously one may want to define macros for the module... (e.g. IS_PROCEDURE; POINTER(...); etc.)
-    ; For use with expand macro
-    
-    ; TODO: Rename foreign procedures into j1,j2,j3,j4, etc. to save space.
-
-    ; TODO Define library template with define-template macro for compile-time string expansion
-
-    ; FIXME In our current implementation, strings have a fixed number of utf-8 bytes.
-    ; (solution: utf-32).
-  
     (define translate
       (case-lambda
         ((expression locations) (body expression '(0) 1 locations))
