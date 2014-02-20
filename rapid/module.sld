@@ -1,6 +1,45 @@
+;
+; Types
+; -----
+;
+; From:
+;
+; 
+;
+;
+;
+; To:
+;
+; void - do not coerce at all
+; extern (= signed or double) - for external function calls
+; signed - for switch, return
+; double - for return
+; doublish - for *
+; int - for loops
+; intish - for |, &, ..., heap index
+; signed+unsigned+doublish - for /, %
+; signed+unsigned+double - for <, <=, ...
+;
+; From:
+; int, intish, signed, double, unsigned, doublish
+;
+
+; 
+; Problem: f(-x) : -x als extern; d.h. x als signed oder double???
+; Ist x int, so brauchen wir -x|0; Ist x doublish, so reicht -x...
+; Was ändert dies am Ergebnis? fast nix... also extern für - wird doublish.
+;
+;
+; Problem: (a - b) < (c - d) : Wir brauchen: a - b als signed+unsigned+double
+; Wie? a-b als Double ergibt keinen Sinn; a, b als Int... schon; Terme also typisiert?
+;
+;
+;
+;
+
 (define-library (rapid module)
   (export compile-module make-global-var make-local-var make-label)
-  (import (scheme base) (rapid asmjs))
+  (import (scheme base) (scheme case-lambda) (rapid asmjs))
   (begin
 
     (define-syntax new-environment
@@ -25,8 +64,8 @@
 
     (define (globals-update! decl)
       (case (car decl)
-        ((var)
-          (global-set! (list-ref decl 1) (number-type (list-ref decl 2))))
+        ((signed unsigned double)
+          (global-set! (list-ref decl 1) (list-ref decl 0)))
         ((stdlib)
           (global-set! (list-ref decl 1) (stdlib-type (list-ref decl 2))))
         ((math)
@@ -44,8 +83,9 @@
     
     (define (compile-decl decl)
       (case (car decl)
-        ((var)
-          `(var ,(id (list-ref decl 1)) (number ,(list-ref decl 2))))
+        ((signed unsigned double)
+          `(var ,(id (list-ref decl 1)) (apply initializer (list-ref decl 0)
+              (list-tail decl 2))))
         ((stdlib)
           `(var ,(id (list-ref decl 1))
             (member (id "$s") ,(list-ref decl 2))))
@@ -81,7 +121,7 @@
                   (list-ref decl 1)))
                (id (list-ref decl 1)))))
         (else    
-          `(statement (string "TODO")))))
+          (error compile-decl "illegal declaration" decl))))
 
     (define (compile-body return-type stmt*)
       (if (null? stmt*)
@@ -90,18 +130,21 @@
               (let ((stmt (car stmt*)))
                 (if (pair? stmt)
                   (case (car stmt)
-                    ((var)
-                      (local-set! (list-ref stmt 1) (number-type (list-ref stmt 2)))
-                      `(var ,(id (list-ref stmt 1)) (number ,(list-ref stmt 2))))
+                    ((signed unsigned double)
+                      (local-set! (list-ref stmt 1) (list-ref stmt 0))
+                      `(var ,(id (list-ref stmt 1))
+                        (apply initializer (list-ref stmt 0) (list-tail stmt 2))))
                     ((return)
                       (if (and (null? (cdr stmt*)) (> (length stmt) 1))
                         (let ((arg (compile-expression 'function (list-ref stmt 1))))
-                          (cond
-                            ((eq? (car arg) 'number) `(return ,arg))
-                            ((eq? return-type 'signed)
-                              `(return (binary "|" ,arg (number 0))))
-                            ((eq? return-type 'double)
-                              `(return (unary "+" ,arg)))))
+                          (if (eq? (car arg) 'number)
+                            `(return ,arg)
+                            (case return-type
+                              ((signed unsigned) 
+                                `(return (binary "|" ,arg (number 0))))
+                              ((double)
+                                `(return (unary "+" ,arg)))
+                              (else (error compile-body "unknown return type" return-type)))))
                         (compile-statement return-type stmt)))                        
                     (else
                       (compile-statement return-type stmt)))
@@ -159,7 +202,7 @@
     
     (define (compile-statement* return-type stmt*)
       (map (lambda (stmt) (compile-statement return-type stmt)) stmt*))
-      
+
     (define (compile-expression expected-type expr)
       (cond
         ((number? expr)
@@ -202,7 +245,15 @@
             ((set!)
               `(assignment ,(compile-expression 'function (list-ref expr 1))
                 ,(compile-expression expected-type (list-ref expr 2))))
-            ((+ -)
+            ((double signed unsigned int)
+              (coerce (list-ref expr 0) expected-type
+                (compile-expression (list-ref expr 0) (list-ref expr 1))))            
+            ((truncate)
+              (coerce 'signed expected-type
+                `(unary "~"
+                  (unary "~" ,(compile-expression 'double (list-ref expr 1))))))
+            ; XXX +cexpr
+            ((+ -) ; TODO special case +; special case *
               (if (> 2 (length expr))
                 (compile-binary expected-type expr)
                 (compile-unary expected-type expr)))
@@ -227,23 +278,35 @@
       )
       
     (define (compile-unary expected-type expr)
-      
-      )
+      (let ((op (unary-op (list-ref expr 0))))
+        (let-values (((from to) ((op-type op) expected-type)))
+          (coerce to expected-type
+            `(unary ,(op-name op)
+              ,(compile-expression from (list-ref expr 1)))))))
 
     (define (compile-expression* expected-type expr*)
       (map (lambda (expr) (compile-expression expected-type expr)) expr*))
 
     (define (coerce from to js)
       (case to
+        ((signed+unsigned+doublish)
+          (case from
+            ((int intish) `(binary "|" ,js (number 0)))
+            (else js)))
+        ((signed+unsigned+double)
+          (case from
+            ((int intish) `(binary "|" ,js (number 0)))
+            ((doublish) `(unary "+" ,js))
+            (else js)))
+        ((intish)
+          (case from
+            ((double doublish) `(unary "~" (unary "~" ,js)))
+            (else js)))
         ((int)
           (case from
             ((fixnum signed unsigned int) js)
             ((double) `(unary "~" (unary "~" ,js)))
             (else `(binary "|" ,js (number 0)))))
-        ((intish)
-          (case from
-            ((double doublish) `(unary "~" (unary "~" ,js)))
-            (else js)))
         ((signed)
           (case from
             ((double) `(unary "~" (unary "~" ,js)))
@@ -253,7 +316,7 @@
           (case from
             ((double) js)
             (else `(unary "+" ,js))))
-        ((void function) js)
+        ((void function) js) ; TODO Remove function type
         (else (error from to js))))
     
     (define-record-type <value>
@@ -347,6 +410,16 @@
 
     (define (label i)
       ((make-label) i))
+
+    (define initializer
+      (case-lambda
+        ((type) (initializer type 0))
+        ((type init)
+          `(number
+            ,(case type
+              ((unsigned signed) (exact init))
+              ((double) (inexact init))
+              (else (error initializer "illegal type" type)))))))
       
     (define (number-type number)
       (if (exact? number) 'int 'double))
@@ -401,24 +474,41 @@
     (define (unary-op s)
       (cdr (assq s *unary-ops*)))
 
-    (define *unary-ops*
-      '((+ . ("+" ((double signed) (double unsigned) (double doublish))))
-        (- . ("-" ((intish int) (double doublish))))
-        (~ . ("~") ((signed intish) (signed double)))
-        (not . ("!") ((int int)))))
+    (define-record-type <op>
+      (make-op name type)
+      op?
+      (name op-name)
+      (type op-type))
 
+    (define *unary-ops*
+      `((+ . ,(make-op "+"
+            (lambda (to)
+              (values 'signed+unsigned+doublish 'double))))
+        (- . ,(make-op "-"
+            (lambda (to)
+              (case to
+                ((double doublish) (values 'doublish 'double))
+                (else (values 'int 'intish))))))
+        (~ . ,(make-op "~"
+            (lambda (to)
+              (values 'intish 'signed))))
+        (not . ,(make-op "!"
+            (lambda (to)
+              (values 'int 'int))))))
+ 
     (emit
       (compile-module
         `(module "RapidScheme"
-          (var a 0)
-          (var b 0.0)
+          (signed a)
+          (unsigned c)
+          (double b 0.0)
           (math imul "imul")
           (stdlib NaN "NaN")
           (heap i8 "Int8Array")
           (heap f32 "Float32Array")
           (foreign int heap-size "heapSize")
           (function signed alloc ((int i))
-            (var j 1.0)
+            (double j 1.0)
             (label l1
               (begin
                 (break l1)))
@@ -433,7 +523,9 @@
             (ref f32 a)
             (ref i8 a)
             
-            (return (begin i 0.1)))
+            (+ 1.2)
+            
+            (return 42))
        
           (return a))))
       
