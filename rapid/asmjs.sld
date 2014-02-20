@@ -1,6 +1,6 @@
 (define-library (rapid asmjs)
   (export
-    emit link-module
+    emit 
     js-function js-return js-var js-block js-statement js-if js-while js-do
     js-for js-break js-continue js-labelled js-switch js-case js-default
     js-expression js-number js-id js-member js-assignment js-conditional
