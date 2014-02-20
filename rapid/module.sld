@@ -2,6 +2,8 @@
   ;
   ; TODO Implement function tables.
   ;
+  ; TODO Refactor procedures in smaller pieces.
+  ;
   (export compile-module make-global-var make-local-var make-label)
   (import (scheme base) (scheme case-lambda) (rapid asmjs))
   (begin
@@ -37,18 +39,24 @@
         ((heap)
           (global-set! (list-ref decl 1) (heap-type (list-ref decl 2))))
         ((foreign)
-          (global-set! (list-ref decl 2) (list-ref decl 1)))
+          (case (list-ref decl 1)
+            ((signed unsigned double) (global-set! (list-ref decl 2) (list-ref decl 1))) ; PROBLEM : Is int, but has to be coerced; like parameter???
+            ((function)
+              (global-set! (list-ref decl 3) (list (list-ref decl 2) (list 'extern))))
+            (else (error "unknown foreign type" (list-ref decl 1)))))
         ((function)
           (global-set! (list-ref decl 2)
-            (list
-              (list (list-ref decl 1)
-                (map (lambda (param) (list-ref param 0))
-                  (list-ref decl 3))))))))
+            (list (list-ref decl 1)
+              (map (lambda (param) (case (list-ref param 0)
+                    ((signed unsigned) 'int)
+                    ((double) 'double)
+                    (else (error globals-update! "invalid parameter type" (list-ref param 0)))))
+                (list-ref decl 3)))))))
     
     (define (compile-decl decl)
       (case (car decl)
         ((signed unsigned double)
-          `(var ,(id (list-ref decl 1)) (apply initializer (list-ref decl 0)
+          `(var ,(id (list-ref decl 1)) ,(apply initializer (list-ref decl 0)
               (list-tail decl 2))))
         ((stdlib)
           `(var ,(id (list-ref decl 1))
@@ -59,10 +67,15 @@
         ((heap)
           `(var ,(id (list-ref decl 1))
             (new (member (id "$s") ,(list-ref decl 2)) (id "$h"))))
-        ((foreign)
-          `(var ,(id (list-ref decl 2))
-            ,(coerce 'function (list-ref decl 1)
-              `(member (id "$f") ,(list-ref decl 3)))))
+        ((foreign) 
+          (case (list-ref decl 1)
+            ((signed unsigned double)
+              `(var ,(id (list-ref decl 2))
+                ,(coerce 'void (list-ref decl 1)
+                  `(member (id "$f") ,(list-ref decl 3)))))
+            ((function)
+              `(var ,(id (list-ref decl 3))
+                (member (id "$f") ,(list-ref decl 4)))))) 
         ((function)
           (new-frame
             (for-each (lambda (param)
@@ -73,7 +86,9 @@
               ,@(map (lambda (param)
                   (let ((val (value (list-ref param 1))))
                     `(assignment ,(value-id val)
-                      ,(coerce 'function (value-type val) (value-id val)))))
+                      ,(coerce 'void (case (list-ref param 0)
+                          ((signed unsigned) 'signed) ((double) 'double))
+                        (value-id val)))))
                 (list-ref decl 3))
               ,@(compile-body (list-ref decl 1) (list-tail decl 4))))) 
         ((return)
@@ -97,7 +112,7 @@
                     ((signed unsigned double)
                       (local-set! (list-ref stmt 1) (list-ref stmt 0))
                       `(var ,(id (list-ref stmt 1))
-                        (apply initializer (list-ref stmt 0) (list-tail stmt 2))))
+                        ,(apply initializer (list-ref stmt 0) (list-tail stmt 2))))
                     ((return)
                       (if (and (null? (cdr stmt*)) (> (length stmt) 1))
                         (let ((arg (coerce-expression 'void (list-ref stmt 1))))
@@ -127,7 +142,7 @@
             `(block . ,(compile-statement* return-type (cdr stmt))))
           ((if)
             `(if ,(coerce-expression 'int (list-ref stmt 1))
-              ,(compile-statement return-type (list-ref stmt 2))
+              ,(compile-statement return-type (list-ref stmt 2)) .
               ,(compile-statement* return-type (list-tail stmt 3))))
           ((while)
             `(while ,(coerce-expression 'int (list-ref stmt 1))
@@ -219,9 +234,9 @@
                   (let-values (((js actual inferred) (compile-expression lhs)))
                     (values `(assignment ,js (coerce-expression actual rhs))
                       actual inferred))
-                  (let-values (((js actual inferred) (compile-expression rhs)))
+                  (let-values (((js actual inferred) (compile-expression rhs)))  ; Problem here: die rechte Seite wird gar nicht coerced. muß aber mindestens signed unsigned oder double sein; zu int komment wir nicht...
                     (values `(assignment ,(id lhs) ,js) actual inferred)))))
-            ((signed unsigned double)
+            ((signed unsigned double)    
               (let-values (((js actual inferred)
                     (compile-expression (list-ref expr 1))))
                 (values (coerce actual inferred js) inferred (list-ref expr 0))))                  
@@ -267,9 +282,26 @@
               (compile-application (car expr) (cdr expr)))))))
 
     (define (compile-application proc arg*)
-      (let ((val (value proc)))
-      
-        )
+      (let* ((val (value proc)) (type (value-type val))
+          (type (if (pair? (car type))
+              (let-values (((js actual inferred) (compile-expression (car arg*)))) 
+                (cdr (or (assq inferred type) (error compile-application "type mismatch" proc inferred))))
+              type))
+          (js
+            `(call ,(value-id val) .
+              ,(let loop ((arg* arg*) (type* (list-ref type 1)))
+                (if (null? arg*)
+                  (list)
+                    (cons (coerce-expression (car type*) (car arg*))
+                    (loop (cdr arg*)
+                      (if (null? (cdr type*)) type* (cdr type*)))))))))
+        (case (car type)
+          ((signed)
+            (values `(binary "|" ,js (number 0)) 'signed 'signed))
+          ((double)
+            (values `(unary "+" ,js) 'double 'double))
+          (else
+            (values js 'void 'void)))))
 
     (define (compile-sum arg*)
       (let-values (((js actual inferred) (compile-expression (car arg*))))
@@ -277,7 +309,7 @@
           (let loop ((js (coerce actual 'int js)) (arg* (cdr arg*)))
             (if (null? arg*)
               js
-              (loop              
+              (loop
                 (case inferred
                   ((signed unsigned)
                     (if (and (pair? (car arg*)) (eq? (caar arg*) '-))
@@ -307,7 +339,7 @@
               (compile-expression left)))
           (let ((type (cdr
                 (or (assq inferred (op-types op))
-                  (error compile-binary "type mismatch" op left right)))))
+                  (error compile-binary "type mismatch" binary left right)))))
             (values
               `(binary ,(op-name op) ,(coerce actual (list-ref type 0) js)
                 ,(coerce-expression (list-ref type 0) right))
@@ -333,6 +365,18 @@
 
     (define (coerce from to js)
       (case to
+        ((extern)
+          (case from
+            ((unsigned int intish) `(binary "|" ,js (number 0)))
+            ((doublish) `(unary "+" ,js))
+            ((fixnum signed double) js)
+            (else (error coerce "cannot be coerced to extern" from))))
+        ((unsigned)
+          (case from
+            ((double doublish intish) `(binary ">>>" ,js (number 0)))
+            ((unsigned signed fixnum int) js)
+            ((void `(binary "|" ,js 0)))
+            (else (error coerce "cannot be coerced to unsigned" from))))
         ((intish)
           (case from
             ((double doublish) `(unary "~" (unary "~" ,js)))
@@ -347,7 +391,6 @@
             ((double) `(unary "~" (unary "~" ,js)))
             ((fixnum signed) js)
             (else `(binary "|" ,js (number 0)))))
-        ; TODO (unsigned)
         ((doublish)
           (case from
             ((doublish) js)
@@ -496,21 +539,21 @@
       (cdr (assoc s *math-types*)))
       
     (define *math-types*
-      `(("acos" . ((double (doublish))))
-        ("asin" . ((double (doublish))))
-        ("atab" . ((double (doublish))))
-        ("cos" . ((double (doublish))))
-        ("sin" . ((double (doublish))))
-        ("tan" . ((double (doublish))))
-        ("ceil" . ((double (doublish))))
-        ("floor" . ((double (doublish))))
-        ("exp" . ((double (doublish))))
-        ("log" . ((double (doublish))))
-        ("sqrt" . ((double (doublish))))
-        ("abs" . ((signed (signed)) (double (doublish))))
-        ("atan2" . ((double (doublish doublish))))
-        ("pow" . ((double (doublish doublish))))
-        ("imul" . ((signed (int int))))
+      `(("acos" . (double (doublish)))
+        ("asin" . (double (doublish)))
+        ("atab" . (double (doublish)))
+        ("cos" . (double (doublish)))
+        ("sin" . (double (doublish)))
+        ("tan" . (double (doublish)))
+        ("ceil" . (double (doublish)))
+        ("floor" . (double (doublish)))
+        ("exp" . (double (doublish)))
+        ("log" . (double (doublish)))
+        ("sqrt" . (double (doublish)))
+        ("abs" . ((signed signed (signed)) (double double (doublish))))
+        ("atan2" . (double (doublish doublish)))
+        ("pow" . (double (doublish doublish)))
+        ("imul" . (signed (int int)))
         ("E" . double)
         ("LN10" . double)
         ("LN2" . double)
@@ -553,14 +596,4 @@
         (> . ,(make-op ">" '((signed signed int unsigned))))
         (>= . ,(make-op ">=" '((signed signed int unsigned))))
         (== . ,(make-op "==" '((signed signed int unsigned))))
-        (!= . ,(make-op "!=" '((signed signed int unsigned))))))
- 
-    (emit
-      (compile-module
-        (let-syntax ((module
-              (syntax-rules ()
-                ((module . rest) `(module . rest)))))
-          (include "rapid/module.scm"))))
-
-      
-      ))
+        (!= . ,(make-op "!=" '((signed signed int unsigned))))))))

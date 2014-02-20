@@ -1,6 +1,6 @@
 (define-library (rapid asmjs)
   (export
-    emit 
+    emit
     js-function js-return js-var js-block js-statement js-if js-while js-do
     js-for js-break js-continue js-labelled js-switch js-case js-default
     js-expression js-number js-id js-member js-assignment js-conditional
@@ -13,7 +13,11 @@
     js-signed-return js-double-return)
   (import (scheme base) (scheme case-lambda))
 
-  ; TODO Array literals are not implemented for function tables
+  ;
+  ; TODO Add missing asm.js constructs (array literals for function tables).
+  ;
+  ; TODO Add remaining Javascript constructs.
+  ;
   (begin
 
     (define (js-function identifier args . body)
