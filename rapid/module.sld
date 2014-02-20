@@ -38,6 +38,9 @@
 ;
 
 (define-library (rapid module)
+  ;
+  ; TODO Implement function tables.
+  ;
   (export compile-module make-global-var make-local-var make-label)
   (import (scheme base) (scheme case-lambda) (rapid asmjs))
   (begin
@@ -157,24 +160,24 @@
           ((return)
             `(return .
               ,(if (> (length stmt) 1)
-                `(,(compile-expression return-type (list-ref stmt 1)))
+                `(,(coerce-expression return-type (list-ref stmt 1)))
                 '())))
           ((begin)
             `(block . ,(compile-statement* return-type (cdr stmt))))
           ((if)
-            `(if ,(compile-expression 'int (list-ref stmt 1))
+            `(if ,(coerce-expression 'int (list-ref stmt 1))
               ,(compile-statement return-type (list-ref stmt 2))
               ,(compile-statement* return-type (list-tail stmt 3))))
           ((while)
-            `(while ,(compile-expression 'int (list-ref stmt 1))
+            `(while ,(coerce-expression 'int (list-ref stmt 1))
               ,(compile-block return-type (list-tail stmt 2))))
           ((do)
-            `(do ,(compile-expression 'int (list-ref stmt 1))
+            `(do ,(coerce-expression 'int (list-ref stmt 1))
               ,(compile-block return-type (list-tail stmt 2))))
           ((for)
-            `(for ,(compile-expression* 'function (list-ref stmt 1))
-              ,(compile-expression* 'int (list-ref stmt 2))
-              ,(compile-expression* 'function (list-ref stmt 3))
+            `(for ,(coerce-expression* 'void (list-ref stmt 1))
+              ,(coerce-expression* 'int (list-ref stmt 2))
+              ,(coerce-expression* 'void (list-ref stmt 3))
               ,(compile-block return-type (list-tail stmt 4))))
           ((break continue)
             `(,(list-ref stmt 0) .
@@ -185,15 +188,15 @@
             `(labelled ,(label-id (list-ref stmt 1))
               ,(compile-statement return-type (list-ref stmt 2))))
           ((switch)
-            `(switch ,(compile-expression 'signed (list-ref stmt 1)) .
+            `(switch ,(coerce-expression 'signed (list-ref stmt 1)) .
               ,(compile-statement* return-type (list-tail stmt 2))))
           ((case)
-            `(case ,(compile-expression 'signed (list-ref stmt 1)) .
+            `(case ,(coerce-expression 'signed (list-ref stmt 1)) .
               ,(compile-statement* return-type (list-tail stmt 2))))
           ((default)
             `(default . ,(compile-statement* return-type (list-tail stmt 1))))          
-          (else `(statement ,(compile-expression 'void stmt))))
-        `(statement ,(compile-expression 'void stmt))))
+          (else `(statement ,(coerce-expression 'void stmt))))
+        `(statement ,(coerce-expression 'void stmt))))
     
     (define (compile-block return-type stmt*)
       (if (null? (cdr stmt*))
@@ -203,56 +206,68 @@
     (define (compile-statement* return-type stmt*)
       (map (lambda (stmt) (compile-statement return-type stmt)) stmt*))
 
-    (define (compile-expression expected-type expr)
+    (define (compile-expression expr)
       (cond
         ((number? expr)
-          (coerce
+          (let ((js `(number ,expr)))
             (cond
-              ((inexact? expr) 'double)
-              ((negative? expr) 'signed)
-              ((< expr #x80000000) 'fixnum)
-              (else 'int)) expected-type `(number ,expr)))
+              ((inexact? expr) (values js 'double 'double)) 
+              ((negative? expr) (values js 'signed 'signed))
+              ((< expr #x80000000) (values js 'fixnum 'signed))
+              (else (values js 'unsigned 'unsigned)))))
         ((symbol? expr)
           (let ((val (value expr)))
-            (coerce (value-type val) expected-type (value-id val))))
+            (cond (value-type val)
+              ((signed) (values (value-id val) 'int 'signed))
+              ((unsigned) (values (value-id val) 'int 'unsigned))
+              ((double) (values (value-id val) 'double 'double))
+              (else (error "unknown type" (value-type val))))))
         (else
           (case (car expr)
             ((begin)
-              `(expression .
-                ,(let loop ((expr* (cdr expr)))
-                  (if (null? (cdr expr*))
-                    `(,(compile-expression expected-type (car expr*)))
-                    `(,(compile-expression 'void (car expr*)) .
-                      ,(loop (cdr expr*)))))))
-            ((ref)
+              (let ((expr* (reverse (cdr expr))))
+                (let-values (((js actual inferred)) (compile-expression (car expr*)))
+                  (values
+                    (let loop ((js* (list js)) (expr* (cdr expr)))
+                      (if (null? expr*)
+                        js*
+                        (let-values (((js actual inferred) (compile-expression (car expr*))))
+                          (loop (cons (js js*) (cdr expr*))))))
+                    actual inferred))))
+            ((ref)            
               (let ((val (value (list-ref expr 1))))
-                (let ((type (value-type val)) (id (value-id val)))              
-                  (cond
-                    ((number? (list-ref expr 2))
-                      (coerce (list-ref type 1) expected-type
+                (let ((type (value-type val)) (id (value-id val)))
+                  (values            
+                    (cond
+                      ((number? (list-ref expr 2))
                         `(member (id "$h")
-                          (number ,(/ (list-ref expr 2) (list-ref type 0))))))
-                    ((= (list-ref type 0) 1)
-                      (coerce 'intish expected-type
+                            (number ,(/ (list-ref expr 2) (view-size type)))))
+                      ((= (view-size type) 1)
                         `(member (id "$h")
-                           ,(compile-expression 'int (list-ref expr 2)))))
-                    (else
-                      (coerce (list-ref type 1) expected-type
+                          ,(coerce-expression 'int (list-ref expr 2))))
+                      (else
                         `(member (id "$h")
                           (binary ">>"
-                            ,(compile-expression 'intish (list-ref expr 2))
-                            (number ,(list-ref type 2))))))))))
+                            ,(coerce-expression 'intish (list-ref expr 2))
+                            (number ,(view-shift type))))))))))
             ((set!)
-              `(assignment ,(compile-expression 'function (list-ref expr 1))
-                ,(compile-expression expected-type (list-ref expr 2))))
-            ((double signed unsigned int)
-              (coerce (list-ref expr 0) expected-type
-                (compile-expression (list-ref expr 0) (list-ref expr 1))))            
+              (let ((lhs (list-ref expr 1)) (rhs (list-ref expr 2)))
+                (if (and (pair? lhs) (eq (car lhs) 'ref))
+                  (let-values (((js actual inferred) (compile-expression lhs)))
+                    (values `(assignment ,js (coerce-expression actual rhs))
+                      actual inferred))
+                  (let-values (((js actual inferred) (compile-expression rhs)))
+                    (values `(assignment ,(id lhs) ,js) actual inferred)))))
+            ((double signed unsigned)
+              (values
+                (coerce-expression (list-ref expr 0) (list-ref expr 1))
+                (list-ref expr 0) (list-ref expr 0)))
             ((truncate)
-              (coerce 'signed expected-type
+              (values
                 `(unary "~"
-                  (unary "~" ,(compile-expression 'double (list-ref expr 1))))))
-            ; XXX +cexpr
+                  (unary "~" ,(coerce-expression 'double (list-ref expr 1))))
+                'signed 'signed))
+            ; THE FOLLOWING IS SCHROTT
             ((+ -) ; TODO special case +; special case *
               (if (> 2 (length expr))
                 (compile-binary expected-type expr)
@@ -262,15 +277,24 @@
             ((* / remainder << >> >>> < > <= >= = not= and ^ or)
               (compile-binary expected-type expr))
             ((if)
-              (let ((type
-                    (case expected-type
-                      ((double doublish) 'double)
-                      (else 'int))))
-                (coerce type expected-type
-                  `(conditional
-                    ,(compile-expression 'int (list-ref expr 1))
-                    ,(compile-expression type (list-ref expr 2))
-                    ,(compile-expression type (list-ref expr 3))))))
+              (let-values (((js actual inferred)
+                    (compile-expression (list-ref expr 2))))
+                (case inferred
+                  ((signed unsigned)
+                    (values
+                      `(conditional
+                        ,(coerce-expression 'int (list-ref expr 1))
+                        ,(coerce actual 'int (list-ref expr 2))
+                        ,(coerce-expression 'int (list-ref expr 3)))
+                      'int inferred))
+                  ((double)
+                    (values
+                      `(conditional
+                        ,(coerce-expression 'int (list-ref expr 1))
+                        ,(coerce actual 'double (list-ref expr 2))
+                        ,(coerce-expression 'double (list-ref expr 3)))
+                      'double 'double))
+                  (else (error compile-expression "unknown type" inferred)))))
             (else (error compile-expression "illegal expression" expr))))))
 
     (define (compile-binary expected-type expr)
@@ -284,20 +308,15 @@
             `(unary ,(op-name op)
               ,(compile-expression from (list-ref expr 1)))))))
 
-    (define (compile-expression* expected-type expr*)
-      (map (lambda (expr) (compile-expression expected-type expr)) expr*))
+    (define (coerce-expression* expected-type expr*)
+      (map (lambda (expr) (coerce-expression expected-type expr)) expr*))
+
+    (define (coerce-expression expected-type expr)
+      (let-values (((js actual inferred) (compile-expression expr)))
+        (coerce actual expected-type js)))
 
     (define (coerce from to js)
       (case to
-        ((signed+unsigned+doublish)
-          (case from
-            ((int intish) `(binary "|" ,js (number 0)))
-            (else js)))
-        ((signed+unsigned+double)
-          (case from
-            ((int intish) `(binary "|" ,js (number 0)))
-            ((doublish) `(unary "+" ,js))
-            (else js)))
         ((intish)
           (case from
             ((double doublish) `(unary "~" (unary "~" ,js)))
@@ -316,8 +335,8 @@
           (case from
             ((double) js)
             (else `(unary "+" ,js))))
-        ((void function) js) ; TODO Remove function type
-        (else (error from to js))))
+        ((void) js)
+        (else (error coerce "illegal type to coerce to" to))))
     
     (define-record-type <value>
       (make-value id type)
@@ -433,15 +452,23 @@
     (define (heap-type s)
       (cdr (assoc s *heap-types*)))
 
+    (define-record-type <view>
+      (make-view size actual inferred shift)
+      view?
+      (size view-size)
+      (actual view-actual-type)
+      (inferred view-inferred-type)
+      (shift view-shift))
+
     (define *heap-types*
-      '(("Uint8Array" . (1 intish 0))
-        ("Int8Array" . (1 intish 0))
-        ("Uint16Array" . (2 intish 1))
-        ("Int16Array" . (2 intish 1))
-        ("Uint32Array" . (4 intish 2))
-        ("Int32Array" . (4 intish 2))
-        ("Float32Array" . (4 doublish 2))
-        ("Float64Array" . (8 doublish 3))))
+      `(("Uint8Array" . ,(make-view 1 intish unsigned 0))
+        ("Int8Array" . ,(make-view 1 intish signed 0))
+        ("Uint16Array" . ,(make-view 2 intish unsigned 1))
+        ("Int16Array" . ,(make-view 2 intish signed 1))
+        ("Uint32Array" . ,(make-view 4 intish unsigned 2))
+        ("Int32Array" . ,(make-view 4 intish signed 2))
+        ("Float32Array" . ,(make-view 4 doublish double 2))
+        ("Float64Array" . ,(make-view 8 doublish double 3))))
 
     (define (math-type s)
       (cdr (assoc s *math-types*)))
