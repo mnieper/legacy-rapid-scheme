@@ -1,42 +1,3 @@
-;
-; Types
-; -----
-;
-; From:
-;
-; 
-;
-;
-;
-; To:
-;
-; void - do not coerce at all
-; extern (= signed or double) - for external function calls
-; signed - for switch, return
-; double - for return
-; doublish - for *
-; int - for loops
-; intish - for |, &, ..., heap index
-; signed+unsigned+doublish - for /, %
-; signed+unsigned+double - for <, <=, ...
-;
-; From:
-; int, intish, signed, double, unsigned, doublish
-;
-
-; 
-; Problem: f(-x) : -x als extern; d.h. x als signed oder double???
-; Ist x int, so brauchen wir -x|0; Ist x doublish, so reicht -x...
-; Was ändert dies am Ergebnis? fast nix... also extern für - wird doublish.
-;
-;
-; Problem: (a - b) < (c - d) : Wir brauchen: a - b als signed+unsigned+double
-; Wie? a-b als Double ergibt keinen Sinn; a, b als Int... schon; Terme also typisiert?
-;
-;
-;
-;
-
 (define-library (rapid module)
   ;
   ; TODO Implement function tables.
@@ -139,7 +100,7 @@
                         (apply initializer (list-ref stmt 0) (list-tail stmt 2))))
                     ((return)
                       (if (and (null? (cdr stmt*)) (> (length stmt) 1))
-                        (let ((arg (compile-expression 'function (list-ref stmt 1))))
+                        (let ((arg (coerce-expression 'void (list-ref stmt 1))))
                           (if (eq? (car arg) 'number)
                             `(return ,arg)
                             (case return-type
@@ -215,9 +176,9 @@
               ((negative? expr) (values js 'signed 'signed))
               ((< expr #x80000000) (values js 'fixnum 'signed))
               (else (values js 'unsigned 'unsigned)))))
-        ((symbol? expr)
+        ((symbol? expr) 
           (let ((val (value expr)))
-            (cond (value-type val)
+            (case (value-type val)
               ((signed) (values (value-id val) 'int 'signed))
               ((unsigned) (values (value-id val) 'int 'unsigned))
               ((double) (values (value-id val) 'double 'double))
@@ -226,7 +187,7 @@
           (case (car expr)
             ((begin)
               (let ((expr* (reverse (cdr expr))))
-                (let-values (((js actual inferred)) (compile-expression (car expr*)))
+                (let-values (((js actual inferred) (compile-expression (car expr*))))
                   (values
                     (let loop ((js* (list js)) (expr* (cdr expr)))
                       (if (null? expr*)
@@ -239,7 +200,8 @@
                 (let ((type (value-type val)) (id (value-id val)))
                   (values            
                     (cond
-                      ((number? (list-ref expr 2))
+                      ((number? (list-ref expr 2))    
+      
                         `(member (id "$h")
                             (number ,(/ (list-ref expr 2) (view-size type)))))
                       ((= (view-size type) 1)
@@ -249,33 +211,39 @@
                         `(member (id "$h")
                           (binary ">>"
                             ,(coerce-expression 'intish (list-ref expr 2))
-                            (number ,(view-shift type))))))))))
+                            (number ,(view-shift type))))))
+                    (view-actual-type type) (view-inferred-type type)))))
             ((set!)
               (let ((lhs (list-ref expr 1)) (rhs (list-ref expr 2)))
-                (if (and (pair? lhs) (eq (car lhs) 'ref))
+                (if (and (pair? lhs) (eq? (car lhs) 'ref))
                   (let-values (((js actual inferred) (compile-expression lhs)))
                     (values `(assignment ,js (coerce-expression actual rhs))
                       actual inferred))
                   (let-values (((js actual inferred) (compile-expression rhs)))
                     (values `(assignment ,(id lhs) ,js) actual inferred)))))
-            ((double signed unsigned)
-              (values
-                (coerce-expression (list-ref expr 0) (list-ref expr 1))
-                (list-ref expr 0) (list-ref expr 0)))
+            ((signed unsigned double)
+              (let-values (((js actual inferred)
+                    (compile-expression (list-ref expr 1))))
+                (values (coerce actual inferred js) inferred (list-ref expr 0))))                  
             ((truncate)
               (values
                 `(unary "~"
                   (unary "~" ,(coerce-expression 'double (list-ref expr 1))))
                 'signed 'signed))
-            ; THE FOLLOWING IS SCHROTT
-            ((+ -) ; TODO special case +; special case *
+            ((-) 
               (if (> 2 (length expr))
-                (compile-binary expected-type expr)
-                (compile-unary expected-type expr)))
+                (compile-binary expr)
+                (compile-unary expr)))
             ((~ not)
-              (compile-unary expected-type expr))
+              (compile-unary expr))            
+            ((+) (compile-sum (cdr expr)))
             ((* / remainder << >> >>> < > <= >= = not= and ^ or)
-              (compile-binary expected-type expr))
+              (if (> (length expr) 3)
+                (let ((op (list-ref expr 0)))
+                  (compile-expression
+                    `(,op (,op ,(list-ref expr 1) ,(list-ref expr 2)) .
+                      ,(list-tail expr 3))))
+                (compile-binary expr)))
             ((if)
               (let-values (((js actual inferred)
                     (compile-expression (list-ref expr 2))))
@@ -295,18 +263,66 @@
                         ,(coerce-expression 'double (list-ref expr 3)))
                       'double 'double))
                   (else (error compile-expression "unknown type" inferred)))))
-            (else (error compile-expression "illegal expression" expr))))))
+            (else
+              (compile-application (car expr) (cdr expr)))))))
 
-    (define (compile-binary expected-type expr)
-      (error "not yet implemented")
-      )
+    (define (compile-application proc arg*)
+      (let ((val (value proc)))
       
-    (define (compile-unary expected-type expr)
+        )
+
+    (define (compile-sum arg*)
+      (let-values (((js actual inferred) (compile-expression (car arg*))))
+        (values
+          (let loop ((js (coerce actual 'int js)) (arg* (cdr arg*)))
+            (if (null? arg*)
+              js
+              (loop              
+                (case inferred
+                  ((signed unsigned)
+                    (if (and (pair? (car arg*)) (eq? (caar arg*) '-))
+                      `(binary "-" ,js ,(coerce-expression 'int (cadr (car arg*))))
+                      `(binary "+" ,js ,(coerce-expression 'int (car arg*)))))
+                  (else
+                    `(binary "+" ,js ,(coerce-expression 'double (car arg*)))))
+                (cdr arg*))))
+          (case inferred ((signed unsigned) 'intish) (else 'double))        
+          inferred)))
+
+    (define (compile-binary expr)
+      (let ((op (list-ref expr 0)) (left (list-ref expr 1)) (right (list-ref expr 2)))
+        (case op
+          ((*) 
+            (if (exact? left)
+              (let-values (((js actual inferred) (compile-expression right)))
+                (values
+                  `(binary "*" (number ,(list-ref expr 1)) ,(coerce actual 'int js))
+                  'intish inferred))
+              (compile-generic-binary op left right)))
+          (else (compile-generic-binary op left right)))))
+
+    (define (compile-generic-binary binary left right)
+      (let ((op (binary-op binary)))
+        (let-values (((js actual inferred)
+              (compile-expression left)))
+          (let ((type (cdr
+                (or (assq inferred (op-types op))
+                  (error compile-binary "type mismatch" op left right)))))
+            (values
+              `(binary ,(op-name op) ,(coerce actual (list-ref type 0) js)
+                ,(coerce-expression (list-ref type 0) right))
+              (list-ref type 1) (list-ref type 2))))))
+  
+    (define (compile-unary expr)
       (let ((op (unary-op (list-ref expr 0))))
-        (let-values (((from to) ((op-type op) expected-type)))
-          (coerce to expected-type
-            `(unary ,(op-name op)
-              ,(compile-expression from (list-ref expr 1)))))))
+        (let-values (((js actual inferred)
+              (compile-expression (list-ref expr 1))))
+          (let ((type (cdr
+                  (or (assq inferred (op-types op))
+                    (error compile-unary "type mismatch" expr)))))
+            (values
+              `(unary ,(op-name op) ,(coerce actual (list-ref type 0) js))
+              (list-ref type 1) (list-ref type 2))))))
 
     (define (coerce-expression* expected-type expr*)
       (map (lambda (expr) (coerce-expression expected-type expr)) expr*))
@@ -331,10 +347,16 @@
             ((double) `(unary "~" (unary "~" ,js)))
             ((fixnum signed) js)
             (else `(binary "|" ,js (number 0)))))
+        ; TODO (unsigned)
+        ((doublish)
+          (case from
+            ((doublish) js)
+            (else (coerce from 'double js))))
         ((double)
           (case from
             ((double) js)
-            (else `(unary "+" ,js))))
+            ((unsigned signed) `(unary "+" ,js))
+            (else (error coerce "cannot be coerced to double" from))))
         ((void) js)
         (else (error coerce "illegal type to coerce to" to))))
     
@@ -461,14 +483,14 @@
       (shift view-shift))
 
     (define *heap-types*
-      `(("Uint8Array" . ,(make-view 1 intish unsigned 0))
-        ("Int8Array" . ,(make-view 1 intish signed 0))
-        ("Uint16Array" . ,(make-view 2 intish unsigned 1))
-        ("Int16Array" . ,(make-view 2 intish signed 1))
-        ("Uint32Array" . ,(make-view 4 intish unsigned 2))
-        ("Int32Array" . ,(make-view 4 intish signed 2))
-        ("Float32Array" . ,(make-view 4 doublish double 2))
-        ("Float64Array" . ,(make-view 8 doublish double 3))))
+      `(("Uint8Array" . ,(make-view 1 'intish 'unsigned 0))
+        ("Int8Array" . ,(make-view 1 'intish 'signed 0))
+        ("Uint16Array" . ,(make-view 2 'intish 'unsigned 1))
+        ("Int16Array" . ,(make-view 2 'intish 'signed 1))
+        ("Uint32Array" . ,(make-view 4 'intish 'unsigned 2))
+        ("Int32Array" . ,(make-view 4 'intish 'signed 2))
+        ("Float32Array" . ,(make-view 4 'doublish 'double 2))
+        ("Float64Array" . ,(make-view 8 'doublish 'double 3))))
 
     (define (math-type s)
       (cdr (assoc s *math-types*)))
@@ -501,61 +523,44 @@
     (define (unary-op s)
       (cdr (assq s *unary-ops*)))
 
+    (define (binary-op s)
+      (cdr (or (assq s *binary-ops*) (error s)) ))
+
     (define-record-type <op>
-      (make-op name type)
+      (make-op name types)
       op?
       (name op-name)
-      (type op-type))
+      (types op-types))
 
     (define *unary-ops*
-      `((+ . ,(make-op "+"
-            (lambda (to)
-              (values 'signed+unsigned+doublish 'double))))
-        (- . ,(make-op "-"
-            (lambda (to)
-              (case to
-                ((double doublish) (values 'doublish 'double))
-                (else (values 'int 'intish))))))
-        (~ . ,(make-op "~"
-            (lambda (to)
-              (values 'intish 'signed))))
-        (not . ,(make-op "!"
-            (lambda (to)
-              (values 'int 'int))))))
+      `((- . ,(make-op "-" '((signed int intish signed) (double doublish double double))))   ; input from actual inferred 
+        (~ . ,(make-op "~" '((signed intish signed signed))))
+        (not . ,(make-op "!" '((signed int int signed) (unsigned int int unsigned))))))
+ 
+    (define *binary-ops*
+      `((- . ,(make-op "-" '((double doublish double double))))
+        (* . ,(make-op "*" '((double doublish double double))))
+        (/ . ,(make-op "/" '((signed signed intish signed) (unsigned unsigned intish unsigneed) (double doublish double double))))
+        (remainder . ,(make-op "%" '((signed signed intish signed) (unsigned unsigned intish unsigneed) (double doublish double double))))
+        (or . ,(make-op "|" '((signed intish signed signed))))
+        (and . ,(make-op "|" '((signed intish signed signed))))
+        (^ . ,(make-op "^" '((signed intish signed signed))))
+        (<< . ,(make-op "<<" '((signed intish signed signed))))
+        (>> . ,(make-op ">>" '((signed intish signed signed))))
+        (>>> . ,(make-op ">>>" '((unsigned intish unsigned unsigned))))
+        (< . ,(make-op "<" '((signed signed int unsigned))))
+        (<= . ,(make-op "<=" '((signed signed int unsigned))))
+        (> . ,(make-op ">" '((signed signed int unsigned))))
+        (>= . ,(make-op ">=" '((signed signed int unsigned))))
+        (== . ,(make-op "==" '((signed signed int unsigned))))
+        (!= . ,(make-op "!=" '((signed signed int unsigned))))))
  
     (emit
       (compile-module
-        `(module "RapidScheme"
-          (signed a)
-          (unsigned c)
-          (double b 0.0)
-          (math imul "imul")
-          (stdlib NaN "NaN")
-          (heap i8 "Int8Array")
-          (heap f32 "Float32Array")
-          (foreign int heap-size "heapSize")
-          (function signed alloc ((int i))
-            (double j 1.0)
-            (label l1
-              (begin
-                (break l1)))
-                
-            (switch i
-              (case 0
-                (continue))
-              (default
-                (break)))
-            
-            (ref f32 8)
-            (ref f32 a)
-            (ref i8 a)
-            
-            (+ 1.2)
-            
-            (return 42))
-       
-          (return a))))
-      
-      
+        (let-syntax ((module
+              (syntax-rules ()
+                ((module . rest) `(module . rest)))))
+          (include "rapid/module.scm"))))
+
       
       ))
