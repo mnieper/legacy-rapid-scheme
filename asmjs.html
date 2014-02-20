@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>asm.js</title>
+</head>
+<body>
+  <script>
+    function Module(stdlib) {
+      'use asm';
+      var imul = stdlib.Math.imul;
+      function f() {
+        var x = 0;
+        x = 3 * x|0;
+        x = x - x|0;
+        imul(x, x);
+      }
+      return f;
+    }
+    var linked = Module(window);
+  </script>
+</body>
+</html>
