@@ -1,13 +1,19 @@
 (define-library (rapid module)
   ;
-  ; TODO Implement function tables.
-  ;
   ; TODO Refactor procedures in smaller pieces.
   ;
-  (export compile-module make-global-var make-local-var make-label)
-  (import (scheme base) (scheme case-lambda) (rapid asmjs))
+  (export include-module compile-module make-global-var make-local-var make-label)
+  (import (scheme base) (scheme case-lambda) (scheme inexact) (rapid asmjs) (scheme write))
   (begin
 
+    (define-syntax include-module
+      (syntax-rules ()
+        ((include-module string)      
+          (let-syntax ((module
+                (syntax-rules ()
+                  ((module . rest) (module . rest)))))
+            (include string)))))
+            
     (define-syntax new-environment
       (syntax-rules ()
         ((new-environment . body)
@@ -52,7 +58,9 @@
                     ((signed unsigned) 'int)
                     ((double) 'double)
                     (else (error globals-update! "invalid parameter type" (list-ref param 0)))))
-                (list-ref decl 3)))))))
+                (list-ref decl 3)))))
+        ((table)
+          (global-set! (list-ref decl 1) (table-type (length (list-ref decl 2)) (type (car (list-ref decl 2))))))))
     
     (define (compile-decl decl)
       (case (car decl)
@@ -92,6 +100,11 @@
                         (value-id val)))))
                 (list-ref decl 3))
               ,@(compile-body (list-ref decl 1) (list-tail decl 4))))) 
+        ((table)
+          `(var ,(id (list-ref decl 1))
+            (array ,@(map (lambda (f) (id f)) (list-ref decl 2)) .
+              ,(make-list (- (table-size (type (list-ref decl 1))) (length (list-ref decl 2)))
+                (id (car (list-ref decl 2)))))))
         ((return)
           `(return
             ,(if (pair? (list-ref decl 1))
@@ -205,11 +218,12 @@
               (let ((expr* (reverse (cdr expr))))
                 (let-values (((js actual inferred) (compile-expression (car expr*))))
                   (values
-                    (let loop ((js* (list js)) (expr* (cdr expr)))
-                      (if (null? expr*)
-                        js*
-                        (let-values (((js actual inferred) (compile-expression (car expr*))))
-                          (loop (cons (js js*) (cdr expr*))))))
+                    `(expression .
+                      ,(let loop ((js* (list js)) (expr* (cdr expr*)))
+                        (if (null? expr*)
+                          js*
+                          (let-values (((js actual inferred) (compile-expression (car expr*))))
+                            (loop (cons js js*) (cdr expr*))))))
                     actual inferred))))
             ((ref)            
               (let ((val (value (list-ref expr 1))))
@@ -217,14 +231,13 @@
                   (values            
                     (cond
                       ((number? (list-ref expr 2))    
-      
-                        `(member (id "h")
+                        `(member ,id
                             (number ,(/ (list-ref expr 2) (view-size type)))))
                       ((= (view-size type) 1)
-                        `(member (id "h")
+                        `(member ,id
                           ,(coerce-expression 'int (list-ref expr 2))))
                       (else
-                        `(member (id "h")
+                        `(member ,id
                           (binary ">>"
                             ,(coerce-expression 'intish (list-ref expr 2))
                             (number ,(view-shift type))))))
@@ -239,8 +252,6 @@
                     (values `(assignment ,(value-id val)
                         ,(coerce-expression (value-type val) rhs))
                       (value-type val) (value-type val))))))
-                   ; (let-values (((js actual inferred) (compile-expression rhs)))  ; Problem here: die rechte Seite wird gar nicht coerced. muß aber mindestens signed unsigned oder double sein; zu int komment wir nicht...
-                    ;  (values `(assignment ,(value-id val) (coerce actual 'int ,js) actual inferred)))))
             ((signed unsigned double)    
               (let-values (((js actual inferred)
                     (compile-expression (list-ref expr 1))))
@@ -287,13 +298,24 @@
               (compile-application (car expr) (cdr expr)))))))
 
     (define (compile-application proc arg*)
-      (let* ((val (value proc)) (type (value-type val))
-          (type (if (pair? (car type))
-              (let-values (((js actual inferred) (compile-expression (car arg*)))) 
-                (cdr (or (assq inferred type) (error compile-application "type mismatch" proc inferred))))
-              type))
-          (js
-            `(call ,(value-id val) .
+      (let* ((val (value proc)) (type (value-type val)))
+        (cond
+          ((table? type)
+            (call (table-function-type type)
+              `(member ,(value-id val)
+                (binary "&" ,(coerce-expression 'int (car arg*))
+                  (number ,(- (table-size type) 1))))
+              (cdr arg*)))
+          ((pair? (car type))
+            (let-values (((js actual inferred) (compile-expression (car arg*))))
+              (call (cdr (or (assq inferred type) (error compile-application "type mismatch" proc inferred)))
+                (value-id val) arg*)))
+          (else
+            (call type (value-id val) arg*)))))
+
+    (define (call type proc arg*)
+      (let ((js
+            `(call ,proc .
               ,(let loop ((arg* arg*) (type* (list-ref type 1)))
                 (if (null? arg*)
                   (list)
@@ -521,6 +543,16 @@
 
     (define (heap-type s)
       (cdr (assoc s *heap-types*)))
+
+    (define-record-type <table>
+      (make-table size function-type)
+      table?
+      (size table-size)
+      (function-type table-function-type))
+
+    (define (table-type size function-type)
+      (make-table  (exact (expt 2 (ceiling (log size 2))))
+        function-type))
 
     (define-record-type <view>
       (make-view size actual inferred shift)

@@ -222,10 +222,11 @@
       (emit identifier)
       (emit-args arguments*))
     
-    (define (emit-array . args*)
+    (define (emit-array . arg*)
       (write-string "[")
       (let loop ((arg* arg*) (d ""))
         (unless (null? arg*)
+          (write-string d)
           (emit-parenthesized (eq? (caar arg*) 'expression)
             (car arg*))
           (loop (cdr arg*) ","))) 
