@@ -37,6 +37,7 @@
         ((binary) (apply emit-binary (cdr js)))
         ((conditional) (apply emit-conditional (cdr js)))
         ((call) (apply emit-call (cdr js)))
+        ((array) (apply emit-array (cdr js)))
         ((object) (apply emit-object (cdr js)))))
 
     (define (emit-function identifier args . body)
@@ -220,6 +221,15 @@
     (define (emit-call identifier . arguments*)
       (emit identifier)
       (emit-args arguments*))
+    
+    (define (emit-array . args*)
+      (write-string "[")
+      (let loop ((arg* arg*) (d ""))
+        (unless (null? arg*)
+          (emit-parenthesized (eq? (caar arg*) 'expression)
+            (car arg*))
+          (loop (cdr arg*) ","))) 
+      (write-string "]"))
     
     (define (emit-object . property*)
       (write-string "{")
