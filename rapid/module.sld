@@ -24,9 +24,10 @@
     (define (compile-module mod)
       (new-environment
         (for-each globals-update! (list-tail mod 2))
-        `(function (id ,(list-ref mod 1)) ((id "$s") (id "$f") (id "$h"))
-          (statement (string "use asm")) .
-          ,(map compile-decl (list-tail mod 2)))))
+        `(var (id ,(list-ref mod 1))
+          (function (id "") ((id "s") (id "f") (id "h"))
+            (statement (string "use asm")) .
+            ,(map compile-decl (list-tail mod 2))))))
 
     (define (globals-update! decl)
       (case (car decl)
@@ -60,22 +61,22 @@
               (list-tail decl 2))))
         ((stdlib)
           `(var ,(id (list-ref decl 1))
-            (member (id "$s") ,(list-ref decl 2))))
+            (member (id "s") ,(list-ref decl 2))))
         ((math)
           `(var ,(id (list-ref decl 1))
-            (member (member (id "$s") "Math") ,(list-ref decl 2))))
+            (member (member (id "s") "Math") ,(list-ref decl 2))))
         ((heap)
           `(var ,(id (list-ref decl 1))
-            (new (member (id "$s") ,(list-ref decl 2)) (id "$h"))))
+            (new (member (id "s") ,(list-ref decl 2)) (id "h"))))
         ((foreign) 
           (case (list-ref decl 1)
             ((signed unsigned double)
               `(var ,(id (list-ref decl 2))
                 ,(coerce 'void (list-ref decl 1)
-                  `(member (id "$f") ,(list-ref decl 3)))))
+                  `(member (id "f") ,(list-ref decl 3)))))
             ((function)
               `(var ,(id (list-ref decl 3))
-                (member (id "$f") ,(list-ref decl 4)))))) 
+                (member (id "f") ,(list-ref decl 4)))))) 
         ((function)
           (new-frame
             (for-each (lambda (param)
@@ -217,13 +218,13 @@
                     (cond
                       ((number? (list-ref expr 2))    
       
-                        `(member (id "$h")
+                        `(member (id "h")
                             (number ,(/ (list-ref expr 2) (view-size type)))))
                       ((= (view-size type) 1)
-                        `(member (id "$h")
+                        `(member (id "h")
                           ,(coerce-expression 'int (list-ref expr 2))))
                       (else
-                        `(member (id "$h")
+                        `(member (id "h")
                           (binary ">>"
                             ,(coerce-expression 'intish (list-ref expr 2))
                             (number ,(view-shift type))))))
@@ -232,10 +233,14 @@
               (let ((lhs (list-ref expr 1)) (rhs (list-ref expr 2)))
                 (if (and (pair? lhs) (eq? (car lhs) 'ref))
                   (let-values (((js actual inferred) (compile-expression lhs)))
-                    (values `(assignment ,js (coerce-expression actual rhs))
+                    (values `(assignment ,js ,(coerce-expression actual rhs))
                       actual inferred))
-                  (let-values (((js actual inferred) (compile-expression rhs)))  ; Problem here: die rechte Seite wird gar nicht coerced. muß aber mindestens signed unsigned oder double sein; zu int komment wir nicht...
-                    (values `(assignment ,(id lhs) ,js) actual inferred)))))
+                  (let ((val (value lhs)))                      
+                    (values `(assignment ,(value-id val)
+                        ,(coerce-expression (value-type val) rhs))
+                      (value-type val) (value-type val))))))
+                   ; (let-values (((js actual inferred) (compile-expression rhs)))  ; Problem here: die rechte Seite wird gar nicht coerced. muß aber mindestens signed unsigned oder double sein; zu int komment wir nicht...
+                    ;  (values `(assignment ,(value-id val) (coerce actual 'int ,js) actual inferred)))))
             ((signed unsigned double)    
               (let-values (((js actual inferred)
                     (compile-expression (list-ref expr 1))))
@@ -476,15 +481,15 @@
 
     (define make-global-var
       (make-parameter (lambda (i)
-        (string-append "$g" (number->string i)))))
+        (string-append "x" (number->string i)))))
 
     (define make-local-var
       (make-parameter (lambda (i)
-        (string-append "$v" (number->string i)))))
+        (string-append "y" (number->string i)))))
     
     (define make-label
       (make-parameter (lambda (i)
-        (string-append "$l" (number->string i)))))
+        (string-append "a" (number->string i)))))
     
     (define (global-var i)
       ((make-global-var) i))
