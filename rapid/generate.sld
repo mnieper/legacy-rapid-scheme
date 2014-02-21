@@ -6,7 +6,7 @@
   (begin
   
     (define (module)
-      (emit
+      (emit-js
         (compile-module
           (let-syntax ((module
                 (syntax-rules ()
