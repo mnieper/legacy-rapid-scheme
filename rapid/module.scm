@@ -82,7 +82,7 @@
     (set! ,(at '(+ s 4)) (* 4 n))
     (if (= d 1)
       (set! ,(at '(+ s 8)) ,(char->integer #\-)))
-    (for ((set! j (- n 1))) ((> j 0)) ((j (- j 1)))
+    (for ((set! j (+ n -1))) ((> j 0)) ((set! j (+ j -1)))
       (set! m (remainder i 10))
       (set! ,(at '(+ s 8 (* 4 j))) (+ m ,(char->integer #\0)))
       (set! i (/ (+ i (- m)) 10)))

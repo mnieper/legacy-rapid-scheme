@@ -300,6 +300,7 @@
                 (binary "&" ,(coerce-expression 'int (car arg*))
                   (number ,(- (table-size type) 1))))
               (cdr arg*)))
+          ((not (pair? type)) (error proc))  ; XXX Should report this error
           ((pair? (car type))
             (let-values (((js actual inferred) (compile-expression (car arg*))))
               (call (cdr (or (assq inferred type) (error compile-application "type mismatch" proc inferred)))
