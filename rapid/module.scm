@@ -21,6 +21,8 @@
   (function void run ()
     (while 1
       (switch code-reg)))
+
+  (table x (alloc run))
       
   (return run))
 
