@@ -256,7 +256,7 @@
                   (unary "~" ,(coerce-expression 'double (list-ref expr 1))))
                 'signed 'signed))
             ((-) 
-              (if (> 2 (length expr))
+              (if (> (length expr) 2)
                 (compile-binary expr)
                 (compile-unary expr)))
             ((~ not)
@@ -277,14 +277,14 @@
                     (values
                       `(conditional
                         ,(coerce-expression 'int (list-ref expr 1))
-                        ,(coerce actual 'int (list-ref expr 2))
+                        ,(coerce actual 'int js)
                         ,(coerce-expression 'int (list-ref expr 3)))
                       'int inferred))
                   ((double)
                     (values
                       `(conditional
                         ,(coerce-expression 'int (list-ref expr 1))
-                        ,(coerce actual 'double (list-ref expr 2))
+                        ,(coerce actual 'double js)
                         ,(coerce-expression 'double (list-ref expr 3)))
                       'double 'double))
                   (else (error compile-expression "unknown type" inferred)))))
@@ -598,7 +598,7 @@
       (cdr (assq s *unary-ops*)))
 
     (define (binary-op s)
-      (cdr (or (assq s *binary-ops*) (error s)) ))
+      (cdr (or (assq s *binary-ops*))))
 
     (define-record-type <op>
       (make-op name types)
@@ -626,5 +626,5 @@
         (<= . ,(make-op "<=" '((signed signed int unsigned))))
         (> . ,(make-op ">" '((signed signed int unsigned))))
         (>= . ,(make-op ">=" '((signed signed int unsigned))))
-        (== . ,(make-op "==" '((signed signed int unsigned))))
-        (!= . ,(make-op "!=" '((signed signed int unsigned))))))))
+        (= . ,(make-op "==" '((signed signed int unsigned))))
+        (not= . ,(make-op "!=" '((signed signed int unsigned))))))))

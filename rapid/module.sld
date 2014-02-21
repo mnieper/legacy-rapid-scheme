@@ -31,11 +31,11 @@
     
     (define false (boolean #f))
 
-    (define (box-i32)
-      `(<< i32 1))
+    (define (box-i32 i32)
+      `(<< ,i32 1))
       
-    (define (unbox-i32)
-      `(>> i32 1))
+    (define (unbox-i32 i32) 
+      `(>> ,i32 1))
       
     (define (string-const expr)
       (let* ((expr (string->vector expr 0)) (len (vector-length expr)))
@@ -60,6 +60,8 @@
           (include "rapid/module.scm"))))
 
     (define *string-tag* 0)
+    
+    (define *proc-tag* #x3)
     
     (define (globals count)
       (let loop ((i 0))
