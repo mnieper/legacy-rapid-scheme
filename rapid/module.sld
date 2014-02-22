@@ -12,6 +12,8 @@
     
     (define (arg fp displacement) (at `(+ ,fp ,(+ 8 (* 4 displacement)))))
     
+    (define arg-count (at 'env-ptr))
+    
     (define (local depth displacement)
       (let loop ((fp 'env-ptr) (depth depth))
         (if (= depth 0)

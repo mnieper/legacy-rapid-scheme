@@ -3,9 +3,9 @@
   (+ sum)
   (- difference)
   (* product)
-  (< isIncreasing)
-  (number->string numberToString)
-  (write-string writeString)
-  (truncate-remainder truncateRemainder)
+  (< increasing?)
+  number->string
+  write-string
+  truncate-remainder
   exit)
 

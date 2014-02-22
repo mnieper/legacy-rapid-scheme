@@ -1,8 +1,8 @@
 (define-library (rapid scheme)
   (export variable? lambda? set!? op
     set!-expression set!-variable
-    case-lambda? case-lambda-clauses case-lambda-clause-formals case-lambda-clause-body)
-    if? if-test if-consequent if-alternate
+    case-lambda? case-lambda-clauses case-lambda-clause-formals case-lambda-clause-body
+    if? if-test if-consequent if-alternate*)
   (import
     (scheme base)
     (only (rapid base) tagged-list?))
@@ -35,8 +35,8 @@
     (define (if-consequent expression)
       (list-ref expression 2))
 
-    (define (if-alternate expression)
-      (list-ref expression 3))
+    (define (if-alternate* expression)
+      (list-tail expression 3))
       
     (define (set!-variable form)
       (list-ref form 1))
@@ -52,6 +52,12 @@
       
     (define (case-lambda-clause-body clause)
       (cdr clause))
+      
+    (define (application-proc expr)
+      (car expr))
+      
+    (define (application-arg* expr)
+      (cdr expr))
 
     (define *ops*
       (letrec-syntax ((define-operators
