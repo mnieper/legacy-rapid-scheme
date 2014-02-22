@@ -4,7 +4,7 @@
     (scheme base) (scheme case-lambda)
     (rapid scheme) (rapid module))
   (begin
-  
+
     (define-syntax new-environment
       (syntax-rules ()
         ((new-environment body1 body2 ...)
@@ -34,8 +34,8 @@
       (new-environment
         (environment-update! cexpr)
         (new-block!
-          (lambda (label) (codegen-expression cexpr)))
-        (error (environment-blocks (environment)))))
+          (lambda (label) (codegen-expression cexpr)))  ; TODO: Remove label arg
+        (module (global-count) (blocks))))
 
     (define (codegen-expression expr)
       (cond
@@ -45,7 +45,7 @@
           (codegen-boolean expr))
         ((string? expr)
           (codegen-string expr))
-        ((variable? expr?)
+        ((variable? expr)
           (codegen-variable expr))
         ((set!? expr)
           (codegen-set! (set!-variable expr) (set!-expression expr)))
@@ -56,7 +56,8 @@
         ((case-lambda? expr)
           (codegen-case-lambda (case-lambda-clauses expr)))
         ((pair? expr)
-          (codgen-application (application-proc) (application-arg*)))))
+          (codegen-application (application-proc expr)
+            (application-arg* expr)))))
 
     (define (codegen-expression* arg*)
       (map codegen-expression arg*))  
@@ -80,11 +81,11 @@
       `(,op . ,(codegen-expression* arg*)))
 
     (define (codegen-if test con . alt*)
-      (apply conditional ,(codegen-expression test) ,(codegen-expression con)
-        ,(codegen-expression* alt*))) 
+      (apply conditional (codegen-expression test) (codegen-expression con)
+        (codegen-expression* alt*))) 
 
     (define (codegen-case-lambda clauses)
-      (let ((label (new-block (make-case-lambda-block clauses))))
+      (let ((label (new-block! (make-case-lambda-block clauses))))
         `(procedure ,label env-ptr)))
 
     (define (make-case-lambda-block clauses)
@@ -97,13 +98,14 @@
     (define (codegen-case-lambda-clauses clauses)
       (let loop ((clauses clauses))
         (if (null? clauses)
-          '(callError)
-          (codegen-case-lambda-clause (case-lambda-clause-formals clause)
-            (case-lambda-clause-body clause)
-            (loop (cdr clause))))))
+          '(call-error)
+          (let ((clause (car clauses)))
+            (codegen-case-lambda-clause (case-lambda-clause-formals clause)
+              (case-lambda-clause-body clause)
+              (loop (cdr clauses)))))))
             
     (define (codegen-case-lambda-clause formals body else)
-      `(if (= auxreg
+      `(if (= aux-reg
           ,(let loop ((formals formals) (i 0))
             (cond
               ((symbol? formals) (error "lists not yet implemented"))
@@ -116,12 +118,12 @@
         ,@(let loop ((arg* arg*) (i 0))
           (if (null? arg*)
             '()
-            '((set! ,(arg 'frame-ptr i) , (codegen (car arg*)))
+            `((set! ,(arg 'frame-ptr i) , (codegen-expression (car arg*)))
               . ,(loop (cdr arg*) (+ i 1)))))
         ; TODO Special case calling of case-lambda literals.
-        (set! aux-reg ,(codegen proc))
-        (if (not= (& aux-reg #x80000007) ,*proc-tag*) (application-error)) ; *tag-mask*
-        (set! aux-reg (& aux-reg #x7ffffff8))  ; *ptr-mask*
+        (set! aux-reg ,(codegen-expression proc))
+        (if (not= (and aux-reg #x80000007) ,*proc-tag*) (application-error)) ; *tag-mask*
+        (set! aux-reg (and aux-reg #x7ffffff8))  ; *ptr-mask*
         (set! ,(parent-frame-ptr 'frame-ptr) ,(at '(+ aux-reg 4)))  ; proc-parent-frame-ptr
         (set! env-ptr frame-ptr)
         (set! frame-ptr 0)
@@ -145,22 +147,22 @@
       (for-each environment-update! expr*))
 
     (define (environment-update!-set! var expr)
-      (if (not (location var))
+      (if (not (binding var))
         (global-set! var))
       (environment-update! expr))
 
     (define (environment-update!-case-lambda clauses)
       (new-frame
         (for-each environment-update!-case-lambda-clause clauses)))
-        
+
     (define (environment-update!-case-lambda-clause clause)
       (let loop ((formals (case-lambda-clause-formals clause)) (i 0))
         (cond
           ((symbol? formals)
             (local-set! formals i))
           ((pair? formals)
-            (local-set! (car formals) i))
-            (loop (cdr formals) (+ i 1))))
+            (local-set! (car formals) i)
+            (loop (cdr formals) (+ i 1)))))
       (environment-update!* (case-lambda-clause-body clause)))
 
     (define-record-type <environment>
@@ -182,8 +184,17 @@
     (define (frames)
       ((environment-frames (environment))))
 
-    (define (location id)
+    (define (global-count)
+      (environment-global-count (environment)))
+      
+    (define (blocks)
+      (environment-blocks (environment)))
+
+    (define (binding id)
       (assq id (environment-bindings (environment))))
+
+    (define (location id)
+      (cdr (or (binding id) (error "identifier not bound" id))))
 
     (define (global-set! var)
       (let ((count (environment-global-count (environment))))
@@ -209,8 +220,8 @@
           (local (list-ref (frames) frame) displacement))))
 
     (define (new-block! make-block)
-      (let ((count (environment-block count (environment))))
-        (environment-block-count-set! (environment (+ count 1)))
+      (let ((count (environment-block-count (environment))))
+        (environment-block-count-set! (environment) (+ count 1))
         (let ((block (make-block count)))        
           (environment-blocks-set! (environment)
             (cons (cons count block) (environment-blocks (environment)))))

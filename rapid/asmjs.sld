@@ -3,8 +3,6 @@
   (import (scheme base) (scheme case-lambda))
 
   ;
-  ; TODO Add missing asm.js constructs (array literals for function tables).
-  ;
   ; TODO Add remaining Javascript constructs.
   ;
   (begin

@@ -2,19 +2,40 @@
   (export compile)
   (import
     (scheme base)
+    (scheme file)
+    (scheme write)
     (rapid base)
     (rapid program)
-    (rapid cps)
+    (rapid load)
     (rapid link)
+    (rapid cps)
     (rapid optimize)
-    (rapid codegen))
+    (rapid codegen)
+    (rapid assemble)
+    (rapid output))
   (begin
 
-    (define (compile source)
-      (let ((program (make-program)))
-        (codegen
-          ;(display ; XX
-          (optimize
-            (cps program
-              (link source))))))))
+    ; XXX Put output, etc. into this file; Put this into compiler.scm/.sld
 
+    (define (log string obj)
+      (with-output-to-file string (lambda ()
+          (display obj)
+          (newline)
+          obj)))
+
+    (define (compile)
+      (define program (make-program))
+      
+      (write-string "rapid-scheme 0.1\n" (current-error-port))
+      (write-string "Copyright © 2014 Marc Nieper-Wißkirchen\n" (current-error-port))
+      
+      (let* ((code (log "read.out" (read-file)))      ; -> read
+          (code (log "preprocess.out" (link code)))           ; -> preprocess
+          (code (log "compile.out" (cps program code)))    ; -> compile
+          (code (log "optimize.out" (optimize code)))       ; -> optimize
+          (code (log "codegen.out" (codegen code)))      ; -> codegen
+          (code (log "assemble.out" (assemble-module code)))         ; -> assemble
+          (code (log "output.log" (output code))))    ;  -> output
+          code))))
+                 
+         

@@ -1,8 +1,8 @@
 (define-library (rapid module)
   (export
-    module at parent-frame-ptr arg local global
+    module at parent-frame-ptr arg arg-count local global
     number boolean true false box-i32 unbox-i32 string-const
-    conditional)
+    conditional *proc-tag*)
   (import (scheme base))
   (begin
 
@@ -72,8 +72,8 @@
           `((signed ,(global i)) . ,(loop (+ i 1))))))
 
     (define (blocks block*)
-      (let loop ((i 0) (block* block*))
+      (let loop ((block* block*))
         (if (null? block*)
           '()
-          `((case ,i) . ,(car block*))
-          (loop (+ i 1) (cdr block*)))))))
+          `((case ,(caar block*) . ,(cdar block*)) . ,
+            (loop (cdr block*))))))))

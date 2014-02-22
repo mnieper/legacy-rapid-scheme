@@ -2,7 +2,8 @@
   (export variable? lambda? set!? op
     set!-expression set!-variable
     case-lambda? case-lambda-clauses case-lambda-clause-formals case-lambda-clause-body
-    if? if-test if-consequent if-alternate*)
+    if? if-test if-consequent if-alternate*
+    application-proc application-arg*)
   (import
     (scheme base)
     (only (rapid base) tagged-list?))
