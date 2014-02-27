@@ -48,14 +48,20 @@ rapid.Program.prototype.run = function run() {
   this._worker.postMessage({cmd: 'execute', msg: this._scriptURL}); // XXX Need command line.
 };
 
+rapid.Program.prototype.continue_ = function () {
+  this._worker.postMessage({cmd: 'continue', msg: ''});
+};
+
 rapid.Program.prototype._onmessage = function _onmessage(event) {
   var data = event.data;
   switch (data.cmd) {
   case 'output':
     this.onoutput(data.msg);
+    this.continue_();
     break;
   case 'error':
     this.onerror(data.msg);
+    this.continue_();
     break;
   case 'exit':
     this._worker.terminate();

@@ -205,7 +205,7 @@
               ((signed) (values (value-id val) 'int 'signed))
               ((unsigned) (values (value-id val) 'int 'unsigned))
               ((double) (values (value-id val) 'double 'double))
-              (else (error "unknown type" (value-type val))))))
+              (else (error "unknown type" expr (value-type val))))))
         (else
           (case (car expr)
             ((begin)
@@ -344,6 +344,8 @@
           inferred)))
 
     (define (compile-binary expr)
+      (unless (= 3 (length expr))
+        (error compile-binary "malformed binary expression" expr))
       (let ((op (list-ref expr 0)) (left (list-ref expr 1)) (right (list-ref expr 2)))
         (case op
           ((*) 
@@ -615,15 +617,15 @@
     (define *binary-ops*
       `((- . ,(make-op "-" '((double doublish double double))))
         (* . ,(make-op "*" '((double doublish double double))))
-        (/ . ,(make-op "/" '((signed signed intish signed) (unsigned unsigned intish unsigneed) (double doublish double double))))
+        (/ . ,(make-op "/" '((signed signed intish signed) (unsigned unsigned intish unsigned) (double doublish double double))))
         (remainder . ,(make-op "%" '((signed signed intish signed) (unsigned unsigned intish unsigneed) (double doublish double double))))
-        (or . ,(make-op "|" '((signed intish signed signed))))
-        (and . ,(make-op "|" '((signed intish signed signed))))
-        (^ . ,(make-op "^" '((signed intish signed signed))))
-        (<< . ,(make-op "<<" '((signed intish signed signed))))
-        (>> . ,(make-op ">>" '((signed intish signed signed))))
-        (>>> . ,(make-op ">>>" '((unsigned intish unsigned unsigned))))
-        (< . ,(make-op "<" '((signed signed int unsigned))))
+        (or . ,(make-op "|" '((signed intish signed signed) (unsigned intish signed signed))))
+        (and . ,(make-op "&" '((signed intish signed signed) (unsigned intish signed signed))))
+        (^ . ,(make-op "^" '((signed intish signed signed) (unsigned intish signed signed))))
+        (<< . ,(make-op "<<" '((signed intish signed signed) (unsigned intish signed signed))))
+        (>> . ,(make-op ">>" '((signed intish signed signed) (unsigned intish signed signed))))
+        (>>> . ,(make-op ">>>" '((unsigned intish unsigned unsigned) (signed intish unsigned unsigned))))
+        (< . ,(make-op "<" '((signed signed int unsigned))))  ; FIXME Add unsigned and double versions.
         (<= . ,(make-op "<=" '((signed signed int unsigned))))
         (> . ,(make-op ">" '((signed signed int unsigned))))
         (>= . ,(make-op ">=" '((signed signed int unsigned))))

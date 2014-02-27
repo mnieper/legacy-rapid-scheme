@@ -1,20 +1,32 @@
 'use strict';
 
-var module;
+var module, cont;
 
 var heap = new ArrayBuffer(Math.pow(2, 27));
+
+var i32 = new Int32Array(heap);
+
+var
+  NULL_POINTER = 0x00000004,
+  POINTER_MASK = 0x8ffffffc,
+  TAG_MASK = 0xe0000000,
+  SIZE_MASK = ~TAG_MASK,
+  STRING_TAG = 0x40000000;
 
 var foreign = {
 
   heapSize: Math.pow(2, 27),
 
-  writeString: function (p) {
-    if (new Int32Array(heap, p)[0] !== 0x0) {
+  writeString: function (k, p) {
+    var h = new Int32Array(heap, p & POINTER_MASK);
+    if ((h[0] & TAG_MASK) != STRING_TAG) {
       foreign.typeError();
     }
-    var h = new Uint8Array(heap, p + 8);
     var s = decodeString(h);
     postMessage({cmd: 'output', msg: s});
+    throw function () {
+      module.call(k, NULL_POINTER);
+    };
   },
 
   typeError: function () {
@@ -44,31 +56,24 @@ var foreign = {
 
 };
 
-function run() {
+function run(msg) {
   try {
-    module();
+    cont(msg);
   }
   catch (c) {
     if (c instanceof Error) {
       postMessage({cmd: 'error', msg: c.message});
       postMessage({cmd: 'exit', msg: false});
+    } else {
+      cont = c;
     }
   }
 }
 
 function decodeString(h) {
-  var s = '', p = 0, c, i;
-  while (i = h[p++]) {
-    if (i & 0x80) {
-      if (i & 0x20) {
-        c = (i & 0x0f) + (h[p++] & 0x3f) << 4 + (h[p++] & 0x3f) << 10;
-      } else {
-        c = (i & 0x1f) + (h[p++] & 0x3f) << 5;
-      }
-    } else {
-      c = i;
-    }
-    s += String.fromCharCode(c);
+  var s = '', p = 0, q = (h[p] & SIZE_MASK) + (p++), c, i;
+  while (p < q) {
+    s += String.fromCharCode(h[p++]);
   }
   return s;
 };
@@ -79,7 +84,11 @@ onmessage = function (event) {
   case 'execute':
     importScripts(data.msg);
     module = RapidModule(self, foreign, heap);
+    cont = module.run;
     run();
+    break;
+  case 'continue':
+    run(data.msg);
     break;
   }
 };

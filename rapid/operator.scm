@@ -5,7 +5,6 @@
   (* product)
   (< increasing?)
   number->string
-  write-string
   truncate-remainder
   exit)
 

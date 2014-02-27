@@ -2,6 +2,7 @@
   (export codegen)
   (import
     (scheme base) (scheme case-lambda)
+    (scheme write)
     (rapid scheme) (rapid module))
   (begin
 
@@ -34,8 +35,8 @@
       (new-environment
         (environment-update! cexpr)
         (new-block!
-          (lambda (label) (codegen-expression cexpr)))  ; TODO: Remove label arg
-        (module (global-count) (blocks))))
+          (lambda (label) `((init) . ,(codegen-expression* (list cexpr)))))  ; TODO: Remove label arg
+        (module #| (global-count) |# (blocks))))
 
     (define (codegen-expression expr)
       (cond
@@ -56,17 +57,26 @@
         ((case-lambda? expr)
           (codegen-case-lambda (case-lambda-clauses expr)))
         ((pair? expr)
-          (codegen-application (application-proc expr)
-            (application-arg* expr)))))
+          (case (car expr)
+            ((write-string)
+              (codegen-write-string (list-ref expr 1) (list-ref expr 2)))
+            (else
+              (codegen-application (application-proc expr)
+                (application-arg* expr)))))
+        (else (error codegen-expression "invalid expression" expr))))
 
     (define (codegen-expression* arg*)
-      (map codegen-expression arg*))  
+     (let loop ((arg* arg*))
+        (if (null? arg*)
+          '()
+          (let-values ((code* (codegen-expression (car arg*))))
+            (append code* (loop (cdr arg*))))))) 
 
     (define (codegen-number expr)
       (number expr))
 
     (define (codegen-boolean expr)
-      (boolean expr))
+      (boolean-value expr))
       
     (define (codegen-string expr)
       (string-const expr))
@@ -81,18 +91,20 @@
       `(,op . ,(codegen-expression* arg*)))
 
     (define (codegen-if test con . alt*)
-      (apply conditional (codegen-expression test) (codegen-expression con)
-        (codegen-expression* alt*))) 
+      (apply conditional (codegen-expression test)
+        `(begin . ,(codegen-expression* (list con)))
+        (map (lambda (alt)
+          `(begin . ,(codegen-expression* (list alt)))) alt*)))
 
     (define (codegen-case-lambda clauses)
       (let ((label (new-block! (make-case-lambda-block clauses))))
-        `(procedure ,label env-ptr)))
+        `(new-proc ,label env-ptr)))
 
     (define (make-case-lambda-block clauses)
       (lambda (label)
         (increase-depth 1
           (list
-            `(set! aux-reg ,arg-count)
+            `(set! aux-reg ,(frame-arg-count 'env-ptr))
             (codegen-case-lambda-clauses clauses)))))
 
     (define (codegen-case-lambda-clauses clauses)
@@ -103,7 +115,7 @@
             (codegen-case-lambda-clause (case-lambda-clause-formals clause)
               (case-lambda-clause-body clause)
               (loop (cdr clauses)))))))
-            
+
     (define (codegen-case-lambda-clause formals body else)
       `(if (= aux-reg
           ,(let loop ((formals formals) (i 0))
@@ -112,23 +124,46 @@
               ((null? formals) i)
               ((pair? formals) (loop (cdr formals) (+ i 1))))))
         (begin . ,(codegen-expression* body)) ,else))
-
+        
     (define (codegen-application proc arg*)
-      `((set! frame-ptr (frame ,(length arg*)))
-        ,@(let loop ((arg* arg*) (i 0))
-          (if (null? arg*)
-            '()
-            `((set! ,(arg 'frame-ptr i) , (codegen-expression (car arg*)))
-              . ,(loop (cdr arg*) (+ i 1)))))
-        ; TODO Special case calling of case-lambda literals.
-        (set! aux-reg ,(codegen-expression proc))
-        (if (not= (and aux-reg #x80000007) ,*proc-tag*) (application-error)) ; *tag-mask*
-        (set! aux-reg (and aux-reg #x7ffffff8))  ; *ptr-mask*
-        (set! ,(parent-frame-ptr 'frame-ptr) ,(at '(+ aux-reg 4)))  ; proc-parent-frame-ptr
-        (set! env-ptr frame-ptr)
-        (set! frame-ptr 0)
-        (set! code-reg ,(at 'aux-reg))
-        (break)))
+      (apply values
+        `((set! frame-ptr (new-frame ,(length arg*)))
+          ,@(let loop ((arg* arg*) (i 0))
+            (if (null? arg*)
+              '()
+              `((set! ,(arg 'frame-ptr i) ,(codegen-expression (car arg*)))
+                . ,(loop (cdr arg*) (+ i 1))))) .
+          ,(cond
+            ((case-lambda? proc)
+              `((set! env-ptr frame-ptr)
+                (set! frame-ptr ,*null-pointer*) .
+                ,(let loop ((clauses (case-lambda-clauses proc)))
+                  (if (null? clauses)
+                    (error codegen-application "wrong number of arguments" proc arg*)
+                    (let ((clause (car clauses)))
+                      (let loop-formals ((formals (case-lambda-clause-formals clause)) (i 0))
+                        (cond
+                          ((symbol? formals) (error "lists not yet implemented"))
+                          ((null? formals)
+                            (if (= i (length arg*))
+                              (increase-depth 0
+                                (codegen-expression* (case-lambda-clause-body clause)))
+                            (loop (cdr clauses))))
+                          ((pair? formals)
+                            (loop-formals (cdr formals) (+ i 1))))))))))
+            (else
+              `((set! aux-reg ,(codegen-expression proc))
+                (if (not ,(proc-value? 'aux-reg)) (application-error))
+                (set! ,(frame-parent-frame 'frame-ptr) ,(proc-frame 'aux-reg))
+                (set! env-ptr frame-ptr)
+                (set! frame-ptr ,*null-pointer*)
+                (set! code-reg ,(proc-label 'aux-reg))
+                (break)))))))
+
+    ; XXX This can be done likewise for any other special form.
+    ; XXX If a global cannot be found, assume that it is a special.
+    (define  (codegen-write-string k string)
+      `(write-string ,(codegen-expression k) ,(codegen-expression string)))
 
     (define (environment-update! expr)
       (cond
@@ -197,6 +232,8 @@
       (cdr (or (binding id) (error "identifier not bound" id))))
 
     (define (global-set! var)
+      ; FIXME Remove globals and make this a one-pass code-generator
+      (error "Globals are no more allowed.")
       (let ((count (environment-global-count (environment))))
         (environment-bindings-set! (environment)
           (cons
@@ -211,7 +248,8 @@
           (environment-bindings (environment)))))
 
     (define (make-global-location i)
-      (let ((name (global i)))
+      #f
+      #;(let ((name (global i)))
         (lambda () name))) 
     
     (define (make-local-location displacement)

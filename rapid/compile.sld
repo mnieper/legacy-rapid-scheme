@@ -4,6 +4,8 @@
     (scheme base)
     (scheme file)
     (scheme write)
+    (chibi show)
+    (chibi show pretty)
     (rapid base)
     (rapid program)
     (rapid load)
@@ -17,10 +19,11 @@
 
     ; XXX Put output, etc. into this file; Put this into compiler.scm/.sld
 
+    ; Check whether environment monad is interesting for us
+
     (define (log string obj)
       (with-output-to-file string (lambda ()
-          (display obj)
-          (newline)
+          (show #t (pretty obj))
           obj)))
 
     (define (compile)

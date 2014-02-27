@@ -234,6 +234,7 @@
       (write-string "{")
       (let loop ((property* property*) (d ""))
         (unless (null? property*)
+          (write-string d)
           (emit (caar property*))
           (write-string ":")
           (emit (cdar property*))
