@@ -327,7 +327,7 @@
 (define-syntax test-evaluate-with-catch
   (syntax-rules ()
     ((test-evaluate-with-catch test-expression)
-     (guard (condition (else condition)) test-expression))))
+     (guard (condition (else #f)) test-expression))))
 
 (define (test-report-result)
   (define runner (test-runner-get))

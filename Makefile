@@ -1,9 +1,12 @@
+.SUFFIXES:
+
 SHELL = /bin/bash
 SCHEME = chibi-scheme -Ilib
 
-.SUFFIXES:
+all:
+	cd tests && $(MAKE) $@
 
-check: tests/tests.scm
-	$(SCHEME) -Itests/lib $<
+check: all
+	cd tests && $(MAKE) $@
 
-.PHONY: check
+.PHONY: all check
