@@ -1,0 +1,5 @@
+(define-library (rapid compiler table)
+  (export make-table table? table-ref table-set! table-intern!)
+  (import (scheme base)
+	  (scheme case-lambda))
+  (include "table.scm"))
