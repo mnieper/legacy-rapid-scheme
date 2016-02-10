@@ -2,7 +2,7 @@
 	(rapid test)
 	(rapid compiler table))
 
-(test-begin "compiler tables")
+(test-begin "Compiler Tables")
 
 (test-assert "Allocating a table yields a table"
 	     (table? (make-table)))
@@ -42,6 +42,8 @@
 		     (z (table-ref table 10)))
 		(list x y z)))
 	    '(j i j))
+
+;; TODO: table-ref/default
 
 (test-end)
 

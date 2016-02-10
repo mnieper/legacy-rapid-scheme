@@ -6,6 +6,9 @@ all:
 check: $(TESTS)
 
 %-tests.scm: all
-	OUTPUT=`$(TEST-RUNNER) $@`; if [ -n "$$OUTPUT" ]; then echo "$$OUTPUT"; exit 1; fi
+	./testrunner.sh $@
+
+clean:
+	rm -f testrunner.sh
 
 .PHONY: all check

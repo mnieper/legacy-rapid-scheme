@@ -1,0 +1,3 @@
+* Correct various uses of test-equal (the expected value has to come first)
+
+* Rename record types into the <...> format

@@ -15,7 +15,15 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-library (rapid compiler map)
-  (export make-map map? map-lookup map-insert map-delete map-map-keys map->alist)
-  (import (scheme base))
-  (include "map.scm"))
+;;; TODO: non-posix systems may not use the slash
+
+(define (path-join path . path*)
+  (if (null? path*)
+      path
+      (string-append path "/" (apply path-join path*))))
+
+(define (path-directory path)
+  (let loop ((index (- (string-length path) 1)))
+    (if (or (= index -1) (char=? (string-ref path index) #\/))
+        (string-copy path 0 index)
+        (loop (- index 1)))))

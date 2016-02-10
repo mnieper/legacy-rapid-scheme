@@ -15,7 +15,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-library (rapid compiler map)
-  (export make-map map? map-lookup map-insert map-delete map-map-keys map->alist)
+(define-library (rapid compiler features)
+  (export rapid-features feature?)
   (import (scheme base))
-  (include "map.scm"))
+  (include "features.scm"))

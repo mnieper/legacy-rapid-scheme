@@ -7,12 +7,12 @@
 
 (define (read-datum string)
   (define port (source-port-string string))
-  (syntax->datum (read-syntax port)))
+  (syntax->datum (read-syntax port #f)))
 
 (define (read-data string)
   (define port (source-port-string string))
   (let loop ((datum* '()))
-    (let ((syntax (read-syntax port)))
+    (let ((syntax (read-syntax port #f)))
       (if (eof-object? syntax)
 	  (reverse datum*)
 	  (loop (cons (syntax->datum syntax) datum*))))))

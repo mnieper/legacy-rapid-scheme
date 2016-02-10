@@ -44,6 +44,9 @@
      ((eof-object? char) char)
      (else
       (case char
+	((#\tab)
+	 (source-port-set-column! source-port
+				  (* (+ (quotient (source-port-column source-port) 8) 1) 8)))
 	((#\newline)
 	 (source-port-set-column! source-port 0)
 	 (source-port-set-line! source-port (+ (source-port-line source-port) 1)))
@@ -66,7 +69,7 @@
   (make-source-location (source-port-source source-port) start end))
 
 ;;; Syntax objects
-(define-record-type syntax-type
+(define-record-type <syntax>
   (%make-syntax datum source-location context aux)
   syntax?
   (datum syntax-datum syntax-set-datum!)
@@ -114,7 +117,10 @@
   datum)
 
 (define (derive-syntax datum syntax)
-  (%make-syntax datum (syntax-source-location syntax) (syntax-context syntax)) #f)
+  (%make-syntax datum (syntax-source-location syntax) (syntax-context syntax) #f))
+
+(define (datum->syntax datum)
+  (%make-syntax datum (make-source-location #f 1 0) #f #f))
 
 ;;; Reader errors
 (define-record-type read-error-object-type
@@ -126,13 +132,13 @@
 (define (read-error message location)
   (raise (make-read-error-object message location)))
 
-(define (read-syntax source-port)
+(define (read-syntax source-port context)
   (define (read) (source-port-read-char source-port))
   (define (peek) (source-port-peek-char source-port))
   (define (position) (source-port-position source-port))
   (define (make-location start end) (source-port-make-location source-port start end))
   (define (make-syntax datum start end)
-    (%make-syntax datum (make-location start end) #f #f))
+    (%make-syntax datum (make-location start end) context #f))
   (define (syntax-start syntax) (source-location-start (syntax-source-location syntax)))
   (define (syntax-end syntax) (source-location-end (syntax-source-location syntax)))
   (define (error message start end) (read-error message (make-location start end)))

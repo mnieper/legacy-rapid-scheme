@@ -14,9 +14,10 @@
 	  source-location-end-line
 	  source-location-end-column
 	  syntax->datum
+	  datum->syntax
 	  read-syntax
 	  derive-syntax)
-  (import (scheme base)   (scheme write)  ;XXX
+  (import (scheme base)
 	  (scheme char)
 	  (scheme case-lambda)
 	  (rapid compiler table))
