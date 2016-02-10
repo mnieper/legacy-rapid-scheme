@@ -81,9 +81,9 @@
 	   (derive-syntactic-environment syntactic-environment
 					 import-set
 					 (lambda (identifier)
-					   (string-append
-					    (syntax-datum (caddr form)))
-					   identifier)))
+					   (symbol-append
+					    (syntax-datum (caddr form))
+					    identifier))))
 	  ;; Rename import set
 	  ((rename)
 	   (let loop ((rename* (cddr form))
@@ -326,3 +326,7 @@
 	   (unless (eof-object? syntax)
 	     (yield syntax)
 	     (loop))))))))
+
+(define (symbol-append symbol1 symbol2)
+  (string->symbol
+   (string-append (symbol->string symbol1) (symbol->string symbol2))))

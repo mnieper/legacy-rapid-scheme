@@ -51,8 +51,56 @@
 		 (env (insert-bindings-from env2 env1)))
 	      #t))
 
-;; TODO: delete-binding
-;; TODO: insert-binding-from
-;; TODO: derive-syntactic-environment
+(test-equal "Bindings can be removed"
+	    #f
+	    (let*
+		((syntax1 (string->syntax "d4"))
+		 (syntax2 (string->syntax "d5"))
+		 (env (make-syntactic-environment))
+		 (env (insert-binding syntax1 'd4 env))
+		 (env (insert-binding syntax2 'd5 env))
+		 (env (delete-binding 'd4 env)))
+	      (lookup-denotation 'd4 env)))
+
+(test-equal "Capture references"
+	    '(#t #f)
+	    (let*
+		((syntax1 (string->syntax "e1"))
+		 (syntax2 (string->syntax "e2"))
+		 (env (make-syntactic-environment))
+		 (env (insert-binding syntax1 'e1 env))
+		 (env (insert-binding syntax2 'e2 env)))
+	      (capture-references
+	       (lambda (referenced?)
+		 (lookup-denotation 'e1 env)
+		 (list (referenced? 'e1 env) (referenced? 'e2 env))))))
+
+(test-equal "Insert individual binding from a another environment"
+	    'f1
+	    (let*
+		((syntax1 (string->syntax "f1"))
+		 (syntax2 (string->syntax "f2"))
+		 (env0 (make-syntactic-environment))
+		 (env1 (make-syntactic-environment))
+		 (env0 (insert-binding syntax1 'f1 env0))
+		 (env1 (insert-binding-from syntax1 env0 env1 syntax2)))
+	      (lookup-denotation 'f2 env1)))
+
+(test-equal "Derive a syntactic environment"
+	    '(g1 #t) 
+	    (let*
+		((g1 (string->syntax "g1"))
+		 (g2 (string->syntax "g2"))
+		 (env0 (make-syntactic-environment))
+		 (env0 (insert-binding g1 'g1 env0))
+		 (env1 (derive-syntactic-environment env0
+						     g2
+						     (lambda (id)
+						       (string->symbol
+							(string-append
+							 "_"
+							 (symbol->string id)))))))
+	      (list (lookup-denotation '_g1 env1)
+		     (eq? (syntax-context (lookup-syntax '_g1 env1)) g2))))
 
 (test-end)

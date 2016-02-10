@@ -15,10 +15,6 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-;; Expand a top-level body in a given syntactic environment and
-;; return two values, a list of generated bindings due to the expansion
-;; and the resulting syntactic environment.
-
 ;; SHADOW BINDING COLLECT IN EXPAND MACRO?
 
 ;; XXX: 1. define-values: how to handle this?
@@ -26,6 +22,9 @@
 ;;      2. do cps-transform already here!
 ;;      3. Note: define define via define-values
 
+;; Expand a top-level body in a given syntactic environment and
+;; return two values, a list of generated bindings due to the expansion
+;; and the resulting syntactic environment.
 (define (expand body syntactic-environment gensym)
   (let loop ((body body) (bindings '()) (syntactic-environment syntactic-environment))
     (if (null? body)

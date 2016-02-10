@@ -15,6 +15,32 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;; Copyright (c) 2005, 2006, 2007, 2012, 2013 Per Bothner
+;; Added "full" support for Chicken, Gauche, Guile and SISC.
+;;   Alex Shinn, Copyright (c) 2005.
+;; Modified for Scheme Spheres by Álvaro Castro-Castilla, Copyright (c) 2012.
+;; Support for Guile 2 by Mark H Weaver <mhw@netris.org>, Copyright (c) 2014.
+;;
+;; Permission is hereby granted, free of charge, to any person
+;; obtaining a copy of this software and associated documentation
+;; files (the "Software"), to deal in the Software without
+;; restriction, including without limitation the rights to use, copy,
+;; modify, merge, publish, distribute, sublicense, and/or sell copies
+;; of the Software, and to permit persons to whom the Software is
+;; furnished to do so, subject to the following conditions:
+;;
+;; The above copyright notice and this permission notice shall be
+;; included in all copies or substantial portions of the Software.
+;;
+;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+;; EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+;; MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+;; NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+;; BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+;; ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+;; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+;; SOFTWARE.
+
 ;;; Test runners
 
 (define-record-type test-runner-type
@@ -327,7 +353,8 @@
 (define-syntax test-evaluate-with-catch
   (syntax-rules ()
     ((test-evaluate-with-catch test-expression)
-     (guard (condition (else #f)) test-expression))))
+     (guard (condition (else (display condition (current-error-port))
+			     (newline (current-error-port)) #f)) test-expression))))
 
 (define (test-report-result)
   (define runner (test-runner-get))

@@ -24,6 +24,7 @@
 	  delete-binding
 	  insert-binding-from
 	  insert-bindings-from
+	  capture-references
 	  derive-syntactic-environment)
   (import (scheme base)
 	  (scheme case-lambda)

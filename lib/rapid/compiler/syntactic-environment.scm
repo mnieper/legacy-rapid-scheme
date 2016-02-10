@@ -15,29 +15,58 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-record-type syntactic-environment-type
+(define-record-type <syntactic-environment>
   (%make-syntactic-environment bindings)
   syntactic-environment?
   (bindings syntactic-environment-bindings))
+
+(define (make-binding syntax denotation timestamp)
+  (vector syntax denotation timestamp))
+(define (binding-syntax binding) (vector-ref binding 0))
+(define (binding-denotation binding) (vector-ref binding 1))
+(define (binding-timestamp binding) (vector-ref binding 2))
+(define (binding-set-timestamp! binding timestamp) (vector-set! binding 2 timestamp))
+
+(define timestamp 0)
+(define current-timestamp (make-parameter 0))
+
+(define (capture-references proc)
+  (set! timestamp (+ timestamp 1))
+  (parameterize
+   ((current-timestamp timestamp))
+   (proc
+    (lambda (identifier syntactic-environment)
+      (cond
+       ((map-lookup (syntactic-environment-bindings syntactic-environment) identifier)
+	=> (lambda (binding)
+	     (>= (binding-timestamp binding) timestamp)))
+       (else #f))))))
+
+(define (update-timestamp! binding)
+  (binding-set-timestamp! binding (max (binding-timestamp binding) (current-timestamp))))
 
 (define (make-syntactic-environment)
   (%make-syntactic-environment (make-map (lambda (identifier) #f) eq?)))
 
 (define (lookup-denotation identifier syntactic-environment)
   (cond
-   ((map-lookup (syntactic-environment-bindings syntactic-environment) identifier) => car)
+   ((map-lookup (syntactic-environment-bindings syntactic-environment) identifier)
+    => (lambda (binding)
+	 (update-timestamp! binding)
+	 (binding-denotation binding)))
    (else #f)))
 
 (define (lookup-syntax identifier syntactic-environment)
   (cond
-   ((map-lookup (syntactic-environment-bindings syntactic-environment) identifier) => cadr)
+   ((map-lookup (syntactic-environment-bindings syntactic-environment) identifier)
+    => binding-syntax)
    (else #f)))
 
 (define (insert-binding identifier-syntax denotation syntactic-environment)
   (%make-syntactic-environment
    (map-insert (syntactic-environment-bindings syntactic-environment)
 	       (syntax-datum identifier-syntax)
-	       (list denotation identifier-syntax))))
+	       (make-binding identifier-syntax denotation -1))))
 
 (define (%insert-binding identifier-syntax denotation syntactic-environment)
   (define identifier (syntax-datum identifier-syntax))
@@ -65,7 +94,9 @@
      ((map-lookup (syntactic-environment-bindings syntactic-environment1)
 		  (syntax-datum identifier-syntax))
       => (lambda (binding)
-	   (%insert-binding new-identifier-syntax (car binding) syntactic-environment)))
+	   (%insert-binding new-identifier-syntax
+			    (binding-denotation binding)
+			    syntactic-environment)))
      (else
       (compile-error (identifier-syntax
 		      ("identifier ‘~a’ not found" (syntax-datum identifier)))))))))
@@ -83,8 +114,10 @@
     (if (null? bindings1-alist)
 	syntactic-environment
 	(loop (cdr bindings1-alist)
-	      (%insert-binding (derive-syntax (caar bindings1-alist) (caddar bindings1-alist))
-			       (cadar bindings1-alist) syntactic-environment)))))
+	      (%insert-binding (derive-syntax (caar bindings1-alist)
+					      (binding-syntax (cdar bindings1-alist)))
+			       (binding-denotation (cdar bindings1-alist))
+			       syntactic-environment)))))
 
 (define derive-syntactic-environment
   (case-lambda
@@ -97,5 +130,5 @@
 	  new-environment
 	  (loop (cdr bindings-alist)
 		(%insert-binding (derive-syntax (rename (caar bindings-alist)) syntax)
-				 (cadar bindings-alist)
+				 (binding-denotation (cdar bindings-alist))
 				 new-environment)))))))
