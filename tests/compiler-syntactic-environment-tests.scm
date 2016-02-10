@@ -62,7 +62,7 @@
 		 (env (delete-binding 'd4 env)))
 	      (lookup-denotation 'd4 env)))
 
-(test-equal "Capture references"
+(test-equal "Record references"
 	    '(#t #f)
 	    (let*
 		((syntax1 (string->syntax "e1"))
@@ -71,9 +71,12 @@
 		 (env (insert-binding syntax1 'e1 env))
 		 (env (insert-binding syntax2 'e2 env)))
 	      (capture-references
-	       (lambda (referenced?)
+	       (lambda ()
 		 (lookup-denotation 'e1 env)
-		 (list (referenced? 'e1 env) (referenced? 'e2 env))))))
+		 (values))
+	       (lambda ()
+		 (list (identifier-referenced? 'e1 env)
+		       (identifier-referenced? 'e2 env))))))
 
 (test-equal "Insert individual binding from a another environment"
 	    'f1

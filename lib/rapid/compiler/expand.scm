@@ -26,7 +26,29 @@
 ;; return two values, a list of generated bindings due to the expansion
 ;; and the resulting syntactic environment.
 (define (expand body syntactic-environment gensym)
-  (let loop ((body body) (bindings '()) (syntactic-environment syntactic-environment))
+  (define-values (bindings syntactic-environment)  
+    (let loop ((body body) (bindings '()) (syntactic-environment syntactic-environment))
+      (define (expand-body1 body1 body)
+	(capture-references
+	 (lambda ()
+	   (macro-expand body1 syntactic-environment gensym))
+	 (lambda (syntax)
+	   (define form (syntax-datum syntax))
+	   (cond
+	    ((and (not (null? form) (list? form)))
+	     (case (syntax-datum (car form))
+	       ((begin)
+		(let-values (((bindings syntactic-environment))
+			     (loop (cdr form) bindings syntactic-environment))
+		  (loop body bindings syntactic-environment)))
+	       (else
+		...)))
+	    (else ...)))))
+      (if (null? body)
+	  (values bindings syntactic-environment)
+	  (expand-body1 (car body) (cdr body)))))
+  (values (reverse bindings) syntactic-environment))
+
     (if (null? body)
 	(values (reverse bindings) syntactic-environment)
 	(let ((syntax (macro-expand (car body) syntactic-environment gensym)))

@@ -29,18 +29,24 @@
 
 (define timestamp 0)
 (define current-timestamp (make-parameter 0))
+(define timestamps (make-parameter (make-interval-set)))
+(define (identifier-referenced? identifier syntactic-environment)
+  (cond
+   ((map-lookup (syntactic-environment-bindings syntactic-environment) identifier)
+    => (lambda (binding)
+	 (interval-set-contains? (timestamps) (binding-timestamp binding))))
+   (else #f)))
 
-(define (capture-references proc)
-  (set! timestamp (+ timestamp 1))
-  (parameterize
-   ((current-timestamp timestamp))
-   (proc
-    (lambda (identifier syntactic-environment)
-      (cond
-       ((map-lookup (syntactic-environment-bindings syntactic-environment) identifier)
-	=> (lambda (binding)
-	     (>= (binding-timestamp binding) timestamp)))
-       (else #f))))))
+(define (capture-references thunk proc)
+  (define start (+ timestamp 1))
+  (set! timestamp start)
+  (call-with-values
+      (lambda ()
+	(parameterize ((current-timestamp timestamp)
+		       (timestamps (interval-set-insert (timestamps) start +inf.0))) (thunk)))
+    (lambda values
+      (parameterize ((timestamps (interval-set-insert (timestamps) start timestamp)))
+		    (apply proc values)))))
 
 (define (update-timestamp! binding)
   (binding-set-timestamp! binding (max (binding-timestamp binding) (current-timestamp))))

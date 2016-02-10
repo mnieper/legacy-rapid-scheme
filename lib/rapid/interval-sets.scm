@@ -15,23 +15,23 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-library (rapid compiler syntactic-environment)
-  (export make-syntactic-environment
-	  syntactic-environment?
-	  lookup-denotation
-	  lookup-syntax
-	  insert-binding
-	  delete-binding
-	  insert-binding-from
-	  insert-bindings-from
-	  capture-references
-	  identifier-referenced?
-	  derive-syntactic-environment)
-  (import (scheme base)
-	  (scheme case-lambda)
-	  (scheme cxr)
-	  (rapid interval-sets)
-	  (rapid compiler map)
-	  (rapid compiler read)
-	  (rapid compiler error))
-  (include "syntactic-environment.scm"))
+(define-record-type <interval-set>
+  (%make-interval-set list)
+  interval-set?
+  (list interval-set-list))
+
+(define (make-interval-set)
+  (%make-interval-set '()))
+
+(define (interval-set-contains? interval-set key)
+  (let loop ((list (interval-set-list interval-set)))
+    (cond
+     ((null? list)
+      #f)
+     ((<= (caar list) key (cdar list))
+      #t)
+     (else
+      (loop (cdr list))))))
+
+(define (interval-set-insert interval-set low high)
+  (%make-interval-set (cons (cons low high) (interval-set-list interval-set))))
