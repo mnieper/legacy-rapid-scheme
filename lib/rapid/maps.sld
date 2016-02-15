@@ -15,25 +15,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-library (rapid compiler syntactic-environment)
-  (export make-syntactic-environment
-	  syntactic-environment?
-	  with-syntactic-environment
-	  with-scope
-	  with-isolated-references
-	  lookup-binding!
-	  lookup-denotation!
-	  lookup-syntax!
-	  binding?
-	  insert-binding!
-	  insert-binding-from!
-	  insert-bindings-from!
-	  derive-syntactic-environment)
+(define-library (rapid maps)
+  (export make-map map? map-ref map-ref/default map-set map-delete map-fold map-for-each)
   (import (scheme base)
 	  (scheme case-lambda)
-	  (rapid comparators)
-	  (rapid sets)
-	  (rapid maps)
-	  (rapid compiler read)
-	  (rapid compiler error))
-  (include "syntactic-environment.scm"))
+  (include "map.scm"))

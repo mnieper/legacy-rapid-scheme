@@ -15,25 +15,26 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-library (rapid compiler syntactic-environment)
-  (export make-syntactic-environment
-	  syntactic-environment?
-	  with-syntactic-environment
-	  with-scope
-	  with-isolated-references
-	  lookup-binding!
-	  lookup-denotation!
-	  lookup-syntax!
-	  binding?
-	  insert-binding!
-	  insert-binding-from!
-	  insert-bindings-from!
-	  derive-syntactic-environment)
-  (import (scheme base)
-	  (scheme case-lambda)
-	  (rapid comparators)
-	  (rapid sets)
-	  (rapid maps)
-	  (rapid compiler read)
-	  (rapid compiler error))
-  (include "syntactic-environment.scm"))
+(define-record-type <set>
+  (%make-set comparator elements)
+  set?
+  (comparator set-comparator)
+  (elements set-elements set-set-elements!))
+
+(define (make-set comparator)
+  (%make-set comparator '()))
+
+(define (set-equality-predicate set)
+  (comparator-equality-predicate (set-comparator set)))
+
+(define (set-contains? set element)
+  (define equality (set-equality-predicate set))
+  (let loop ((elements (set-elements set)))
+    (and (not (null? elements))
+	 (or (equality (car elements) element)
+	     (loop (cdr elements))))))
+
+(define (set-adjoin set element)
+  (%make-set
+   (set-comparator set)
+   (cons element (set-elements set))))

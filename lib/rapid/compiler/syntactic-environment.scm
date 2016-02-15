@@ -15,133 +15,143 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+(define current-bindings (make-parameter #f box))
+(define (get-bindings) (unbox (current-bindings)))
+(define (set-bindings! bindings) (box-set! (current-bindings) bindings))
+
+(define current-references (make-parameter #f box))
+(define (get-references) (unbox (current-references)))
+(define (set-references! references) (box-set! (current-references) references))
+
+(define (with-syntactic-environment syntactic-environment thunk)
+  (parameterize ((current-bindings (syntactic-environment-bindings))
+		 (current-references (make-set (make-eq-comparator))))
+		(thunk)))
+
+(define (with-scope thunk)
+  (let-values
+      (((references result*)
+	(parameterize ((current-bindings (get-bindings))
+		       (current-references (get-references)))
+		      (let-values ((result* (thunk)))
+			(values (get-references) result*)))))
+    (set-references! references)
+    (apply values result*)))
+
+(define (with-isolated-references thunk)
+  (parameterize ((current-references (get-references)))
+		(thunk)))
+
 (define-record-type <syntactic-environment>
   (%make-syntactic-environment bindings)
   syntactic-environment?
   (bindings syntactic-environment-bindings))
 
-;; FIXME TODO
-(define-syntax syntactic-environment
-  (syntax-rules ()
-    ((syntactic-environment (identifier denotation) ...)
-     (...))))
+(define-record-type <binding>
+  (make-binding syntax denotation)
+  binding?
+  (binding binding-syntax)
+  (denotation binding-denotation))
 
-     
-(define (make-binding syntax denotation timestamp)
-  (vector syntax denotation timestamp))
-(define (binding-syntax binding) (vector-ref binding 0))
-(define (binding-denotation binding) (vector-ref binding 1))
-(define (binding-timestamp binding) (vector-ref binding 2))
-(define (binding-set-timestamp! binding timestamp) (vector-set! binding 2 timestamp))
+(define (binding-identifier binding)
+  (syntax-datum (binding-syntax binding)))
 
-(define timestamp 0)
-(define current-timestamp (make-parameter 0))
-(define timestamps (make-parameter (make-interval-set)))
-(define (identifier-referenced? identifier syntactic-environment)
-  (cond
-   ((map-lookup (syntactic-environment-bindings syntactic-environment) identifier)
-    => (lambda (binding)
-	 (interval-set-contains? (timestamps) (binding-timestamp binding))))
-   (else #f)))
-
-(define (capture-references thunk proc)
-  (define start (+ timestamp 1))
-  (set! timestamp start)
-  (call-with-values
-      (lambda ()
-	(parameterize ((current-timestamp timestamp)
-		       (timestamps (interval-set-insert (timestamps) start +inf.0))) (thunk)))
-    (lambda values
-      (parameterize ((timestamps (interval-set-insert (timestamps) start timestamp)))
-		    (apply proc values)))))
-
-(define (update-timestamp! binding)
-  (binding-set-timestamp! binding (max (binding-timestamp binding) (current-timestamp))))
+(define (get-syntactic-environment)
+  (%make-syntactic-environment (get-bindings)))
 
 (define (make-syntactic-environment)
-  (%make-syntactic-environment (make-map (lambda (identifier) #f) eq?)))
+  (%make-syntactic-environment (make-map (make-eq-comparator))))
 
-(define (lookup-denotation identifier syntactic-environment)
+(define (binding-reference! binding)
+  (set-references! (set-adjoin (get-references) binding)))
+
+(define (binding-referenced? binding)
+  (set-contains? (get-references) binding))
+
+(define (%lookup-binding identifier)
+  (map-ref/default (get-bindings) identifier #f))
+
+(define (identifier-referenced? identifier)
+  (let ((binding (%lookup-binding identifier)))
+    (and binding (binding-referenced? binding))))
+
+(define (lookup-binding! identifier)
   (cond
-   ((map-lookup (syntactic-environment-bindings syntactic-environment) identifier)
+   ((%lookup-binding identifier)
     => (lambda (binding)
-	 (update-timestamp! binding)
-	 (binding-denotation binding)))
+	 (reference-binding! binding)
+	 binding))
    (else #f)))
 
-(define (lookup-syntax identifier syntactic-environment)
-  (cond
-   ((map-lookup (syntactic-environment-bindings syntactic-environment) identifier)
-    => binding-syntax)
-   (else #f)))
-
-(define (insert-binding identifier-syntax denotation syntactic-environment)
-  (%make-syntactic-environment
-   (map-insert (syntactic-environment-bindings syntactic-environment)
-	       (syntax-datum identifier-syntax)
-	       (make-binding identifier-syntax denotation -1))))
-
-(define (%insert-binding identifier-syntax denotation syntactic-environment)
+(define (insert-binding! identifier-syntax denotation)
   (define identifier (syntax-datum identifier-syntax))
+  (when (identifier-referenced? identifier)
+	(compiler-error "identifier has already been referenced" identfier-syntax))
+  (let ((binding (make-binding identifier-syntax denotation)))
+    (set-bindings! (map-set (get-bindings) identifier binding))
+    (binding-reference! binding)))
+
+(define (lookup-syntax! identifier)
   (cond
-   ((lookup-denotation identifier syntactic-environment)
-    => (lambda (previous-denotation)
-	 (if (not (eq? denotation previous-denotation))
-	     (compile-error (identifier-syntax
-			     ("identifier ‘~a’ rebound with different denotation" identifier))
-			    ((lookup-syntax identifier syntactic-environment)
-			     ("initial binding was here")))
-	     syntactic-environment)))
+   ((lookup-binding identifier) => binding-syntax)
+   (else #f)))
+
+(define (lookup-denotation! identifier)
+  (cond
+   ((lookup-binding identifier) => binding-denotation)))
+
+(define (%insert-binding! identifier-syntax denotation)
+  (define identifier (syntax-datum identifier-syntax) denotation)
+  (cond
+   ((%lookup-binding identifier)
+    => (lambda (binding)
+	 (unless (eq? (binding-denotation binding) denotation)
+		 (compile-note "initial binding was here" (binding-syntax binding))
+		 (compile-error "identifier rebound with different denotation" identifier-syntax))))
    (else
-    (insert-binding identifier-syntax denotation syntactic-environment))))
-
-(define insert-binding-from
+    (insert-binding! identifier-syntax denotation))))
+	 
+(define insert-binding-from!
   (case-lambda
-   ((identifier-syntax syntactic-environment1 syntactic-environment)
-    (insert-binding-from identifier-syntax
-			 syntactic-environment1
-			 syntactic-environment
-			 identifier-syntax))
-   ((identifier-syntax syntactic-environment1 syntactic-environment new-identifier-syntax)
+   ((identifier-syntax syntactic-environment)
+    (insert-binding-from! identifier-syntax syntactic-environment identifier-syntax))
+   ((identifier-syntax syntactic-environment new-identifier-syntax)
+    (define identifier (syntax-datum identifier-syntax))
     (cond
-     ((map-lookup (syntactic-environment-bindings syntactic-environment1)
-		  (syntax-datum identifier-syntax))
+     ((with-syntactic-environment
+       syntactic-environment
+       (lambda () (%lookup-binding identifier)))
       => (lambda (binding)
-	   (%insert-binding new-identifier-syntax
-			    (binding-denotation binding)
-			    syntactic-environment)))
+	   (%insert-binding! new-identifier-syntax (binding-denotation binding))))
      (else
-      (compile-error (identifier-syntax
-		      ("identifier ‘~a’ not found" (syntax-datum identifier)))))))))
-
-(define (delete-binding identifier syntactic-environment)
-  (%make-syntactic-environment
-   (map-delete (syntactic-environment-bindings syntactic-environment)
-	       identifier)))
-
-(define (insert-bindings-from syntactic-environment1 syntactic-environment)
-  (define bindings (syntactic-environment-bindings syntactic-environment))
-  (let loop ((bindings1-alist
-	      (map->alist (syntactic-environment-bindings syntactic-environment1)))
-	     (syntactic-environment syntactic-environment))
-    (if (null? bindings1-alist)
-	syntactic-environment
-	(loop (cdr bindings1-alist)
-	      (%insert-binding (derive-syntax (caar bindings1-alist)
-					      (binding-syntax (cdar bindings1-alist)))
-			       (binding-denotation (cdar bindings1-alist))
-			       syntactic-environment)))))
+      (compile-error "unbound identifier" identifier-syntax))))))
+   
+(define (delete-binding! identifier-syntax)
+  (define identifier (syntax-datum identifier))
+  (unless (%lookup-binding identifier)
+	  (compile-error "unbound identifier" identifier-syntax))
+  (set-bindings! (map-delete (get-bindings) identifier)))
 
 (define derive-syntactic-environment
   (case-lambda
    ((syntactic-environment syntax)
     (derive-syntactic-environment syntactic-environment syntax (lambda (identifier) identifier)))
    ((syntactic-environment syntax rename)
-    (let loop ((bindings-alist (map->alist (syntactic-environment-bindings syntactic-environment)))
-	       (new-environment (make-syntactic-environment)))
-      (if (null? bindings-alist)
-	  new-environment
-	  (loop (cdr bindings-alist)
-		(%insert-binding (derive-syntax (rename (caar bindings-alist)) syntax)
-				 (binding-denotation (cdar bindings-alist))
-				 new-environment)))))))
+    (with-syntactic-environment
+     (make-syntactic-environment)
+     (lambda ()
+       (map-for-each
+	(lambda (binding)
+	  (%insert-binding! (derive-syntax (rename (binding-identifier binding)) syntax)
+			    (binding-denotation binding)))
+	(with-syntactic-environment syntactic-environment (lambda () (get-bindings))))
+       (get-syntactic-environment))))))
+
+(define (insert-bindings-from! syntactic-environment)
+  (map-for-each
+   (lambda (binding)
+     (%insert-binding! (derive-syntax (binding-identifier binding)
+				      (binding-syntax binding))
+		       (binding-denotation binding)))
+   (with-syntactic-environment syntactic-environment (lambda () (get-bindings)))))
+
