@@ -15,39 +15,199 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-;; SHADOW BINDING COLLECT IN EXPAND MACRO?
+(define (simple-datum? expression)
+  (or (number? expression)
+      (boolean? expression)
+      (char? expression)
+      (string? expression)
+      (bytevector? expression)
+      (vector? expression)))
 
-;; XXX: 1. define-values: how to handle this?
-;;         possibilities: letrec*-values / call-with-values / cps-transform
-;;      2. do cps-transform already here!
-;;      3. Note: define define via define-values
+(define (expand-simple-datum? expression-syntax)
+  (define expression (syntax-datum expression-syntax))
+  (and
+   (simple-datum? expression)
+   (make-constant expression expression-syntax)))
+
+(define (expand-null? expression-syntax)
+  (compile-error "empty application in source" expression-syntax))
+
+(define (expand-identifier? expression-syntax syntactic-environment)
+  (define expression (syntax-datum) expression-syntax)
+  (and
+   (symbol? expression)
+   (cond
+    ((lookup-binding expression syntactic-environment)
+     => (lambda (binding)
+	  ((binding-transformer binding) expression-syntax syntactic-environment)))
+    (else (compile-error "undefined variable" expression-syntax)))))
+
+(define (expand-combination? expression-syntax syntactic-environment)
+  (define expression (syntax-datum expression-syntax))
+  (and
+   (not (null? expression))
+   (list? expression)
+   (let* ((operator-syntax (car expression))
+	  (operator (syntax-datum operator)))
+     (if (symbol? operator)
+	 (cond
+	  ((lookup-binding operator syntactic-environment)
+	   => (lambda (binding)
+		((binding-transformer binding) expression-syntax syntactic-environment)))
+	  (else (compile-error "undefined variable" operator-syntax)))
+	 (make-procedure-call (expand-expression operator-syntax syntactic-environment)
+			      (expand-expression* (cdr expression) syntactic-environment)
+			      expression-syntax)))))
+
+(define (expand-expression expression-syntax syntactic-environment)
+  (define expression (datum->syntax expression-syntax))
+  (cond
+   ((expand-simple-datum? expression-syntax))
+   ((expand-null? expression-syntax))
+   ((expand-identifier? expression-syntax syntactic-environment))
+   ((expand-combination? expression-syntax syntactic-environment) => only-expression)
+   (else (compile-error "invalid form" expression-syntax))))
+
+(define (only-expression expression)
+  (cond
+   ((definition? expression)
+    (compile-error "definition not allowed here"
+		   (expression-syntax expression)))
+   ((syntax-definition? expression)
+    (compile-error "syntax definitions not allowed here"
+		   (expression-syntax expression)))
+   (else
+    expression)))
+
+(define (expand-expression* expression-syntax* syntactic-environment)
+  (let loop ((expression-syntax* expression-syntax*))
+    (if (null? expression-syntax*)
+	'()
+	(cons (expand-expression (car expression-syntax*) syntactic-environment)
+	      (loop (cdr expression-syntax*))))))
+
+(define (expand-body body syntactic-environment)
+  (capture-references
+   (lambda ()
+     
+     
+     (lambda () 
+     
+     expand)
+   => return)))
+
+;; was liegt zugrunde?
+
+(define (expand-toplevel-body body syntactic-environment syntax)
+  (let loop ((body body)
+	     (bindings (make-bindings syntax))
+	     (syntactic-environment syntactic-environment))
+    (if (null? body)
+	(values bindings syntactic-environment) ;;; STOP: We have to expand the right hand sides
+	                                        ;;; of the bindings...
+	                                        ;;; what about the expressions? (already expanded)
+	                                        ;;; alternative: do not expand expressions (?)
+	                                        
+	(let-values (((bindings syntactic-environment))
+		     (expand-toplevel-expression (car body) syntactic-environment))
+	  (loop (cdr body) bindings syntactic-environment)))))
+
+
+;; was liefert dann body zurück? evtl. liste of bindings, syntax-def, expr (to be extended???)
+;;
+;; so soll zum beispiel (lambda () ...) noch nicht expanded werden...
+;; das aktuelle programm expanded (lambda () ...) komplett.
+;; wie können wir das verhindern?
+;; halbe trafo...
+
+;; XXX: Weitere Frage... wenn alles in capture-references gewrappt...
+;; gibt es dann Probleme der Redefinition?
+;; was referenced? UUU?
+
+(define (expand-toplevel-expression expression-syntax bindings syntactic-environment)
+  (cond
+   ((or (expand-simple-datum? expression-syntax)
+	(expand-null? expression-syntax)
+	(expand-identifier? expression-syntax syntactic-environment))
+    => (lambda (expression)
+	 (values (bindings-insert ...)
+		 syntactic-environment)))
+   ((expand-combination? expression-syntax)
+    => (lambda (combination)
+	 (cond
+	  ((definition? ...) ...)
+	  ((syntax-definition? ...) ...)
+	  ((sequence? ...) ...)
+	  (else
+	   ;; wieder expression... how to handle procedure-body expansion at this point?
+	   ))))))
+    
+   ((expand-combination? expression-syntax syntactic-environment) => only-expression)
+   (else (compile-error "invalid form" expression-syntax))))
 
 ;; Expand a top-level body in a given syntactic environment and
 ;; return two values, a list of generated bindings due to the expansion
 ;; and the resulting syntactic environment.
-(define (expand body syntactic-environment gensym)
-  (define-values (bindings syntactic-environment)  
-    (let loop ((body body) (bindings '()) (syntactic-environment syntactic-environment))
-      (define (expand-body1 body1 body)
-	(capture-references
-	 (lambda ()
-	   (macro-expand body1 syntactic-environment gensym))
-	 (lambda (syntax)
-	   (define form (syntax-datum syntax))
-	   (cond
-	    ((and (not (null? form) (list? form)))
-	     (case (syntax-datum (car form))
-	       ((begin)
-		(let-values (((bindings syntactic-environment))
-			     (loop (cdr form) bindings syntactic-environment))
-		  (loop body bindings syntactic-environment)))
-	       (else
-		...)))
-	    (else ...)))))
-      (if (null? body)
-	  (values bindings syntactic-environment)
-	  (expand-body1 (car body) (cdr body)))))
-  (values (reverse bindings) syntactic-environment))
+(define (expand body syntactic-environment syntax)
+  (let loop ((body body)
+	     (binding-spec (make-binding-spec syntax))
+	     (syntactic-environment syntactic-environment))
+    (define (expand-command-or-definition command-or-defintion command-or-definition*)
+      (capture-references
+       (lambda () (macro-expand command-or-definition syntactic-environment))
+       (lambda (syntax)
+	 (define form (syntax-datum syntax))
+	 (cond
+	  ((combination? form)
+	   (case (syntax-datum (car form))
+	     ((begin)
+	      (let-values (((binding-specs syntactic-environment)
+			    (loop (cdr form) binding-specs syntactic-environment)))
+		(loop command-or-definition binding-specs syntactic-environment)))
+	     (else
+		...)))))))))
+
+;; Welche speziellen Formen sind zu expandieren?
+(begin ...)         ; need to splice this into body
+(define ...)        ; add definition to bindings
+(define-syntax ...) ;
+(include ...)       ; need to splice similarly
+(expression ...)    ; add expression (need switch for body)
+;;
+(+ 1 2)             ; primitive expression
++                   ; call to primitive expression
+					; rapid primitive needs bindings and syntactic-environment
+
+					; macro expanders are a bit more than sc-transformers!
+
+;;
+
+
+
+    (if (null? body)
+	(values binding-spec syntactic-environment)
+	(expand-command-or-definition (car body) (cdr body)))))
+  
+  (let loop ((body body) (bindings '()) (syntactic-environment syntactic-environment))
+    (define (expand-body1 body1 body)
+      (capture-references
+       (lambda ()
+	 (macro-expand body1 syntactic-environment gensym))
+       (lambda (syntax)
+	 (define form (syntax-datum syntax))
+	 (cond
+	  ((and (not (null? form) (list? form)))
+	   (case (syntax-datum (car form))
+	     ((begin)
+	      (let-values (((bindings syntactic-environment)
+			   (loop (cdr form) bindings syntactic-environment)))
+		(loop body bindings syntactic-environment)))
+	     (else
+	      ...)))
+	  (else ...)))))
+    (if (null? body)
+	(values bindings syntactic-environment)
+	(expand-body1 (car body) (cdr body)))))
 
     (if (null? body)
 	(values (reverse bindings) syntactic-environment)

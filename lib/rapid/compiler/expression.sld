@@ -15,13 +15,12 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-library (rapid compiler environments)
-  (export make-environment-specifier environment-specifier?)
+(define-library (rapid compiler expression)
+  (export expression?
+	  make-binding-spec binding-spec? binding-spec-insert
+	  make-binding binding? binding-formals binding-init binding-syntax
+	  make-formals formals? formals-fixed-arguments formals-rest-argument formals-syntax
+	  )
   (import (scheme base)
-	  (rapid generators)
-	  (rapid compiler features)
-	  (rapid compiler error)
-	  (rapid compiler read)
-	  (rapid compiler syntactic-environment)
-	  (rapid compiler path))
-  (include "environments.sld"))
+	  (scheme case-lambda))
+  (include "expression.scm"))

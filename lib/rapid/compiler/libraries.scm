@@ -15,6 +15,12 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+(define-record-type <environment>
+  (make-environment bindings syntactic-environment)
+  environment?
+  (bindings environment-bindings)
+  (syntactic-environment environment-syntactic-environment))
+
 (define-record-type environment-type
   (%make-environment bindings syntactic-environment gensym)
   environment?
@@ -28,8 +34,8 @@
     (define symbol (string->symbol (string-append "g_" (number->string counter))))
     (set! counter (+ counter 1))
     symbol)
-  (define environment-bindings '())
-  x(define library-table (make-table)) ;; should already include (rapid primitive)
+  (define environment-bindings '())   ;; similar should include (rapid primitive)
+  (define library-table (make-table)) ;; should already include (rapid primitive)
   (define (lookup-synthetic-environment library-name)
     (table-ref/default library-table library-name #f))
   (define (insert-library! library-name))

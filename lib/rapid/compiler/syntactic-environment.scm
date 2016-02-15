@@ -20,6 +20,13 @@
   syntactic-environment?
   (bindings syntactic-environment-bindings))
 
+;; FIXME TODO
+(define-syntax syntactic-environment
+  (syntax-rules ()
+    ((syntactic-environment (identifier denotation) ...)
+     (...))))
+
+     
 (define (make-binding syntax denotation timestamp)
   (vector syntax denotation timestamp))
 (define (binding-syntax binding) (vector-ref binding 0))
