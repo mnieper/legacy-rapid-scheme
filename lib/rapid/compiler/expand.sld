@@ -18,5 +18,6 @@
 (define-library (rapid compiler expand)
   (export expand)
   (import (scheme base)
+	  (rapid box)
 	  (rapid compiler read))
   (include "expand.scm"))

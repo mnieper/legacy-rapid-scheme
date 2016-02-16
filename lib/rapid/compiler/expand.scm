@@ -15,8 +15,61 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define current-bindings (make-parameter #f))
-(define (get-bindings) (reverse (current-bindings)))
+(define current-bindings (make-parameter #f box))
+(define (%get-bindings) (unbox (current-bindings)))
+(define (get-bindings) (reverse (%get-bindings)))
+(define (set-bindings! bindings) (box-set! (current-bindings) bindings))
+(define current-expressions (make-parameter #f box))
+(define (%get-expressions) (unbox (current-expressions)))
+(define (get-expressions) (reverse (%get-expressions)))
+(define (set-expressions! expressions) (box-set! (current-expressions) expressions))
+
+(define (make-dummy-formals)
+  (make-formals (list (make-location #f)) #f #f))
+
+(define (make-reference-expander location)
+  (lambda (syntax)
+    (define form (syntax-datum syntax))
+    (if (list? form)
+	(delay
+	  (make-procedure-call (expand-expression (car form))
+			       (expand-expression* (cdr form))
+			       syntax))
+	(make-reference location syntax))))
+
+(define (insert-expression! expression)
+  (define expressions (%get-expressions))
+  (if expressions
+      (set-expressions! (cons expression expressions))
+      (set-bindings! (cons (make-binding (make-dummy-formals) expression #f))
+		     (%get-bindings))))
+
+(define (insert-location! identifier-syntax)
+  (define location (make-location identifier-syntax))
+  (insert-binding! identifier-syntax (make-reference-expander location))
+  location)
+
+(define (insert-definition! fixed-variables
+			    rest-variable
+			    expression
+			    definition-syntax
+			    formals-syntax)
+  (define expressions (%get-expressions))
+  (when (and expressions (not (null? expressions)))
+    (compile-error "definitions may not follow expressions in a body" syntax))
+  (let*
+      ((fixed-locations (map insert-location! fixed-variables))
+       (rest-location (if rest-variable (insert-location! rest-variable) #f))
+       (formals (make-formals fixed-locations rest-location formals-syntax)))
+    (set-bindings! (cons (make-binding formals expression definition-syntax)
+			 (%get-bindings)))))
+
+(define (insert-syntax-definition! identifier-syntax expander)
+  (insert-binding! identifier-syntax expander))
+
+;;; TODO: top-level/body/expression??? in-body?
+(define (insert-sequence! syntax*)
+  (for-each expand-syntax syntax*))
 
 (define (expand-top-level-body syntax* syntactic-environment)
   (with-syntactic-environment
@@ -24,7 +77,7 @@
    (lambda ()
      (parameterize ((current-bindings '()))
        (for-each expand-syntax! syntax*)
-       ;; package bindings
+       ;; package bindings and expressions
        ))))
 
 (define (expand-syntax! syntax)
@@ -35,30 +88,31 @@
   (define form (syntax-datum syntax))
   (cond
    ((simple-datum? form)
-    (insert-expression! syntax))
+    (insert-expression! (make-expression syntax)))
    ((null? form)
     (compile-error "empty application in source" syntax))
    ((symbol? form)
     (cond
      ((lookup-binding! form) =>
       (lambda (binding)
-	((binding-denotation binding) syntax)))
+	(binding-expand! binding syntax)))
      (else (compile-error "undefined variable" syntax))))
    ((list? form)
     (let* ((operator-syntax (car expression))
 	   (operator (syntax-datum operator)))
       (if (symbol? operator)
-	 (cond
-	  ((lookup-binding! operator)
-	   => (lambda (binding)
-		((binding-denotation binding) syntax)))
-	  (else (compile-error "undefined variable" operator-syntax)))
-	 (insert-expression! syntax))))
+	  (cond
+	   ((lookup-binding! operator)
+	    => (lambda (binding)
+		 (binding-expand! binding syntax)))
+	   (else (compile-error "undefined variable" operator-syntax)))
+	  (insert-expression! (make-expression syntax)))))
    (else
     (compile-error "invalid form" syntax))))
 
 ;; TODO: write a few transformers
 ;; TODO: write insert-expression!
+;; TODO: write make-expression (an expression is itself a thunk!)
     
 ;; der macro-expander kann verschiedenes machen...
 ;; etwa add-binding
@@ -66,9 +120,6 @@
 ;;      define-value
 ;;      define-syntax
 ;;      define-sequence  <-- was dann?
-
-(define (insert-sequence! syntax*)
-  (for-each expand-syntax syntax*))
 
 (define (expand-syntax syntax)
   (define form (syntax-datum syntax))

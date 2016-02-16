@@ -55,6 +55,7 @@
   (fixed-arguments formals-fixed-arguments)
   (rest-argument formals-rest-argument)
   (syntax formals-syntax))
+
 (define make-formals
   (case-lambda
    ((fixed-arguments syntax) (make-formals fixed-arguments #f syntax))

@@ -25,6 +25,7 @@
 	  lookup-denotation!
 	  lookup-syntax!
 	  binding?
+	  binding-expand!
 	  insert-binding!
 	  insert-binding-from!
 	  insert-bindings-from!
