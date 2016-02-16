@@ -15,6 +15,67 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+(define current-bindings (make-parameter #f))
+(define (get-bindings) (reverse (current-bindings)))
+
+(define (expand-top-level-body syntax* syntactic-environment)
+  (with-syntactic-environment
+   syntactic-environnment
+   (lambda ()
+     (parameterize ((current-bindings '()))
+       (for-each expand-syntax! syntax*)
+       ;; package bindings
+       ))))
+
+(define (expand-syntax! syntax)
+  (with-isolated-references
+   (lambda () (%expand-syntax! syntax))))
+
+(define (%expand-syntax! syntax)
+  (define form (syntax-datum syntax))
+  (cond
+   ((simple-datum? form)
+    (insert-expression! syntax))
+   ((null? form)
+    (compile-error "empty application in source" syntax))
+   ((symbol? form)
+    (cond
+     ((lookup-binding! form) =>
+      (lambda (binding)
+	((binding-denotation binding) syntax)))
+     (else (compile-error "undefined variable" syntax))))
+   ((list? form)
+    (let* ((operator-syntax (car expression))
+	   (operator (syntax-datum operator)))
+      (if (symbol? operator)
+	 (cond
+	  ((lookup-binding! operator)
+	   => (lambda (binding)
+		((binding-denotation binding) syntax)))
+	  (else (compile-error "undefined variable" operator-syntax)))
+	 (insert-expression! syntax))))
+   (else
+    (compile-error "invalid form" syntax))))
+
+;; TODO: write a few transformers
+;; TODO: write insert-expression!
+    
+;; der macro-expander kann verschiedenes machen...
+;; etwa add-binding
+;;      add-expression
+;;      define-value
+;;      define-syntax
+;;      define-sequence  <-- was dann?
+
+(define (insert-sequence! syntax*)
+  (for-each expand-syntax syntax*))
+
+(define (expand-syntax syntax)
+  (define form (syntax-datum syntax))
+  ;; check whether code to call or expression
+  )
+
+
 (define (simple-datum? expression)
   (or (number? expression)
       (boolean? expression)

@@ -28,6 +28,8 @@
   (syntactic-environment environment-syntactic-environment)
   (gensym environment-gensym))
 
+;; TODO: rewrite this for the new syntactic-environment lib
+
 (define (make-environment import-sets)
   (define counter 0)
   (define (gensym)
