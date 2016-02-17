@@ -1,3 +1,5 @@
 * Correct various uses of test-equal (the expected value has to come first)
 
 * Rename record types into the <...> format
+
+* Refactor syntax objects to (rapid compiler syntax). Check test for read.

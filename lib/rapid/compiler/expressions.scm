@@ -15,6 +15,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;;;; WRITE: expression->datum for debugging purposes
+
 (define-record-type <expression>
   (make-expression type value syntax)
   expression?
@@ -46,7 +48,7 @@
   (make-binding formals init syntax)
   binding?
   (formals binding-formals)
-  (init binding-init)
+  (expression binding-expression)
   (syntax binding-syntax))
 
 (define-record-type <formals>

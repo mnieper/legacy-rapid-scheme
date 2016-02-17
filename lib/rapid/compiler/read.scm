@@ -34,10 +34,6 @@
 (define (source-port-peek-char source-port)
   (peek-char (source-port-port source-port)))
 
-;; XXX: wird das benutzt?
-(define (source-port-peek-char-ci source-port)
-  (char-foldcase (source-port-peek-char source-port)))
-
 (define (source-port-read-char source-port)
   (let ((char (read-char (source-port-port source-port))))
     (cond
@@ -68,60 +64,6 @@
 (define (source-port-make-location source-port start end)
   (make-source-location (source-port-source source-port) start end))
 
-;;; Syntax objects
-(define-record-type <syntax>
-  (%make-syntax datum source-location context aux)
-  syntax?
-  (datum syntax-datum syntax-set-datum!)
-  (source-location syntax-source-location)
-  (context syntax-context syntax-set-context!)
-  (aux syntax-aux syntax-set-aux!))
-
-(define (syntax->datum syntax)
-  ;; TODO: Was machen wir mit syntactic-closure?  // simple-datum?
-  (define syntax-stack '())
-  (define (push-syntax! syntax) (set! syntax-stack (cons syntax syntax-stack)))
-  (define datum
-    (let syntax->datum ((syntax syntax))
-      (cond
-       ((syntax-aux syntax) => (lambda (datum) datum))
-       (else
-	(let ((datum (syntax-datum syntax)))
-	  (cond
-	   ((vector? datum)
-	    (push-syntax! syntax)
-	    (let* ((n (vector-length datum))
-		   (vector (make-vector n)))
-	      (syntax-set-aux! syntax vector)
-	      (do ((i 0 (+ i 1)))
-		  ((>= i n))
-		(vector-set! vector i (syntax->datum (vector-ref datum i)))) 
-	      vector))
-	   ((pair? datum)
-	    (push-syntax! syntax)
-	    (let* ((pair (list #f)))
-	      (syntax-set-aux! syntax pair)
-	      (set-car! pair (syntax->datum (car datum)))
-	      (do ((datum datum (cdr datum)) (pair pair (cdr pair)))
-		  ((not (pair? (cdr datum)))
-		   (unless (null? (cdr datum))
-		     (set-cdr! pair (syntax->datum (cdr datum)))))
-		(set-cdr! pair (list (syntax->datum (cadr datum)))))		
-	      pair))
-	   (else
-	    datum)))))))
-  (for-each
-   (lambda (syntax)
-     (syntax-set-aux! syntax #f))
-   syntax-stack)
-  datum)
-
-(define (derive-syntax datum syntax)
-  (%make-syntax datum (syntax-source-location syntax) syntax #f))
-
-(define (datum->syntax datum)
-  (%make-syntax datum (make-source-location #f 1 0) #f #f))
-
 ;;; Reader errors
 (define-record-type read-error-object-type
   (make-read-error-object message location)
@@ -138,7 +80,7 @@
   (define (position) (source-port-position source-port))
   (define (make-location start end) (source-port-make-location source-port start end))
   (define (make-syntax datum start end)
-    (%make-syntax datum (make-location start end) context #f))
+    (syntax-make-syntax datum (make-location start end) context #f))
   (define (syntax-start syntax) (source-location-start (syntax-source-location syntax)))
   (define (syntax-end syntax) (source-location-end (syntax-source-location syntax)))
   (define (error message start end) (read-error message (make-location start end)))

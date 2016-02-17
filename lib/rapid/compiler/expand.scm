@@ -23,6 +23,14 @@
 (define (%get-expressions) (unbox (current-expressions)))
 (define (get-expressions) (reverse (%get-expressions)))
 (define (set-expressions! expressions) (box-set! (current-expressions) expressions))
+(define current-context (make-parameter 'top-level))
+
+(define (make-deferred-binding formals expression syntax) (vector formals expression syntax))
+(define (expand-binding deferred-binding)
+  (make-binding
+   (vector-ref deferred-binding 0)
+   (force (vector-ref deferred-binding 1))
+   (vector-ref deferred-binding 1)))
 
 (define (make-dummy-formals)
   (make-formals (list (make-location #f)) #f #f))
@@ -37,7 +45,7 @@
 			       syntax))
 	(make-reference location syntax))))
 
-(define (insert-expression! expression)
+(define (expand-into-expression! expression)
   (define expressions (%get-expressions))
   (if expressions
       (set-expressions! (cons expression expressions))
@@ -49,11 +57,11 @@
   (insert-binding! identifier-syntax (make-reference-expander location))
   location)
 
-(define (insert-definition! fixed-variables
-			    rest-variable
-			    expression
-			    definition-syntax
-			    formals-syntax)
+(define (expand-into-definition! fixed-variables
+				 rest-variable
+				 expression
+				 definition-syntax
+				 formals-syntax)
   (define expressions (%get-expressions))
   (when (and expressions (not (null? expressions)))
     (compile-error "definitions may not follow expressions in a body" syntax))
@@ -64,25 +72,43 @@
     (set-bindings! (cons (make-binding formals expression definition-syntax)
 			 (%get-bindings)))))
 
-(define (insert-syntax-definition! identifier-syntax expander)
+(define (expand-into-syntax-definition! identifier-syntax expander)
   (insert-binding! identifier-syntax expander))
 
-;;; TODO: top-level/body/expression??? in-body?
-(define (insert-sequence! syntax*)
-  (for-each expand-syntax syntax*))
+(define (expand-into-sequence! syntax* syntax)
+  (if (eq? (current-context) 'expression)
+      (for-each expand-syntax syntax*)
+      (make-sequence syntax* syntax)))
 
-(define (expand-top-level-body syntax* syntactic-environment)
-  (with-syntactic-environment
-   syntactic-environnment
-   (lambda ()
-     (parameterize ((current-bindings '()))
-       (for-each expand-syntax! syntax*)
-       ;; package bindings and expressions
-       ))))
+(define (expand syntax*)
+  (parameterize ((current-bindings '()))
+    (for-each expand-syntax! syntax*)
+    (parameterize ((current-context 'expression))
+      (map expand-binding (get-bindings)))))
+
+;; NEEDED? relation to context
+(define (expand-expression syntax)
+  (parameterize
+      ))
+
+(define (expand-body body)
+  (define syntax* (syntax-datum body))
+  (parameterize ((current-context 'body)
+		 (current-expressions '()))
+    (for-each expand-syntax! syntax*)
+    (when (null? (%get-expressions))
+      (compile-error "no expression in body" body))
+    (parameterize ((current-context 'expression))
+      (make-letrec-expression
+       (map expand-binding (get-bindings))
+       (map force (get-expressions))
+       body))))
 
 (define (expand-syntax! syntax)
-  (with-isolated-references
-   (lambda () (%expand-syntax! syntax))))
+  (define (thunk) (%expand-syntax! syntax))
+  (if (eq? (current-context) 'top-level)
+      (with-isolated-references thunk)
+      (thunk)))
 
 (define (%expand-syntax! syntax)
   (define form (syntax-datum syntax))
