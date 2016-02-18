@@ -23,7 +23,7 @@
 
 (define-syntax environment
   (syntax-rules ()
-    ((environment ((formals init) ...) syntactic-bindings)
+    ((environment ((formals init) ...) . syntactic-bindings)
      (environment-aux (formals ...) () ((formals init) ...) syntactic-bindings))))
 
 (define-syntax environment-aux

@@ -98,7 +98,7 @@
 ;;; Bindings
 
 (define-record-type <binding>
-  (make-binding formals init syntax)
+  (make-binding formals expression syntax)
   binding?
   (formals binding-formals)
   (expression binding-expression)
@@ -173,7 +173,7 @@
       `(letrec* ,@
 	(map
 	 (lambda (binding)
-	   )
+	   `(,(formals->datum (binding-formals binding)) ,(loop (binding-expression binding))))
 	 (letrec*-expression-bindings expression))
 	,@(map loop (letrec*-expression-body expression))))
      (else

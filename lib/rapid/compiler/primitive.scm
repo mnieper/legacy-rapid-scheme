@@ -92,10 +92,11 @@
       (if (= i 0)
 	  '()
 	  (cons (make-location #f) (loop (- i 1))))))
-  (make-case-lambda
+  (make-procedure
    (list
     (make-clause (make-formals location* #f #f)
-		 (list (make-primitive-operation operator location* #f))))
+		 (list (make-primitive-operation operator location* #f))
+		 #f))
    #f))
 
 (define (make-primitive-expander operator location)

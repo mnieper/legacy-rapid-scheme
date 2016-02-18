@@ -19,6 +19,6 @@
   (export expand-program)
   (import (scheme base)
 	  (rapid compiler environments)
-	  (rapid compiler syntactic-environment)
+	  (rapid compiler syntactic-environments)
 	  (rapid compiler expressions))
-  (include "librariesprograms.scm"))
+  (include "programs.scm"))

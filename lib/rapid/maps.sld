@@ -19,4 +19,5 @@
   (export make-map map? map-ref map-ref/default map-set map-delete map-fold map-for-each)
   (import (scheme base)
 	  (scheme case-lambda)
-  (include "map.scm"))
+	  (rapid comparators))
+  (include "maps.scm"))

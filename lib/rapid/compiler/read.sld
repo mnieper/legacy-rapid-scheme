@@ -21,15 +21,15 @@
 	  read-error-object?
 	  read-error-object-message
 	  read-error-object-location
+	  read-syntax
 	  source-location-source
 	  source-location-start-line
 	  source-location-start-column
 	  source-location-end-line
-	  source-location-end-column
-	  read-syntax)
+	  source-location-end-column)
   (import (scheme base)
 	  (scheme char)
 	  (scheme case-lambda)
-	  (rename (rapid compiler syntax) (make-syntax syntax-make-syntax))
-	  (rapid compiler table))
+	  (rapid table)
+	  (rename (rapid compiler syntax) (make-syntax syntax-make-syntax)))
   (include "read.scm"))

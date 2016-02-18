@@ -19,8 +19,9 @@
   (export make-environment
 	  environment?
 	  environment-bindings
-	  environment-syntactic-environment)
+	  environment-syntactic-environment
+	  environment)
   (import (scheme base)
 	  (rapid compiler expressions)
 	  (rapid compiler syntactic-environments))
-  (include "environment.scm"))
+  (include "environments.scm"))

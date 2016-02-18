@@ -52,7 +52,7 @@
 (define-record-type <binding>
   (make-binding syntax denotation)
   binding?
-  (binding binding-syntax)
+  (syntax binding-syntax)
   (denotation binding-denotation))
 
 (define (binding-identifier binding)
@@ -159,7 +159,7 @@
 		       (binding-denotation binding)))
    (with-syntactic-environment syntactic-environment (lambda () (get-bindings)))))
 
-(define-syntax
+(define-syntax syntactic-environment
   (syntax-rules ()
     ((syntactic-environment (identifier denotation) ...)
      (%make-syntactic-environment

@@ -16,7 +16,7 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid compiler syntax)
-  (export make-syntax syntax-datum syntax-source-location syntax-context
+  (export make-syntax syntax? syntax-datum syntax-source-location syntax-context
 	  derive-syntax datum->syntax)
   (import (scheme base))
   (include "syntax.scm"))

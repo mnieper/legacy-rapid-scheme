@@ -16,7 +16,7 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid sets)
-  (export (make-set set-contains? set-adjoin))
+  (export make-set set-contains? set-adjoin)
   (import (scheme base)
-	  (rapid comparator))
+	  (rapid comparators))
   (include "sets.scm"))

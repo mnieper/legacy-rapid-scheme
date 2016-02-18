@@ -97,16 +97,15 @@
     ((guard-compile body1 body2 ...)
      (parameterize ((current-notes '()))
        (guard (condition
-	       (cond
-		((compile-warning? condition)
-		 (display-compile-error condition))
-		((compile-error? condition)
-		 (display-compile-error condition)
-		 (exit #f))
-		(else
-		 (display "compiler error" (current-error-port))
-		 (newline (current-error-port))
-		 (raise condition))))
+	       ((compile-warning? condition)
+		(display-compile-error condition))
+	       ((compile-error? condition)
+		(display-compile-error condition)
+		(exit #f))
+	       (else
+		(display "compiler error" (current-error-port))
+		(newline (current-error-port))
+		(raise condition)))
 	 body1
 	 body2
 	 ...)))))
