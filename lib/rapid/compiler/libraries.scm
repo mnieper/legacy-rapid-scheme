@@ -15,33 +15,34 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define (make-environment import-sets)
-  (define counter 0)
-  (define (gensym)
-    (define symbol (string->symbol (string-append "g_" (number->string counter))))
-    (set! counter (+ counter 1))
-    symbol)
-  (define environment-bindings '())   ;; similar should include (rapid primitive)
-  (define library-table (make-table)) ;; should already include (rapid primitive)
+(define (libraries-import import-sets)
+  (define bindings (reverse (environment-bindings primitive-environment)))
+  (define library-table
+    (let ((table (make-table (make-equal-comparator))))
+      (table-set! table
+		  '(rapid primitive)
+		  (environment-syntactic-environment primitive-environment))
+      table))
   (define (lookup-synthetic-environment library-name)
     (table-ref/default library-table library-name #f))
-  (define (insert-library! library-name))
-  (define (library-referenced? library-name)
+  (define (insert-library! library-name)
+    (table-set! table library-name #f))    
+  (define (library-loading? library-name)
     (not (table-ref/default library-table library-name #t)))
-  (define (update-synthetic-environment library-name synthetic-environment))
   (define (create-syntactic-environment import-sets)
-    ;; Loop over import sets
-    (let loop ((import-sets import-sets) (syntactic-environment (make-syntactic-environment)))
-      (if (null? import-sets)
-	  syntactic-environment
-	  (loop (cdr import-sets)
-		(insert-bindings-from (read-import-set (car import-sets))
-				      syntactic-environment)))))
+    (with-syntactic-environment
+     (make-syntactic-environment)
+     (lambda ()
+       (for-each
+	(lambda (import-set)
+	  (insert-bindings-from! (read-import-set import-set)))
+	import-sets)
+       (get-syntactic-environment))))
   ;; Returns a syntactic environment
   (define (read-import-set import-set)
     (define form (syntax-datum import-set))
     (unless (list? form)
-      (compile-error (import-set ("bad import set"))))
+      (compile-error "bad import set") import-set)
     (cond
      ;; Import set modifier
      ((and (> (length form) 1) (list? (syntax-datum (cadr form))))
@@ -49,28 +50,31 @@
 	(case (syntax-datum (car form))
 	  ;; Only import set
 	  ((only)
-	   (for-each assert-identifier! (cddr form))
-	   (let loop ((identifier* (cddr form))
-		      (mutated-environment (make-syntactic-environment)))
-	     (if (null? identifier*)
-		 mutated-environment
-		 (insert-binding-from (car identifier*)
-				      syntactic-environment
-				      mutated-environment))))
+	   (with-syntactic-environment
+	    (make-syntactic-environment)
+	    (lambda ()
+	      (for-each
+	       (lambda (identifier-syntax)
+		 (assert-identifier! identifier-syntax)
+		 (insert-binding-from! identifier-syntax syntactic-environment))
+	       (cddr form)))
+	    (get-syntactic-environment)))
 	  ;; Except import set
 	  ((except)
-	   (for-each assert-identifier! (cddr form))
-	   (let loop ((identifier* (cddr form))
-		      (syntactic-environment (make-syntactic-environment)))
-	     (if (null? identifier*)
-		 syntactic-environment
-		 (loop (cdr identifier*) (delete-binding (syntax-datum (car identifier))
-							 syntactic-environment)))))
+	   (with-syntactic-environment
+	    (derive-syntactic-environment syntactic-environment import-set)
+	    (lambda ()
+	      (for-each
+	       (lambda (identifier-syntax)
+		 (assert-identifier! identifier-syntax)
+		 (delete-binding! identifier-syntax))
+	       (cddr form))
+	      (get-syntactic-environment))))
 	  ;; Prefix import set
 	  ((prefix)
 	   (unless (and (= (length form) 3)
 			(symbol? (syntax-datum (caddr form))))
-	     (compile-error (import-set ("bad import set"))))
+	     (compile-error "bad import set" import-set))
 	   (derive-syntactic-environment syntactic-environment
 					 import-set
 					 (lambda (identifier)
@@ -79,36 +83,37 @@
 					    identifier))))
 	  ;; Rename import set
 	  ((rename)
-	   (let loop ((rename* (cddr form))
-		      (rename-map (make-map (lambda (identifier) identifier) eq?)))
-	     (if (null? rename*)
-		 (derive-syntactic-environment syntactic-environment
-					       import-set
-					       (lambda (identifier)
-						 (map-lookup rename-map identifier)))
-		 (let ((form (syntax-datum (car rename*))))
-		   (unless (and (list? form)
-				(= (length form) 2)
-				(symbol? (syntax-datum (car form)))
-				(symbol? (syntax-datum (cadr form))))
-		     (compile-error (import-set "bad rename")))
-		   (loop (cdr rename*) (map-insert rename-map
-						   (syntax-datum (car form))
-						   (syntax-datum (cadr form))))))))
-	  (else (compile-error (import-set ("invalid import set")))))))
+	   (let ((table (make-table (make-eq-comparator))))
+	     (for-each
+	      (lambda (rename)
+		(define form (syntax-datum rename))
+		(unless (and (list? form)
+			     (= (length form) 2)
+			     (symbol? (syntax-datum (car form)))
+			     (symbol? (syntax-datum (cadr form))))
+		  (compile-error "bad rename" rename))
+		(table-set! table (syntax-datum (car form)) (syntax-datum (cdr form))))
+	      (cddr form))
+	     (derive-syntactic-environment syntactic-environment
+					   import-set
+					   (lambda (identifier)
+					     (or (table-ref/default table identifier #f)
+						 identifier)))))
+	  (else (compile-error "invalid import set" import-set)))))
      ;; Simple import
      (else
       (assert-library-name! import-set)
       (derive-syntactic-environment (read-library import-set) import-set))))
   ;; Returns the syntactic environment of a library
   ;; Adds entries to library table if library cannot be found
+  ;; Adds bindings
   (define (read-library library-name-syntax)
     (define library-name (datum-syntax library-name-syntax))
     (cond
      ((lookup-synthetic-environment library-name))
      (else
-      (when (library-referenced? library-name)
-	(compile-error (library-name-syntax ("library references itself while loading"))))
+      (when (library-loading? library-name)
+	(compile-error "library references itself while loading" library-name-syntax)))
       (insert-library! library-name)
       (let ((library-definition (read-library-definition library-name-syntax)))
 	(define-values (import-sets export-specs body)
@@ -123,7 +128,7 @@
 		       (declarations (cdr declarations))
 		       (form (syntax-datum declaration)))
 		  (unless (and (not (null? form)) (list? form))
-		    (compile-error (declaration "bad library declaration")))
+		    (compile-error "bad library declaration" declaration))
 		  (case (syntax-datum (car form))
 		    ((export)
 		     (loop declarations
@@ -164,11 +169,11 @@
 			   (let ((clause (car clauses)))
 			     (define form (syntax-datum clause))
 			     (unless (and (list? form) (>= (length form) 1))
-			       (compile-error (clause ("bad cond-expand clause"))))
+			       (compile-error "bad cond-expand clause" clause))
 			     (cond
 			      ((eq? (car form) 'else)
 			       (unless (null? (cdr clauses))
-				 (compile-error (declaration ("else clause not last"))))
+				 (compile-error "else clause not last" declaration))
 			       (loop (append (cdr form) declarations)
 				     (import-sets
 				      export-specs
@@ -181,36 +186,32 @@
 			      (else
 			       (loop (cdr clauses))))))))
 		    (else
-		     (compile-error (declaration "invalid library declaration"))))))))
-	(define syntactic-environment (create-syntactic-environment import-sets))
-	(define-values (bindings syntactic-environment)
-	  (expand body syntactic-environment gensym))
-	(set! environment-bindings (append (reverse bindings) environment-bindings)) 
-	(let loop ((export-specs export-specs)
-		   (export-environment (make-syntactic-environment)))
-	  (if (null? export-specs)
-	      export-environment
-	      (let* ((export-spec (car export-specs))
-		     (form (syntax-datum export-spec)))
-		(loop
-		 (cdr export-specs)
-		 (cond
-		  ((list? form)
-		   (unless (= (length form) 2)
-		     (compile-error (export-spec ("bad export spec"))))		    
-		   (assert-identifier! (car form))
-		   (assert-identifier! (cadr form))
-		   (insert-binding-from (car form)
-					syntactic-environment
-					export-environment
-					(cadr form)))
-		  (else
-		   (assert-identifier! export-spec)
-		   ((insert-binding-from export-spec
-					 syntactic-environment
-					 export-environment))))))))))))
+		     (compile-error "invalid library declaration" declaration)))))))
+	(with-syntactic-environment
+	 (create-syntactic-environment import-sets)
+	 (lambda ()
+	   (set! bindings (append (reverse (expand body)) bindings))
+	   (let ((syntactic-environment (get-syntactic-environment)))
+	     (with-syntactic-environment
+	      (make-syntactic-environment)
+	      (lambda ()
+		(for-each
+		 (lambda (export-spec)
+		   (define form (syntax-datum export-spec))
+		   (cond
+		    ((list? form)
+		     (unless (= (length form) 2)
+		       (compile-error "bad export spec" export-spec))
+		     (assert-identifier! (car form))
+		     (assert-identifier! (cadr form))
+		     (insert-binding-from! (car form) syntactic-environment (cadr form)))
+		    (else
+		     (assert-identifier! export-spec)
+		     (insert-binding-from export-spec syntactic-environment))))
+		 export-specs)
+		(get-syntactic-environment)))))))))
   (define syntactic-environment (create-syntactic-environment import-sets))
-  (%make-environment (reverse environment-bindings) syntactic-environment gensym))
+  (make-environment (reverse bindings) syntactic-environment))
 
 (define (feature? feature-requirement-syntax)
   (define form (syntax-datum feature-requirement-syntax))

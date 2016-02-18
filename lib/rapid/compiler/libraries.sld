@@ -16,7 +16,7 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid compiler libraries)
-  (export make-environment environment-specifier?)
+  (export libraries-import)
   (import (scheme base)
 	  (rapid generators)
 	  (rapid compiler features)
@@ -25,5 +25,6 @@
 	  (rapid compiler syntax)
 	  (rapid compiler environments)
 	  (rapid compiler syntactic-environments)
-	  (rapid compiler path))
-  (include "libraries.sld"))
+	  (rapid compiler path)
+	  (rapid compiler primitive))
+  (include "libraries.scm"))

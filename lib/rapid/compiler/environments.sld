@@ -16,7 +16,10 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid compiler environments)
-  (export (make-environment environment? environment-bindings environment-syntactic-environment))
+  (export make-environment
+	  environment?
+	  environment-bindings
+	  environment-syntactic-environment)
   (import (scheme base)
 	  (rapid compiler expressions)
 	  (rapid compiler syntactic-environments))
