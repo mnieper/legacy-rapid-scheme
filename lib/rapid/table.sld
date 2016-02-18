@@ -1,4 +1,4 @@
-(define-library (rapid compiler table)
+(define-library (rapid table)
   (export make-table table? table-ref table-set! table-intern!)
   (import (scheme base)
 	  (scheme case-lambda))
