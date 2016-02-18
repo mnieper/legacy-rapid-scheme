@@ -15,7 +15,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;;; WRITE: expression->datum for debugging purposes
+;;; Expressions
 
 (define-record-type <expression>
   (make-expression type value syntax)
@@ -24,25 +24,78 @@
   (value expression-value)
   (syntax expression-syntax))
 
-(define (make-location syntax)
-  (make-expression 'location #f syntax))
-(define (location? expression)
-  (eq? (expression-type expression) 'location))
+;;; References
 
-(define-record-type <bindings>
-  (%make-bindings binding* syntax)
-  bindings?
-  (binding* %bindings-binding*)
-  (syntax bindings-syntax))
-(define (make-bindings syntax)
-  (%make-bindings '() syntax))
-(define (bindings->list bindings)
-  (reverse (%bindings-binding* bindings)))
-(define (bindings-insert bindings binding syntax)
-  (%make-bindings (cons binding (%bindings-binding* bindings))))
-(define (bindings-append bindings1 bindings2)
-  (%make-bindings (append (%bindings-binding* bindings2)
-			      (%bindings-binding* bindings1))))
+(define (make-reference location syntax)
+  (make-expression 'reference location syntax))
+(define (reference? expression)
+  (eq? (expression-type expression) 'reference))
+(define (reference-location reference)
+  (expression-value reference))
+
+;;; Literals
+
+(define (make-literal datum syntax)
+  (make-expression 'literal datum syntax))
+(define (literal? expression)
+  (eq? (expression-type expression) 'literal))
+(define (literal-value literal)
+  (expression-value expression))
+
+;;; Procedure calls
+
+(define (make-procedure-call operator operand* syntax)
+  (make-expression 'procedure-call (vector operator operand*) syntax))
+(define (procedure-call? expression)
+  (eq? (expression-type expression) 'procedure-call))
+(define (procedure-call-operator expression)
+  (vector-ref (expression-value expression) 0))
+(define (procedure-call-operands expression)
+  (vector-ref (expression-value expression) 1))
+
+;;; Primitive operations
+
+(define (make-primitive-operation operator operand* syntax)
+  (make-expression 'primitive-operation (vector operator operand*) syntax))
+(define (primitive-operation? expression)
+  (eq? (expression-type expression) 'primitive-operation))
+(define (primitive-operation-operator expression)
+  (vector-ref (expression-value expression) 0))
+(define (primitive-operation-operand* expression)
+  (vector-ref (expression-value expression) 1))
+
+;;; Procedures
+
+(define (make-procedure clauses syntax)
+  (make-expression 'procedure clauses syntax))
+(define (expression-procedure? expression)
+  (eq? (expression-type expression) 'procedure))
+(define-record-type <clause>
+  (make-clause formals body syntax)
+  clause?
+  (formals clause-formals)
+  (body clause-body)
+  (syntax clause-syntax))
+
+;;; Letrec* expressions
+
+(define (make-letrec*-expression bindings body syntax)
+  (make-expression 'letrec*-expression (vector bindings body) syntax))
+(define (letrec*-expression? expression)
+  (eq? (expression-type expression) 'letrec*-expression))
+(define (letrec*-expression-bindings expression)
+  (vector-ref (expression-value expression) 0))
+(define (letrec*-expression-body expression)
+  (vector-ref (expression-value expression) 1))
+
+;;; Locations
+
+(define-record-type <location>
+  (make-location syntax)
+  location?
+  (syntax location-syntax))
+
+;;; Bindings
 
 (define-record-type <binding>
   (make-binding formals init syntax)
@@ -50,6 +103,8 @@
   (formals binding-formals)
   (expression binding-expression)
   (syntax binding-syntax))
+
+;;; Formals
 
 (define-record-type <formals>
   (%make-formals fixed-arguments rest-argument syntax)
@@ -62,6 +117,69 @@
   (case-lambda
    ((fixed-arguments syntax) (make-formals fixed-arguments #f syntax))
    ((fixed-arguments rest-argument syntax) (%make-formals fixed-arguments rest-argument syntax))))
+
+;;; Operators
+
+(define-record-type <operator>
+  (make-operator identifier arity) ;; TODO: add compiling instructions, etc.
+  operator?
+  (identifier operator-identifier)
+  (arity operator-arity))
+
+;;; Expression datums
+
+(define (expression->datum expression)
+  (define counter 0)
+  (define (gensym)
+    (define symbol (string->symbol (string-append "g_" (number->string counter))))
+    (set! counter (+ counter 1))
+    symbol)
+  (define identifier-table (make-table (make-eq-comparator)))
+  (define (lookup-identifier! location)
+    (table-intern! identifier-table location gensym))
+  (define (formals->datum formals)
+    (let loop ((fixed-arguments (formals-fixed-arguments formals)))
+      (if (null? fixed-arguments)
+	  (let ((rest-argument (formals-rest-argument formals)))
+	    (if rest-argument
+		(lookup-identifier! rest-argument)
+		'()))
+	  (cons (lookup-identifier! (car fixed-arguments)) (loop (cdr fixed-arguments))))))
+  (let loop ((expression expression))
+    (cond
+     ;; References
+     ((reference? expression)
+      (table-ref identifier-table (reference-location expression)))
+     ;; Literals
+     ((literal? expression)
+      (literal-value expression))
+     ;; Procedure calls
+     ((procedure-call? expression)
+      `(,(loop (procedure-call-operator expression))
+	,@(map loop (procedure-call-operands expression))))
+     ;; Primitive operations
+     ((primitive-operation? expression)
+      `(,(operator-identifier (primitive-operation-operator expression))
+	,@(map loop (primitive-operation-operands expression))))
+     ;; Procedures
+     ((expression-procedure? expression)
+      `(case-lambda ,@
+	(map
+	 (lambda (clause)
+	   `(,(formals->datum (clause-formals clause)) ,@(map loop (clause-body clause))))
+	 (procedure-clauses expression))))
+     ;; Letrec* expressions
+     ((letrec*-expression? expression)
+      `(letrec* ,@
+	(map
+	 (lambda (binding)
+	   )
+	 (letrec*-expression-bindings expression))
+	,@(map loop (letrec*-expression-body expression))))
+     (else
+      (error "bad expression" expression)))))
+
+;;; XXX LATER
 
 (define-syntax bindings
   (syntax-rules ()

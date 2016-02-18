@@ -26,3 +26,10 @@
     (if (null? clist)
 	#t
 	(and (pred (car clist)) (loop (cdr clist))))))
+
+(define (map-in-order proc list)  
+  (let loop ((list list))
+    (if (null? list)
+	'()
+	(let ((value (proc (car list))))
+	  (cons value (loop (cdr list)))))))

@@ -96,18 +96,17 @@
       (map expand-binding (get-bindings)))))
 
 ;; Expands a procedure body
-(define (expand-body body)
-  (define syntax* (syntax-datum body))
+(define (expand-body syntax* syntax)
   (parameterize ((current-context 'body)
 		 (current-expressions '()))
     (for-each expand-syntax! syntax*)
     (when (null? (%get-expressions))
-      (compile-error "no expression in body" body))
+      (compile-error "no expression in body" syntax))
     (parameterize ((current-context 'expression))
-      (make-letrec-expression
+      (make-letrec*-expression
        (map expand-binding (get-bindings))
        (map expand-expression (get-expressions))
-       body))))
+       #f))))
 
 ;; Expands an expression
 (define (expand-expression syntax)
@@ -118,11 +117,7 @@
        (expand-syntax! syntax)))))
 
 (define (expand-expression* syntax*)
-  (let loop ((syntax* syntax*))
-    (if (null? syntax*)
-	'()
-	(let ((expression (expand-expression* (car syntax*))))
-	  (cons expression (loop (cdr syntax*)))))))
+  (map-in-order expand-expression syntax*))
 
 (define (expand-syntax! syntax)
   (define (thunk) (%expand-syntax! syntax))

@@ -16,8 +16,11 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid compiler primitive)
-  (export initial-environment)
+  (export primitive-environment)
   (import (scheme base)
+	  (rapid lists)
+	  (rapid compiler expand)
 	  (rapid compiler environment)
+	  (rapid compiler syntactic-environment)
 	  (rapid compiler expressions))
   (include "primitive.scm"))

@@ -15,18 +15,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-library (rapid compiler expand)
-  (export expand
-	  expand-body
-	  expand-expression
-	  expand-syntax!
-	  expand-into-expression
-	  expand-into-definition
-	  expand-into-syntax-definition
-	  expand-into-sequence)
+(define-library (rapid compiler primitive-operators)
+  (export operator-apply operator+)
   (import (scheme base)
-	  (scheme lazy)
-	  (rapid lists)
-	  (rapid box)
-	  (rapid compiler syntax))
-  (include "expand.scm"))
+	  (rapid compiler expressions))
+  (include "primitive-operators.scm"))

@@ -24,7 +24,7 @@
 (define begin-expander
   (make-syntax-expander
    (lambda (syntax)
-     (insert-sequence! (cdr (syntax-datum syntax))))))
+     (expand-into-sequence (cdr (syntax-datum syntax))) syntax)))
 
 (define if-expander
   (make-syntax-expander
@@ -34,37 +34,88 @@
        (compile-error "bad if syntax" syntax))
      (let ((test-syntax (list-ref form 1))
 	   (consequent-syntax (list-ref form 2))
-	   (alternate-syntax (and (= (length form 3)) (list-ref form 3))))     
-       (make-expression-expander
-	(lambda ()
-	  (make-conditional
-	   (expand-expression test-syntax)
-	   (expand-expression consequent-syntax)
-	   (if alternate-syntax
-	       (expand-expression alternate-syntax)
-	       (make-constant #f #f))
-	   syntax)))))))
+	   (alternate-syntax (and (= (length form 3)) (list-ref form 3))))
+       (make-conditional
+	(expand-expression test-syntax)
+	(expand-expression consequent-syntax)
+	(if alternate-syntax
+	    (expand-expression alternate-syntax)
+	    (make-literal #f #f))
+	syntax)))))
+
+(define case-lambda-expander
+  (make-syntax-expander
+   (lambda (syntax)
+     (define form (syntax-datum syntax))
+     (make-procedure
+      (map-in-order
+       (lambda (clause-syntax)
+	 (define form (syntax-datum syntax))
+	 (unless (and (not (null? form) (list? form)))
+	   (compile-error "bad case-lambda clause" syntax))
+	 (with-scope
+	  (lambda ()
+	    (define formals (expand-formals! (car form)))
+	    (make-clause formals (list (expand-body (cdr form) clause-syntax))))))
+       (cdr form))))))
+
+(define quote-expander
+  (make-syntax-expander
+   (lambda (syntax)
+     (define form (syntax-datum syntax))
+     (unless (= (length form) 2)
+       (compile-error "bad quote syntax" syntax))
+     (make-literal (syntax->datum (list-ref form 1)) syntax))))
+
+(define (expand-formals! syntax)
+  (define form (syntax-datum syntax))
+  (let loop ((form form) (%fixed-arguments '()))
+    (cond
+     ((null? form)
+      (make-formals (reverse %fixed-arguments) #f syntax))
+     ((pair? form)
+      (loop (cdr form) (cons (expand-formal! (car form)) (%fixed-arguments))))
+     (else
+      (make-formals (reverse %fixed-arguments) (expand-formal! form) syntax)))))
+
+(define (expand-formal! syntax)
+  (define form (syntax-datum syntax))
+  (unless (identifier? form)
+    (compile-error "bad identifier" syntax))
+  (let ((location (make-location syntax)))
+    (insert-binding! syntax location)
+    location))
 
 (define (make-primitive-procedure operator)
-  (make-case-lambda ...))
+  (define location*
+    (let loop ((i (operator-arity operator)))
+      (if (= i 0)
+	  '()
+	  (cons (make-location #f) (loop (- i 1))))))
+  (make-case-lambda
+   (list
+    (make-clause (make-formals location* #f #f)
+		 (list (make-primitive-operation operator location* #f))))
+   #f))
 
-(define (make-primitive-expander operator reference)
+(define (make-primitive-expander operator location)
   (lambda (syntax)
     (define form (syntax-datum syntax))
-    (if (symbol? form)
-	(make-expression-expander reference)
-	(make-expression-expander
-	 (lambda ()
-	   (make-primitive-call operator syntax))))))
+    (if (identifier? form)
+	(make-reference location syntax)
+	(make-primitive-operation operator (expand-expression* (cdr form)) syntax))))
    
-(define initial-environment
+(define primitive-environment
   (environment
    ;; Bindings
-   (((%+) (make-primitive-procedure '+))
+   (((%+) (make-primitive-procedure operator+))
+    ((%apply) (make-primitive-procedure operator-apply))
     )
    ;; Syntactic environment
    (begin begin-expander)
+   (case-lambda case-lambda-expander)
    (if if-expander)
-   (+ (make-primitive-expander '+ '%))
-   
+   (quote quote-expander)
+   (+ (make-primitive-expander operator+ '%+))
+   (apply (make-primitive-expander operator-apply '%apply))
    ))

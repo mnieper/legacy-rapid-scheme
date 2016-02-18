@@ -17,10 +17,18 @@
 
 (define-library (rapid compiler expressions)
   (export expression?
-	  make-binding-spec binding-spec? binding-spec-insert
-	  make-binding binding? binding-formals binding-init binding-syntax
-	  make-formals formals? formals-fixed-arguments formals-rest-argument formals-syntax
-	  )
+	  make-reference reference?
+	  make-literal literal?
+	  make-procedure-call procedure-call?
+	  make-primitive-operation primitive-operation?
+	  make-procedure expression-procedure?
+	  make-location location?
+	  make-clause clause?
+	  make-binding binding?
+	  make-formals formals?
+	  make-operator operator? operator-arity
+	  expression->datum)
   (import (scheme base)
-	  (scheme case-lambda))
+	  (scheme case-lambda)
+	  (rapid table))
   (include "expression.scm"))

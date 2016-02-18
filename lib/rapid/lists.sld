@@ -16,6 +16,6 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid lists)
-  (export any every)
+  (export any every map-in-order)
   (import (scheme base))
   (include "lists.scm"))
