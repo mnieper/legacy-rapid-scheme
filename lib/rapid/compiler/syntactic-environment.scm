@@ -50,10 +50,10 @@
   (bindings syntactic-environment-bindings))
 
 (define-record-type <binding>
-  (make-binding syntax expander)
+  (make-binding syntax denotation)
   binding?
   (binding binding-syntax)
-  (expander binding-expander))
+  (denotation binding-denotation))
 
 (define (binding-identifier binding)
   (syntax-datum (binding-syntax binding)))
@@ -85,11 +85,11 @@
 	 binding))
    (else #f)))
 
-(define (insert-binding! identifier-syntax expander)
+(define (insert-binding! identifier-syntax denotation)
   (define identifier (syntax-datum identifier-syntax))
   (when (identifier-referenced? identifier)
     (compiler-error "identifier has already been referenced" identfier-syntax))
-  (let ((binding (make-binding identifier-syntax expander)))
+  (let ((binding (make-binding identifier-syntax denotation)))
     (set-bindings! (map-set (get-bindings) identifier binding))
     (binding-reference! binding)))
 
@@ -98,22 +98,22 @@
    ((lookup-binding identifier) => binding-syntax)
    (else #f)))
 
-(define (lookup-expander! identifier)
+(define (lookup-denotation! identifier)
   (cond
-   ((lookup-binding identifier) => binding-expander)))
+   ((lookup-binding identifier) => binding-denotation)))
 
-(define (%insert-binding! identifier-syntax expander)
-  (define identifier (syntax-datum identifier-syntax) expander)
+(define (%insert-binding! identifier-syntax denotation)
+  (define identifier (syntax-datum identifier-syntax) denotation)
   (cond
    ((%lookup-binding identifier)
     => (lambda (binding)
-	 (unless (eq? (binding-expander binding) expander)
+	 (unless (eq? (binding-denotation binding) denotation)
 	   (compile-note "initial binding was here"
 			 (binding-syntax binding))
-	   (compile-error "identifier rebound with different expander"
+	   (compile-error "identifier rebound with different denotation"
 			  identifier-syntax))))
    (else
-    (insert-binding! identifier-syntax expander))))
+    (insert-binding! identifier-syntax denotation))))
 
 (define insert-binding-from!
   (case-lambda
@@ -126,7 +126,7 @@
        syntactic-environment
        (lambda () (%lookup-binding identifier)))
       => (lambda (binding)
-	   (%insert-binding! new-identifier-syntax (binding-expander binding))))
+	   (%insert-binding! new-identifier-syntax (binding-denotation binding))))
      (else
       (compile-error "unbound identifier" identifier-syntax))))))
    
@@ -147,7 +147,7 @@
        (map-for-each
 	(lambda (binding)
 	  (%insert-binding! (derive-syntax (rename (binding-identifier binding)) syntax)
-			    (binding-expander binding)))
+			    (binding-denotation binding)))
 	(with-syntactic-environment syntactic-environment (lambda () (get-bindings))))
        (get-syntactic-environment))))))
 
@@ -156,9 +156,11 @@
    (lambda (binding)
      (%insert-binding! (derive-syntax (binding-identifier binding)
 				      (binding-syntax binding))
-		       (binding-expander binding)))
+		       (binding-denotation binding)))
    (with-syntactic-environment syntactic-environment (lambda () (get-bindings)))))
 
-(define (binding-expand! binding form)
-  ((binding-expander binding) form))
-
+(define-syntax
+  (syntax-rules ()
+    ((syntactic-environment (identifier denotation) ...)
+     (%make-syntactic-environment
+      `(,(make-binding (datum->syntax 'identifier) denotation) ...)))))

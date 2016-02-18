@@ -15,21 +15,6 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-record-type <environment>
-  (make-environment bindings syntactic-environment)
-  environment?
-  (bindings environment-bindings)
-  (syntactic-environment environment-syntactic-environment))
-
-(define-record-type environment-type
-  (%make-environment bindings syntactic-environment gensym)
-  environment?
-  (bindings environment-bindings)
-  (syntactic-environment environment-syntactic-environment)
-  (gensym environment-gensym))
-
-;; TODO: rewrite this for the new syntactic-environment lib
-
 (define (make-environment import-sets)
   (define counter 0)
   (define (gensym)

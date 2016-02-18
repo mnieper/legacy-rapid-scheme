@@ -179,7 +179,7 @@
      (else
       (error "bad expression" expression)))))
 
-;;; XXX LATER
+;;; Construct a list of bindings
 
 (define-syntax bindings
   (syntax-rules ()
@@ -189,11 +189,11 @@
 (define-syntax bindings-aux
   (syntax-rules ()
     ((bindings-aux () ((formals expression) ...))
-     (%make-bindings
-      `(,(make-binding formals expression #f) ...)
-      #f))
-    ((bindings-aux (((x ...) expression) binding2 ...) reversed-bindings)
-     (bindings-aux (binding2 ...) (((make-formals `(,x ...) #f) expression) . reversed-bindings)))
-    ((bindings-aux (((x ... . y) expression) binding2 ...) reversed-bindings)
-     (bindings-aux (binding2 ...)
-		   (((make-formals `(,x ...) y #f) expression) . reversed-bindings)))))
+     `(,(make-binding formals expression #f) ...))
+    ((bindings-aux (((x ...) expression) binding ...)
+		   bindings)
+     (bindings-aux (binding ...)
+		   (bindings . (((make-formals `(,x ...) #f) expression)))))
+    ((bindings-aux (((x ... . y) expression) binding ...) bindings)
+     (bindings-aux (binding ...)
+		   (bindings . (((make-formals `(,x ...) y #f) expression)))))))

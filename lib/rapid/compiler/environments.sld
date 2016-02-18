@@ -18,6 +18,6 @@
 (define-library (rapid compiler environments)
   (export (make-environment environment? environment-bindings environment-syntactic-environment))
   (import (scheme base)
-	  (scheme expressions)
-	  (scheme syntactic-environments))
+	  (rapid compiler expressions)
+	  (rapid compiler syntactic-environments))
   (include "environment.scm"))

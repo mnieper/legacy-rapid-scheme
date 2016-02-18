@@ -25,11 +25,11 @@
 	  lookup-denotation!
 	  lookup-syntax!
 	  binding?
-	  binding-expand!
 	  insert-binding!
 	  insert-binding-from!
 	  insert-bindings-from!
-	  derive-syntactic-environment)
+	  derive-syntactic-environment
+	  syntactic-environment)
   (import (scheme base)
 	  (scheme case-lambda)
 	  (rapid comparators)
