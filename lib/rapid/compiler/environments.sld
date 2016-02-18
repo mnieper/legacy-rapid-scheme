@@ -15,7 +15,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-library (rapid compiler environment)
+(define-library (rapid compiler environments)
   (export (make-environment environment? environment-bindings environment-syntactic-environment))
   (import (scheme base)
 	  (scheme expressions)
