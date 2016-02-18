@@ -15,16 +15,10 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-library (rapid compiler libraries)
-  (export expand-import-sets)
+(define-library (rapid compiler programs)
+  (export expand-program)
   (import (scheme base)
-	  (rapid generators)
-	  (rapid compiler features)
-	  (rapid compiler error)
-	  (rapid compiler read)
-	  (rapid compiler syntax)
 	  (rapid compiler environments)
-	  (rapid compiler syntactic-environments)
-	  (rapid compiler path)
-	  (rapid compiler primitive))
-  (include "libraries.scm"))
+	  (rapid compiler syntactic-environment)
+	  (rapid compiler expressions))
+  (include "librariesprograms.scm"))

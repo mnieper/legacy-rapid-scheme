@@ -15,7 +15,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define (libraries-import import-sets)
+(define (expand-import-sets import-sets)
   (define bindings (reverse (environment-bindings primitive-environment)))
   (define library-table
     (let ((table (make-table (make-equal-comparator))))

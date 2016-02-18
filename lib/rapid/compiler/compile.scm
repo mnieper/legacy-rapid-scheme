@@ -16,6 +16,9 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define (compile filename)
+  ;; TODO  (use expression->datum for the moment) and output
+  ;; CALL EXPAND-PROGRAM AND THEN THE REST
+  
   (define read-syntax (read-file (datum->syntax filename) #f))
   (define-values (body environment)
     (let loop ((import-sets '()))
