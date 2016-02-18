@@ -25,6 +25,7 @@
 	  display-compile-error
 	  guard-compile)
   (import (scheme base)
+	  (scheme process-context)
 	  (scheme write)
 	  (rapid box)
 	  (rapid compiler syntax))

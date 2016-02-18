@@ -305,7 +305,7 @@
 
 (define (read-file string-syntax ci?)
   (unless (string? (syntax-datum string-syntax))
-    (compile-error (string-syntax ("bad string literal"))))
+    (compile-error "bad string literal" string-syntax))
   (make-coroutine-generator
    (lambda (yield)
      (define source

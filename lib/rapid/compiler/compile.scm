@@ -16,25 +16,10 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define (compile filename)
-  ;; TODO  (use expression->datum for the moment) and output
-  ;; CALL EXPAND-PROGRAM AND THEN THE REST
-  
-  (define read-syntax (read-file (datum->syntax filename) #f))
-  (define-values (body environment)
-    (let loop ((import-sets '()))
-      (define syntax (read-syntax))
-      (if (eof-object? syntax)
-	  (values '() (make-environment (reverse import-sets)))
-	  (if (and (list? form) (>= (length form) 1) (eq? (syntax-datum (car form)) 'import))
-	      (loop (append (cdr form) import-sets))
-	      (values (cons syntax (generator->list read-syntax))
-		      (make-environment (reverse import-sets)))))))
-  (define gensym (environment-gensym environment))
-  (define-values (top-level-bindings syntactic-environment)
-    (expand body (environment-syntactic-environment environment) gensym))
-  (define program
-    `(letrec* ,(append (environment-bindings environment) top-level-bindings)
-	      #t))
-  ;; TODO: simplify program
-  ;; TODO: compile program
-  program)
+  (guard-compile
+   (define read-syntax (read-file (datum->syntax filename) #f))
+   (define program (generator->list read-syntax))
+   (define expression (expand-program program))
+   (define output (expression->datum expression))
+   (write output)
+   (newline)))

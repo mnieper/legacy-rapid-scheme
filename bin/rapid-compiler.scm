@@ -1,6 +1,7 @@
 (import (scheme base)
 	(scheme process-context)
-	(rapid format))
+	(rapid format)
+	(rapid compiler compile))
 
 (define help-string (format "\
 Usage: ~a [options] file
@@ -33,4 +34,4 @@ There is NO WARRANTY, to the extent permitted by law.
   (unless (= (length (command-line)) 2)
     (write-string "rapid-compiler: exactly one input file needed\n")
     (exit #f))
-  'compile))
+  (compile (list-ref (command-line) 1))))
