@@ -25,88 +25,77 @@
 (define (set-expressions! expressions) (box-set! (current-expressions) expressions))
 (define current-context (make-parameter 'top-level))
 
+(define (top-level-context?) (eq? (current-context) 'top-level))
+(define (body-context?) (eq? (body-context) 'body))
+(define (expression-context?) (eq? (current-context) 'expression))
 
-(define (make-%binding formals expression syntax) (vector formals expression syntax))
+(define (make-%binding formals expression-syntax syntax)
+  (vector formals expression-syntax syntax))
 (define (expand-%binding %binding)
-  (make-binding
-   (vector-ref %binding 0)
-   (expand-expression (vector-ref %binding 1))
-   (vector-ref %binding 1)))
-
-
-
-(define (make-dummy-formals)
-  (make-formals (list (make-location #f)) #f #f))
-
-(define (make-reference-expander location)
-  (lambda (syntax)
-    (define form (syntax-datum syntax))
-    (if (list? form)
-	(delay
-	  (make-procedure-call (expand-expression (car form))
-			       (expand-expression* (cdr form))
-			       syntax))
-	(make-reference location syntax))))
-
-;; problem: the binding will be re-expanded
-;; how to handle this? insert-expression! nimmt keine echte expression an!
-;;
-;; (+ a b) wird zu (+ a b) als expression... (+ a b) als expression wird zu ?
-;; woher weiß (+ ...) in welchem Kontext ich bin?
-;;
-;;
-;; expanding: + ...  ;; + has to be bound (eq? car car) ==> true
-;;
-;; Every macro expands finally into an expression...
-;; The only problem are native 
-
-(define (expand-into-expression! expression)  ;; check whether expanding expression... (parameterize cc)
-  (define expressions (%get-expressions))
-  (if expressions
-      (set-expressions! (cons expression expressions))
-      (set-bindings! (cons (make-%binding (make-dummy-formals) expression #f))
-		     (%get-bindings))))
+  (if (binding? %binding)
+      %binding
+      (make-binding
+       (vector-ref %binding 0)
+       (expand-expression (vector-ref %binding 1))
+       (vector-ref %binding 1))))
+  
+(define (expand-into-expression expression) ((%expand-into-expression) expression))
+(define %expand-into-expression
+  (make-parameter
+   (lambda (expression)
+     (define expressions (%get-expressions))
+     (if expressions
+	 (set-expressions! (cons expression expressions))
+	 (set-bindings! (cons (make-binding (make-dummy-formals) expression #f))
+			(%get-bindings))))))
 
 (define (insert-location! identifier-syntax)
   (define location (make-location identifier-syntax))
-  (insert-binding! identifier-syntax (make-reference-expander location))
+  (insert-binding! identifier-syntax location)
   location)
 
-(define (expand-into-definition! fixed-variables
-				 rest-variable
-				 expression
-				 definition-syntax
-				 formals-syntax)
-  (define expressions (%get-expressions))
-  (when (and expressions (not (null? expressions)))
-    (compile-error "definitions may not follow expressions in a body" syntax))
-  (let*
-      ((fixed-locations (map insert-location! fixed-variables))
-       (rest-location (if rest-variable (insert-location! rest-variable) #f))
-       (formals (make-formals fixed-locations rest-location formals-syntax)))
-    (set-bindings! (cons (make-%binding formals expression definition-syntax)
-			 (%get-bindings)))))
+(define (expand-into-definition fixed-variables
+				rest-variable
+				formals-syntax
+				expression-syntax
+			       	definition-syntax)
+  (when (expression-context?)
+    (compile-error "unexpected definition" definition-syntax))
+  (let ((expressions (%get-expressions)))
+    (when (and expressions (not (null? expressions)))
+      (compile-error "definitions may not follow expressions in a body" syntax))
+    (let*
+	((fixed-locations (map insert-location! fixed-variables))
+	 (rest-location (if rest-variable (insert-location! rest-variable) #f))
+	 (formals (make-formals fixed-locations rest-location formals-syntax)))
+      (set-bindings! (cons (make-%binding formals expression-syntax definition-syntax)
+			   (%get-bindings))))))
 
-(define (expand-into-syntax-definition! identifier-syntax expander)
-  (insert-binding! identifier-syntax expander))
+(define (expand-into-syntax-definition identifier-syntax expander syntax)
+  (when (expression-context?)
+    (compile-error "unexpected syntax definition" syntax))
+  (let ((expressions (%get-expressions)))
+    (when (and expressions (not (null? expressions)))
+      (compile-error "syntax definitions may not follow expressions in a body" syntax))
+    (insert-binding! identifier-syntax expander)))
 
-(define (expand-into-sequence! syntax* syntax)
-  (if (eq? (current-context) 'expression)
-      (for-each expand-syntax syntax*)
-      (make-sequence syntax* syntax)))
+(define (expand-into-sequence syntax* syntax)
+  (cond
+   ((eq? (current-context) 'expression)
+    (when (null? syntax*)
+      (compile-error "begin expression may not be empty" syntax))
+    (for-each expand-syntax syntax*))
+   (else
+    (expand-into-expression (make-sequence syntax* syntax)))))
 
+;; Expands a top level program or a library's body
 (define (expand syntax*)
   (parameterize ((current-bindings '()))
     (for-each expand-syntax! syntax*)
     (parameterize ((current-context 'expression))
       (map expand-binding (get-bindings)))))
 
-;; NEEDED? relation to context
-;; see below
-(define (expand-expression syntax)
-  (parameterize ((current-context 'expression))
-      ))
-
+;; Expands a procedure body
 (define (expand-body body)
   (define syntax* (syntax-datum body))
   (parameterize ((current-context 'body)
@@ -120,6 +109,21 @@
        (map expand-expression (get-expressions))
        body))))
 
+;; Expands an expression
+(define (expand-expression syntax)
+  (call-with-current-continuation
+   (lambda (return)
+     (parameterize ((current-context 'expression)
+		    (%expand-into-expression return))
+       (expand-syntax! syntax)))))
+
+(define (expand-expression* syntax*)
+  (let loop ((syntax* syntax*))
+    (if (null? syntax*)
+	'()
+	(let ((expression (expand-expression* (car syntax*))))
+	  (cons expression (loop (cdr syntax*)))))))
+
 (define (expand-syntax! syntax)
   (define (thunk) (%expand-syntax! syntax))
   (if (eq? (current-context) 'top-level)
@@ -130,18 +134,23 @@
   (define form (syntax-datum syntax))
   (cond
    ((simple-datum? form)
-    (expand-into-expression! syntax))
+    (expand-into-expression! (make-literal form syntax)))
    ((null? form)
     (compile-error "empty application in source" syntax))
    ((identifier? form)
-    (expand-into-expression! syntax))
+    (cond
+     ((lookup-transformer! (car form))
+      => (lambda (transform!)
+	   (transform! syntax)))
+     (else
+      (compile-error "undefined variable" syntax))))
    ((list? form)
     (cond
      ((lookup-transformer! (car expression))
       => (lambda (transform!)
 	   (transform! syntax)))
       (else
-       (insert-expression! syntax))))
+       (compile-error "undefined variable" syntax))))
    (else
     (compile-error "invalid form" syntax))))
 
@@ -150,27 +159,20 @@
   (and
    (identifier? form)
    (let ((denotation (lookup-denotation! form)))
-     (and (proc? denotation) denotation))))
+     (if (proc? denotation)
+	 denotation
+	 (lambda (syntax)
+	   (define form (syntax-datum syntax))
+	   (if (identifier? form)
+	       (make-reference denotation syntax)
+	       (make-procedure-call (make-reference denotation (car form))
+				    (expand-expression* (cdr form))
+				    syntax)))))))
 
-(define (expand-expression syntax)
-  (define form (syntax-datum syntax))
-  (cond
-   ((simple-datum? form)
-    (make-literal form syntax))
-   ((null? form)
-    (compile-error "empty application in source" source))
-   ((identifier? form)
-    (cond
-     ((lookup-denotation! form) =>
-      (lambda (binding)
-	...))
-     (else
-      (compile-error "undefined variable" syntax))))
-   ((list? form)
-    
-    )
-   (else
-    (compile-error "invalid form" syntax))))
+;;; Utility procedures
+
+(define (make-dummy-formals)
+  (make-formals (list (make-location #f)) #f #f))
 
 (define (simple-datum? expression)
   (or (number? expression)
@@ -181,68 +183,3 @@
       (vector? expression)))
 
 (define (identifier? form) (symbol? form)) ;; TODO: syntactic closures
-
-;; BELOW THAT IS OLD CODE
-
-(define (expand-simple-datum? expression-syntax)
-  (define expression (syntax-datum expression-syntax))
-  (and
-   (simple-datum? expression)
-   (make-constant expression expression-syntax)))
-
-(define (expand-null? expression-syntax)
-  (compile-error "empty application in source" expression-syntax))
-
-(define (expand-identifier? expression-syntax syntactic-environment)
-  (define expression (syntax-datum) expression-syntax)
-  (and
-   (symbol? expression)
-   (cond
-    ((lookup-binding expression syntactic-environment)
-     => (lambda (binding)
-	  ((binding-transformer binding) expression-syntax syntactic-environment)))
-    (else (compile-error "undefined variable" expression-syntax)))))
-
-(define (expand-combination? expression-syntax syntactic-environment)
-  (define expression (syntax-datum expression-syntax))
-  (and
-   (not (null? expression))
-   (list? expression)
-   (let* ((operator-syntax (car expression))
-	  (operator (syntax-datum operator)))
-     (if (symbol? operator)
-	 (cond
-	  ((lookup-binding operator syntactic-environment)
-	   => (lambda (binding)
-		((binding-transformer binding) expression-syntax syntactic-environment)))
-	  (else (compile-error "undefined variable" operator-syntax)))
-	 (make-procedure-call (expand-expression operator-syntax syntactic-environment)
-			      (expand-expression* (cdr expression) syntactic-environment)
-			      expression-syntax)))))
-
-(define (expand-expression expression-syntax syntactic-environment)
-  (define expression (datum->syntax expression-syntax))
-  (cond
-   ((expand-simple-datum? expression-syntax))
-   ((expand-null? expression-syntax))
-   ((expand-identifier? expression-syntax syntactic-environment))
-   ((expand-combination? expression-syntax syntactic-environment) => only-expression)
-   (else (compile-error "invalid form" expression-syntax))))
-
-(define (only-expression expression)
-  (cond
-   ((definition? expression)
-    (compile-error "definition not allowed here"
-		   (expression-syntax expression)))
-   ((syntax-definition? expression)
-    (compile-error "syntax definitions not allowed here"
-		   (expression-syntax expression)))
-   (else
-    expression)))
-
-(define (expand-expression* expression-syntax* syntactic-environment)
-  (let loop ((expression-syntax* expression-syntax*))
-    (if (null? expression-syntax*)
-	'()
-	(cons (expand-expression (car expression-syntax*) syntactic-environment)
-	      (loop (cdr expression-syntax*))))))

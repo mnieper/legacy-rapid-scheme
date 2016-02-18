@@ -17,10 +17,12 @@
 
 (define-library (rapid compiler expand)
   (export expand
-	  expand-into-expression!
-	  expand-into-definition!
-	  expand-into-syntax-definition!
-	  expand-into-sequence!)
+	  expand-body
+	  expand-syntax!
+	  expand-into-expression
+	  expand-into-definition
+	  expand-into-syntax-definition
+	  expand-into-sequence)
   (import (scheme base)
 	  (scheme lazy)
 	  (rapid box)
