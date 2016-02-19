@@ -264,9 +264,10 @@
     (and (list? form)
 	 (let loop ((form form))
 	   (or (null? form)
-	       (and (or (and (exact-integer? (car form)) (>= (car form) 0))
-			(symbol? (car form)))
-		    (loop (cdr form)))))))
+	       (let ((datum (syntax-datum (car form))))
+		 (and (or (and (exact-integer? datum) (>= datum 0))
+			  (symbol? datum))
+		      (loop (cdr form))))))))
   (unless (library-name?)
     (compile-error "bad library name" library-name-syntax)))
 

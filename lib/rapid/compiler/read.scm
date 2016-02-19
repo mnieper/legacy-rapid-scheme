@@ -113,6 +113,9 @@
 	     (yield datum-syntax)
 	     (loop))))))))
 
+;;; FIXME: start does not work (a ... b ... c): b gets the wrong start...
+;;; should better use a parameter or something like this
+
 (define (read-syntax source-port context)
   (define (read) (source-port-read-char source-port))
   (define (peek) (source-port-peek-char source-port))
