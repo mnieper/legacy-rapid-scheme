@@ -272,14 +272,14 @@
     (compile-error "bad library name" library-name-syntax)))
 
 (define (read-library-definition library-name-syntax)
-  (define library-name (syntax-datum library-name))
+  (define library-name (syntax-datum library-name-syntax))
   (define (locate-library)
     ;; TODO: error handling
     ;; TODO: search several directories
     (let loop ((filename "share") (library-name library-name))
       (if (null? library-name)
 	  (string-append filename ".sld")
-	  (loop (path-join filename (symbol->string (car library-name)))
+	  (loop (path-join filename (symbol->string (syntax-datum (car library-name))))
 		(cdr library-name)))))
   (define source (locate-library))
   (call-with-input-file source
@@ -296,7 +296,7 @@
 		 (>= (length form) 2)
 		 (eq? (syntax-datum (car form)) 'library-definition))
 	    (assert-library-name! (cadr form))
-	    (if (equal? (syntax-datum (cadr form)) library-name)
+	    (if (equal? (syntax->datum (cadr form)) (syntax->datum library-name))
 		syntax
 		(loop)))
 	   (else

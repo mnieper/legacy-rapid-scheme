@@ -63,7 +63,8 @@
 	       (source-location-end-line source-location))
       (display (source-location-end-line source-location))
       (display "."))
-    (display (+ (source-location-end-column source-location) 1))
+    (display (source-location-end-column source-location))  ;; TODO: don't show column if same as
+					; start
     (display ": ")))
 
 (define (display-context syntax)

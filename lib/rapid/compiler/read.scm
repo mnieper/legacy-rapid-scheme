@@ -293,6 +293,7 @@
     (error "unexpected end of file" (position) (position)))
   (define syntax
     (let %read-syntax ((allowed-tokens '(eof-object)))
+      (define start (position))
       (define (read-syntax) (%read-syntax allowed-tokens))
       (define (abbreviation identifier start)  ;; MOVE OUT
 	(define syntax (make-syntax identifier start (position)))
