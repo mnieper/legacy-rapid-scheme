@@ -173,7 +173,7 @@
     (cond
      ;; References
      ((reference? expression)
-      (table-ref identifier-table (reference-location expression)))
+      (lookup-identifier! (reference-location expression)))
      ;; Literals
      ((literal? expression)
       (literal-value expression))

@@ -95,7 +95,13 @@
   (make-procedure
    (list
     (make-clause (make-formals location* #f #f)
-		 (list (make-primitive-operation operator location* #f))
+		 (list
+		  (make-primitive-operation operator
+					    (map
+					     (lambda (location)
+					       (make-reference location #f))
+					     location*)
+					    #f))
 		 #f))
    #f))
 
