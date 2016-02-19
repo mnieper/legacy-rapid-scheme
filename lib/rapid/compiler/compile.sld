@@ -23,6 +23,6 @@
 	  (rapid compiler error)
 	  (rapid compiler syntax)
 	  (rapid compiler expressions)
-	  (rapid compiler libraries)
+	  (rapid compiler read)
 	  (rapid compiler programs))
   (include "compile.scm"))

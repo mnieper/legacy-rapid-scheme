@@ -39,16 +39,16 @@
 ;;; Ports
 
 (define-record-type source-port-type
-  (%make-source-port port ci? source line column)
+  (%make-source-port port source ci? line column)
   source-port?
   (port source-port-port)
-  (ci? source-port-ci? source-port-set-ci!)
   (source source-port-source)
+  (ci? source-port-ci? source-port-set-ci!)
   (line source-port-line source-port-set-line!)
   (column source-port-column source-port-set-column!))
 
-(define (make-source-port port ci? source)
-  (%make-source-port port ci? source 1 0))
+(define (make-source-port port source ci?)
+  (%make-source-port port source ci? 1 0))
 
 (define (source-port-peek-char source-port)
   (peek-char (source-port-port source-port)))
@@ -93,6 +93,26 @@
 (define (read-error message location)
   (raise (make-read-error-object message location)))
 
+(define (read-file filename ci? syntax)
+  (make-coroutine-generator
+   (lambda (yield)
+     (define source
+       (cond
+	((and syntax (syntax-source-location syntax))
+	 => (lambda (source-location)
+	      (path-join (path-directory (source-location-source source-location))
+			 filename)))
+	(else
+	 filename)))
+     (call-with-input-file source
+       (lambda (port)
+	 (define source-port (make-source-port port source ci?))
+	 (let loop ()
+	   (define datum-syntax (read-syntax source-port syntax))
+	   (unless (eof-object? datum-syntax)
+	     (yield datum-syntax)
+	     (loop))))))))
+
 (define (read-syntax source-port context)
   (define (read) (source-port-read-char source-port))
   (define (peek) (source-port-peek-char source-port))
@@ -104,6 +124,9 @@
   (define (syntax-end syntax) (source-location-end (syntax-source-location syntax)))
   (define (error message start end) (read-error message (make-location start end)))
   (define start (position))
+  (define seen? #f)
+  (define (seen!) (set! seen? #t))
+  (define (set-start!) (unless seen? (set! start (position))))
   (define (fold-case?) (source-port-ci? source-port))
   (define (maybe-foldcase string)
     (if (fold-case?) (string-foldcase string) string))
@@ -284,6 +307,7 @@
 	 ;; Whitespace
 	 ((#\space #\tab #\newline #\return)
 	  (read)
+	  (set-start!)
 	  (read-syntax))
 	 ;; Line comment
 	 ((#\;)
@@ -292,15 +316,17 @@
 	    (define c (read))
 	    (unless (or (eof-object? c) (char=? c #\return) (char=? c #\newline))
 	      (loop)))
+	  (set-start!)
 	  (read-syntax))
 	 ;; List
 	 ((#\()
+	  (seen!)
 	  (read)
 	  (let loop ((datum* '())) ;; TODO rename datum* -> syntax* because it is syntax
 	    (define datum (%read-syntax '(closing-parenthesis dot)))
 	    (case datum
 	      ((closing-parenthesis)
-	       (make-syntax (reverse datum*) start position))
+	       (make-syntax (reverse datum*) start (position)))
 	      ((dot)
 	       (let* ((dot-position
 		       (position))
@@ -314,14 +340,17 @@
 	      (else (loop (cons datum datum*))))))
 	 ;; Quote
 	 ((#\')
+	  (seen!)
 	  (read)
 	  (abbreviation 'quote))      
 	 ;; Quasiquote
 	 ((#\`)
+	  (seen!)
 	  (read)
 	  (abbreviation 'quasiquote))
 	 ;; Unquote
 	 ((#\,)
+	  (seen!)
 	  (read)
 	  (cond
 	   ((char=? (peek) #\@)
@@ -345,6 +374,7 @@
 	    ((#\;)
 	     (read)
 	     (read-syntax)
+	     (set-start!)
 	     (read-syntax))
 	    ;; Nested comment
 	    ((#\|)
@@ -363,6 +393,7 @@
 		       (loop (- level 1)))
 		      (else
 		       (loop level)))))))
+	     (set-start!)
 	     (read-syntax))
 	    ;; Directive
 	    ((#\!)
@@ -370,15 +401,16 @@
 	     (let ((token (read-token)))
 	       (cond
 		((string-ci=? token "fold-case")
-		 (source-port-fold-case! #t)
-		 (read-syntax))
+		 (source-port-fold-case! #t))
 		((string-ci=? token "no-fold-case")
-		 (source-port-no-fold-case! #f)
-		 (read-syntax))
+		 (source-port-no-fold-case! #f))
 		(else
-		 (error "invalid directive" start (position))))))
+		 (error "invalid directive" start (position))))
+	       (set-start!)
+	       (read-token)))
 	    ;; Boolean
 	    ((#\t #\f #\T #\F)
+	     (seen!)
 	     (let ((token (read-token)))
 	       (cond
 		((or (string-ci=? token "t") (string-ci=? token "true"))
@@ -388,6 +420,7 @@
 		(else (error "invalid constant" start (position))))))
 	    ;; Character
 	    ((#\\)
+	     (seen!)
 	     (read)
 	     (let ((token (read-token)))
 	       (define n (string-length token))
@@ -414,6 +447,7 @@
 				 start (position))))))))
 	    ;; Vector
 	    ((#\()
+	     (seen!)
 	     (read)
 	     (let loop ((datum* '()))
 	       (define datum (%read-syntax '(closing-parenthesis)))
@@ -423,6 +457,7 @@
 		 (else (loop (cons datum datum*))))))
 	    ;; Bytevector
 	    ((#\u)
+	     (seen!)
 	     (unless (string-ci=? (read-token) "u8")
 	       (error "invalid sharp token" start (position)))
 	     (unless (char=? (peek) #\()
@@ -440,12 +475,14 @@
 		      (error "not a byte " (syntax-start datum) (syntax-end datum)))
 		    (loop (cons byte byte*)))))))
 	    ((#\e #\i #\d #\b #\o #\x)
+	     (seen!)
 	     (cond
 	      ((string->number (string-append "#" (read-token)))
 	       => (lambda (number)
 		    (make-syntax number start (position))))
 	      (else (error "bad number" start (position)))))
 	    (else
+	     (seen!)
 	     (unless (digit-value (peek))
 	       (error "invalid sharp syntax" start (position)))
 	     (let ((label (let loop ((value 0))
@@ -482,14 +519,17 @@
 		    syntax))
 		 (else (error "bad label datum" start (position))))))))
 	 ((#\")
+	  (seen!)
 	  (read)
 	  (let ((string (read-string #\")))
 	    (make-syntax string start (position))))
 	 ((#\|)
+	  (seen!)
 	  (read)
 	  (let ((identifier (string->symbol (maybe-foldcase (read-string #\|)))))
 	    (make-syntax identifier start (position))))
 	 (else
+	  (seen!)
 	  (let ((token (read-token)))
 	    (cond
 	     ((string=? token ".")

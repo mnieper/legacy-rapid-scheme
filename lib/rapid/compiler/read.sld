@@ -22,6 +22,7 @@
 	  read-error-object-message
 	  read-error-object-location
 	  read-syntax
+	  read-file
 	  source-location-source
 	  source-location-start-line
 	  source-location-start-column
@@ -30,7 +31,10 @@
   (import (scheme base)
 	  (scheme char)
 	  (scheme case-lambda)
+	  (scheme file)
 	  (rapid comparators)
+	  (rapid generators)
 	  (rapid table)
+	  (rapid compiler path)
 	  (rename (rapid compiler syntax) (make-syntax syntax-make-syntax)))
   (include "read.scm"))

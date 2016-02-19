@@ -15,6 +15,11 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;;; TODO
+;; Refactor bindings and library-table to environments
+;; Do a similar thing as we did with syntactic-environments
+;; Split this (possibly) into import-sets and libraries
+
 (define (expand-import-sets import-sets)
   (define bindings (reverse (environment-bindings primitive-environment)))
   (define library-table
@@ -278,7 +283,7 @@
   (define source (locate-library))
   (call-with-input-file source
     (lambda (port)  
-      (define source-port (make-source-port port #f source))
+      (define source-port (make-source-port port #f source))   ;; TODO: use read-file ?
       (let loop ()
 	(define syntax (read-syntax source-port library-name-syntax))
 	(when (eof-object? syntax)
@@ -300,30 +305,14 @@
 (define (read-file* string-syntax* ci?)
   (apply gappend (map
 		  (lambda (string-syntax)
-		    (read-file string-syntax ci?))
+		    (%read-file string-syntax ci?))
 		  string-syntax*)))
 
-(define (read-file string-syntax ci?)
-  (unless (string? (syntax-datum string-syntax))
+(define (%read-file string-syntax ci?)
+  (define filename (syntax-datum string-syntax))
+  (unless (string? filename)
     (compile-error "bad string literal" string-syntax))
-  (make-coroutine-generator
-   (lambda (yield)
-     (define source
-       (cond
-	((syntax-source-location string-syntax)
-	 => (lambda (source-location)
-	      (path-join (path-directory (source-location-source
-					  (syntax-source-location string-syntax)))
-			 (syntax-datum string-syntax))))
-	(else (syntax-datum string-syntax))))
-     (call-with-input-file source
-       (lambda (port)
-	 (define source-port (make-source-port port source ci?))
-	 (let loop ()
-	   (define syntax (read-syntax source-port string-syntax))
-	   (unless (eof-object? syntax)
-	     (yield syntax)
-	     (loop))))))))
+  (read-file filename ci? string-syntax))
 
 (define (symbol-append symbol1 symbol2)
   (string->symbol
