@@ -25,7 +25,7 @@
 
 (define (with-syntactic-environment syntactic-environment thunk)
   (parameterize
-      ((current-bindings (syntactic-environment-bindings))
+      ((current-bindings (syntactic-environment-bindings syntactic-environment))
        (current-references (make-set (make-eq-comparator))))
     (thunk)))
 

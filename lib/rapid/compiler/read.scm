@@ -260,7 +260,7 @@
      (#\" . #\")
      (#\\ . #\\)
      (#\| . #\|)))
-  (define references (make-table))
+  (define references (make-table (make-eq-comparator)))
   (define declarations '())
   (define-record-type reference-type  ;; XXX Find better name for reference
     (%make-reference uses) reference? (uses reference-uses reference-set-uses!))

@@ -54,7 +54,7 @@
   (define equality (table-equality-predicate table))
   (define entries (table-entries table))
   (cond
-   ((assv key entries equality) => cdr)
+   ((assoc key entries equality) => cdr)
    (else
     (let ((value (failure)))
       (table-set-entries! table (cons (cons key value) entries))

@@ -103,7 +103,7 @@
 		(display-compile-error condition)
 		(exit #f))
 	       (else
-		(display "compiler error" (current-error-port))
+		(display "rapid-compiler: Internal error" (current-error-port))
 		(newline (current-error-port))
 		(raise condition)))
 	 body1

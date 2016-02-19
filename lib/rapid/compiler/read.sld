@@ -30,6 +30,7 @@
   (import (scheme base)
 	  (scheme char)
 	  (scheme case-lambda)
+	  (rapid comparators)
 	  (rapid table)
 	  (rename (rapid compiler syntax) (make-syntax syntax-make-syntax)))
   (include "read.scm"))

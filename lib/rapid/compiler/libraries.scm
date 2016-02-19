@@ -144,26 +144,24 @@
 		     (loop declarations
 			   import-sets
 			   export-specs
-			   (generator-fold cons body (read-file* (cdr form) #f))))
+			   (append (reverse (cdr form)) body)))
 		    ((include)
 		     (loop declarations
 			   import-sets
 			   export-specs
-			   (generator-fold cons body (read-file* (cdr form) #t))))
+			   (generator-fold cons body (read-file* (cdr form) #f))))
 		    ((include-ci)
 		     (loop declarations
 			   import-sets
 			   export-specs
-			   (append (reverse (read-file* (cdr form) #t))
-				   body)))
+			   (generator-fold cons body (read-file* (cdr form) #t))))
 		    ((include-library-declarations)
-		     (loop (append (reverse (read-file (cdr form) #f))
-				   declarations)
+		     (loop (generator-fold cons declarations (read-file (cdr form) #f))
 			   import-sets
 			   export-specs
 			   body))			   
 		    ((cond-expand)
-		     (let loop ((clauses (cdr form)))
+		     (let loop-clauses ((clauses (cdr form)))
 		       (if (null? clauses)
 			   (loop declarations import-sets export-specs body)
 			   (let ((clause (car clauses)))
@@ -175,16 +173,16 @@
 			       (unless (null? (cdr clauses))
 				 (compile-error "else clause not last" declaration))
 			       (loop (append (cdr form) declarations)
-				     (import-sets
-				      export-specs
-				      body)))
+				     import-sets
+				     export-specs
+				     body))
 			      ((feature? (car form))
 			       (loop (append (cdr form) declarations)
 				     import-sets
 				     export-specs
 				     body))
 			      (else
-			       (loop (cdr clauses))))))))
+			       (loop-clauses (cdr clauses))))))))
 		    (else
 		     (compile-error "invalid library declaration" declaration)))))))
 	(with-syntactic-environment
@@ -218,7 +216,7 @@
   (cond
    ((symbol? form)
     (assq form rapid-features))
-   ((and (not (null? form) (list? form)))
+   ((and (not (null? form)) (list? form))
     (case (syntax-datum (car form))
       ((library)
        (unless (= (length form) 2)
