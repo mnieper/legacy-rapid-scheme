@@ -15,13 +15,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define (compile filename)
-  (guard-compile
-   (define read-syntax (read-file (datum->syntax filename) #f))
-   (define program (generator->list read-syntax))
-   (define expression (expand-program program))
-   (define output (expression->datum expression))
-   (write '(import (rapid primitive)))
-   (newline)
-   (write output)
-   (newline)))
+(define-library (rapid primitive)
+  (export letrec* case-lambda
+	  + apply)
+  (import (scheme base)
+	  (scheme case-lambda)))
