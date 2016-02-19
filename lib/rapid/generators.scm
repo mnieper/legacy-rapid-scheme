@@ -15,7 +15,6 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 (define (make-coroutine-generator proc)
   (define return #f)
   (define resume #f)
@@ -70,3 +69,15 @@
 			    (if (eof-object? value)
 				(return result)
 				(cons value (loop (cdr gen*)))))))))))))
+
+(define generator->list
+  (case-lambda
+   ((generator) (generator->list generator +inf.0))
+   ((generator k)
+    (let loop ((i 0))
+      (if (= i k)
+	  '()
+	  (let ((value (generator)))
+	    (if (eof-object? value)
+		'()
+		(cons value (loop (+ i 1))))))))))

@@ -40,7 +40,7 @@
   (%make-comparator (lambda (obj) #t) equal? #f #f))
 
 (define (comparator-test-type comparator obj)
-  ((comparator-test-type-predicate comparator) obj))
+  ((comparator-type-test-predicate comparator) obj))
 
 (define (comparator-check-type comparator obj)
   (or (comparator-test-type comparator obj)

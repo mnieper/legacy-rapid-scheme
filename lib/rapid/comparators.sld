@@ -16,7 +16,7 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid comparators)
-  (export make-comparator comparator?
+  (export make-comparator comparator? comparator-equality-predicate
 	  make-eq-comparator make-eqv-comparator make-equal-comparator
 	  =?)
   (import (scheme base))

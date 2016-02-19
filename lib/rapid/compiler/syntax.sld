@@ -17,6 +17,7 @@
 
 (define-library (rapid compiler syntax)
   (export make-syntax syntax? syntax-datum syntax-source-location syntax-context
+	  syntax-set-datum!
 	  derive-syntax datum->syntax)
   (import (scheme base))
   (include "syntax.scm"))

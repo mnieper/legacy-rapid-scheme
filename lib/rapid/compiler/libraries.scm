@@ -42,7 +42,7 @@
   (define (read-import-set import-set)
     (define form (syntax-datum import-set))
     (unless (list? form)
-      (compile-error "bad import set") import-set)
+      (compile-error "bad import set" import-set))
     (cond
      ;; Import set modifier
      ((and (> (length form) 1) (list? (syntax-datum (cadr form))))
@@ -113,11 +113,11 @@
      ((lookup-synthetic-environment library-name))
      (else
       (when (library-loading? library-name)
-	(compile-error "library references itself while loading" library-name-syntax)))
+	(compile-error "library references itself while loading" library-name-syntax))
       (insert-library! library-name)
       (let ((library-definition (read-library-definition library-name-syntax)))
+	(define form (syntax-datum library-definition))
 	(define-values (import-sets export-specs body)
-	  (define form (syntax-datum library-definition))
 	  (let loop ((declarations (cddr form))
 		     (import-sets '())
 		     (export-specs '())
@@ -190,7 +190,7 @@
 	(with-syntactic-environment
 	 (create-syntactic-environment import-sets)
 	 (lambda ()
-	   (set! bindings (append (reverse (expand body)) bindings))
+	   (set! bindings (append (reverse (expand-top-level body)) bindings))
 	   (let ((syntactic-environment (get-syntactic-environment)))
 	     (with-syntactic-environment
 	      (make-syntactic-environment)
@@ -209,7 +209,7 @@
 		     (assert-identifier! export-spec)
 		     (insert-binding-from export-spec syntactic-environment))))
 		 export-specs)
-		(get-syntactic-environment)))))))))
+		(get-syntactic-environment))))))))))
   (define syntactic-environment (create-syntactic-environment import-sets))
   (make-environment (reverse bindings) syntactic-environment))
 
@@ -222,7 +222,7 @@
     (case (syntax-datum (car form))
       ((library)
        (unless (= (length form) 2)
-	 (compile-error (feature-requirement-syntax ("bad library feature requirement"))))
+	 (compile-error "bad library feature requirement" feature-requirement-syntax))
        (guard (condition
 	       ((compile-error-object? condition) #f))
 	      (read-library-definition (cadr form))
@@ -243,16 +243,17 @@
 	       (or r1 r2)))))
       ((not)
        (unless (= (length form) 2)
-	 (compile-error (feature-requirement-syntax ("bad not feature requirement"))))
+	 (compile-error "bad not feature requirement" feature-requirement-syntax))
        (not (feature? (cadr form))))
       (else
-       (compile-error (feature-requirement-syntax ("invalid feature requirement"))))))
+       (compile-error "invalid feature requirement" feature-requirement-syntax))))
    (else
-    (compile-error (feature-requirement-syntax ("bad feature requirement"))))))
+    (compile-error "bad feature requirement" feature-requirement-syntax))))
 
-(define (assert-identifier! identifier)
-  (unless (symbol? (syntax-datum identifier))
-    (compile-error (identifier ("bad identifier ‘~a’" (syntax-datum identifier))))))
+(define (assert-identifier! identifier-syntax)
+  (unless (symbol? (syntax-datum identifier-syntax))
+    (compile-error (format "bad identifier ‘~a’" (syntax-datum identifier-syntax))
+		   identifier-syntax)))
 
 (define (assert-library-name! library-name-syntax)
   (define form (syntax-datum library-name-syntax))
@@ -264,7 +265,7 @@
 		      (symbol? (car form)))
 		  (loop (cdr form)))))))
   (unless (library-name?)
-    (compile-error (import-set ("bad library name")))))
+    (compile-error "bad library name" import-set)))
 
 (define (read-library-definition library-name-syntax)
   (define library-name (syntax-datum library-name))
@@ -283,8 +284,8 @@
       (let loop ()
 	(define syntax (read-syntax source-port library-name-syntax))
 	(when (eof-object? syntax)
-	  (compile-error (library-name-syntax ("library definition not found in file ‘~a’"
-					       source))))
+	  (compile-error (format "library definition not found in file ‘~a’" source)
+			 library-name-syntax))
 	(let ((form (syntax-datum syntax)))
 	  (if (and (list? form)
 		   (>= (length form) 2)
@@ -293,7 +294,7 @@
 		  (if (equal? (syntax-datum (cadr form)) library-name)
 		      syntax
 		      (loop))
-		  (compile-error (import-set ("bad library name"))))
+		  (compile-error "bad library name" import-set))
 	      (loop)))))))
 
 
@@ -309,9 +310,13 @@
   (make-coroutine-generator
    (lambda (yield)
      (define source
-       (path-join (path-directory (source-location-source
-				   (syntax-source-location string-syntax)))
-		  (syntax-datum string-syntax)))
+       (cond
+	((syntax-source-location string-syntax)
+	 => (lambda (source-location)
+	      (path-join (path-directory (source-location-source
+					  (syntax-source-location string-syntax)))
+			 (syntax-datum string-syntax))))
+	(else (syntax-datum string-syntax))))
      (call-with-input-file source
        (lambda (port)
 	 (define source-port (make-source-port port source ci?))

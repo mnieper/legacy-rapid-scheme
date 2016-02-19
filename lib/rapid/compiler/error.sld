@@ -28,5 +28,6 @@
 	  (scheme process-context)
 	  (scheme write)
 	  (rapid box)
-	  (rapid compiler syntax))
+	  (rapid compiler syntax)
+	  (rapid compiler read))
   (include "error.scm"))

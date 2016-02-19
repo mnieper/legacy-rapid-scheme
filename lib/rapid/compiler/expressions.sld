@@ -22,14 +22,18 @@
 	  make-procedure-call procedure-call?
 	  make-primitive-operation primitive-operation?
 	  make-procedure expression-procedure?
+	  make-letrec*-expression letrec*-expression?
+	  make-sequence sequence?
 	  make-location location?
 	  make-clause clause?
 	  make-binding binding?
 	  make-formals formals?
 	  make-operator operator? operator-arity
-	  expression->datum)
+	  expression->datum
+	  bindings)
   (import (scheme base)
 	  (scheme case-lambda)
+	  (rapid comparators)
 	  (rapid table))
   (include "expressions.scm"))
 

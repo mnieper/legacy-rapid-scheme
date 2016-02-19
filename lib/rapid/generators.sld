@@ -19,6 +19,7 @@
   (export make-coroutine-generator
 	  make-range-generator
 	  gappend
+	  generator->list
 	  generator-fold)
   (import (scheme base)
 	  (scheme case-lambda))

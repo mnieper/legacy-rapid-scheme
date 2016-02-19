@@ -17,11 +17,11 @@
 
 (define current-bindings (make-parameter #f box))
 (define (get-bindings) (unbox (current-bindings)))
-(define (set-bindings! bindings) (box-set! (current-bindings) bindings))
+(define (set-bindings! bindings) (set-box! (current-bindings) bindings))
 
 (define current-references (make-parameter #f box))
 (define (get-references) (unbox (current-references)))
-(define (set-references! references) (box-set! (current-references) references))
+(define (set-references! references) (set-box! (current-references) references))
 
 (define (with-syntactic-environment syntactic-environment thunk)
   (parameterize
@@ -51,7 +51,7 @@
 
 (define-record-type <binding>
   (make-binding syntax denotation)
-  binding?
+  syntactic-binding?
   (syntax binding-syntax)
   (denotation binding-denotation))
 
@@ -81,29 +81,29 @@
   (cond
    ((%lookup-binding identifier)
     => (lambda (binding)
-	 (reference-binding! binding)
+	 (binding-reference! binding)
 	 binding))
    (else #f)))
 
 (define (insert-binding! identifier-syntax denotation)
   (define identifier (syntax-datum identifier-syntax))
   (when (identifier-referenced? identifier)
-    (compiler-error "identifier has already been referenced" identfier-syntax))
+    (compile-error "identifier has already been referenced" identifier-syntax))
   (let ((binding (make-binding identifier-syntax denotation)))
     (set-bindings! (map-set (get-bindings) identifier binding))
     (binding-reference! binding)))
 
 (define (lookup-syntax! identifier)
   (cond
-   ((lookup-binding identifier) => binding-syntax)
+   ((lookup-binding! identifier) => binding-syntax)
    (else #f)))
 
 (define (lookup-denotation! identifier)
   (cond
-   ((lookup-binding identifier) => binding-denotation)))
+   ((lookup-binding! identifier) => binding-denotation)))
 
 (define (%insert-binding! identifier-syntax denotation)
-  (define identifier (syntax-datum identifier-syntax) denotation)
+  (define identifier (syntax-datum identifier-syntax))
   (cond
    ((%lookup-binding identifier)
     => (lambda (binding)

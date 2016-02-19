@@ -16,8 +16,10 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid compiler libraries)
-  (export expand-import-sets)
+  (export expand-import-sets read-file)
   (import (scheme base)
+	  (scheme file)
+	  (rapid format)
 	  (rapid generators)
 	  (rapid compiler features)
 	  (rapid compiler error)

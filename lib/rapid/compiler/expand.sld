@@ -16,7 +16,7 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid compiler expand)
-  (export expand
+  (export expand-top-level
 	  expand-body
 	  expand-expression
 	  expand-syntax!
@@ -28,5 +28,8 @@
 	  (scheme lazy)
 	  (rapid lists)
 	  (rapid box)
-	  (rapid compiler syntax))
+	  (rapid compiler error)
+	  (rapid compiler syntax)
+	  (rapid compiler syntactic-environments)
+	  (rapid compiler expressions))
   (include "expand.scm"))

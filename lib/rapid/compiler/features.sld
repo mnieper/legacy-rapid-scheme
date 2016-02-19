@@ -16,6 +16,6 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid compiler features)
-  (export rapid-features feature?)
+  (export rapid-features)
   (import (scheme base))
   (include "features.scm"))

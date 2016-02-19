@@ -24,7 +24,7 @@
 	  lookup-binding!
 	  lookup-denotation!
 	  lookup-syntax!
-	  binding?
+	  syntactic-binding?
 	  insert-binding!
 	  insert-binding-from!
 	  insert-bindings-from!

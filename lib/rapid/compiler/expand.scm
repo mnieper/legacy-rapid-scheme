@@ -18,15 +18,15 @@
 (define current-bindings (make-parameter #f box))
 (define (%get-bindings) (unbox (current-bindings)))
 (define (get-bindings) (reverse (%get-bindings)))
-(define (set-bindings! bindings) (box-set! (current-bindings) bindings))
+(define (set-bindings! bindings) (set-box! (current-bindings) bindings))
 (define current-expressions (make-parameter #f box))
 (define (%get-expressions) (unbox (current-expressions)))
 (define (get-expressions) (reverse (%get-expressions)))
-(define (set-expressions! expressions) (box-set! (current-expressions) expressions))
+(define (set-expressions! expressions) (set-box! (current-expressions) expressions))
 (define current-context (make-parameter 'top-level))
 
 (define (top-level-context?) (eq? (current-context) 'top-level))
-(define (body-context?) (eq? (body-context) 'body))
+(define (body-context?) (eq? (current-context) 'body))
 (define (expression-context?) (eq? (current-context) 'expression))
 
 (define (make-%binding formals expression-syntax syntax)
@@ -63,7 +63,7 @@
     (compile-error "unexpected definition" definition-syntax))
   (let ((expressions (%get-expressions)))
     (when (and expressions (not (null? expressions)))
-      (compile-error "definitions may not follow expressions in a body" syntax))
+      (compile-error "definitions may not follow expressions in a body" definition-syntax))
     (let*
 	((fixed-locations (map insert-location! fixed-variables))
 	 (rest-location (if rest-variable (insert-location! rest-variable) #f))
@@ -84,16 +84,16 @@
    ((eq? (current-context) 'expression)
     (when (null? syntax*)
       (compile-error "begin expression may not be empty" syntax))
-    (for-each expand-syntax syntax*))
+    (for-each expand-syntax! syntax*))
    (else
     (expand-into-expression (make-sequence syntax* syntax)))))
 
 ;; Expands a top level program or a library's body
-(define (expand syntax*)
+(define (expand-top-level syntax*)
   (parameterize ((current-bindings '()))
     (for-each expand-syntax! syntax*)
     (parameterize ((current-context 'expression))
-      (map expand-binding (get-bindings)))))
+      (map expand-%binding (get-bindings)))))
 
 ;; Expands a procedure body
 (define (expand-body syntax* syntax)
@@ -104,7 +104,7 @@
       (compile-error "no expression in body" syntax))
     (parameterize ((current-context 'expression))
       (make-letrec*-expression
-       (map expand-binding (get-bindings))
+       (map expand-%binding (get-bindings))
        (map expand-expression (get-expressions))
        #f))))
 
@@ -129,7 +129,7 @@
   (define form (syntax-datum syntax))
   (cond
    ((simple-datum? form)
-    (expand-into-expression! (make-literal form syntax)))
+    (expand-into-expression (make-literal form syntax)))
    ((null? form)
     (compile-error "empty application in source" syntax))
    ((identifier? form)
@@ -141,7 +141,7 @@
       (compile-error "undefined variable" syntax))))
    ((list? form)
     (cond
-     ((lookup-transformer! (car expression))
+     ((lookup-transformer! (car form))
       => (lambda (transform!)
 	   (transform! syntax)))
       (else
@@ -154,7 +154,7 @@
   (and
    (identifier? form)
    (let ((denotation (lookup-denotation! form)))
-     (if (proc? denotation)
+     (if (procedure? denotation)
 	 denotation
 	 (lambda (syntax)
 	   (define form (syntax-datum syntax))

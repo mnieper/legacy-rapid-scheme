@@ -39,7 +39,7 @@
   (make-expression 'literal datum syntax))
 (define (literal? expression)
   (eq? (expression-type expression) 'literal))
-(define (literal-value literal)
+(define (literal-value expression)
   (expression-value expression))
 
 ;;; Procedure calls
@@ -61,7 +61,7 @@
   (eq? (expression-type expression) 'primitive-operation))
 (define (primitive-operation-operator expression)
   (vector-ref (expression-value expression) 0))
-(define (primitive-operation-operand* expression)
+(define (primitive-operation-operands expression)
   (vector-ref (expression-value expression) 1))
 
 ;;; Procedures
@@ -70,6 +70,8 @@
   (make-expression 'procedure clauses syntax))
 (define (expression-procedure? expression)
   (eq? (expression-type expression) 'procedure))
+(define (procedure-clauses procedure)
+  (expression-value procedure))
 (define-record-type <clause>
   (make-clause formals body syntax)
   clause?
@@ -87,6 +89,15 @@
   (vector-ref (expression-value expression) 0))
 (define (letrec*-expression-body expression)
   (vector-ref (expression-value expression) 1))
+
+;;; Sequencing
+
+(define (make-sequence expressions syntax)
+  (make-expression 'sequence expressions syntax))
+(define (sequence? expression)
+  (eq? (expression-type expression) 'sequence))
+(define (sequence-expressions expression)
+  (expression-value expression))
 
 ;;; Locations
 
@@ -176,6 +187,9 @@
 	   `(,(formals->datum (binding-formals binding)) ,(loop (binding-expression binding))))
 	 (letrec*-expression-bindings expression))
 	,@(map loop (letrec*-expression-body expression))))
+     ;; Sequences
+     ((sequence? expression)
+      `(begin ,@(map loop (sequence-expressions expression))))
      (else
       (error "bad expression" expression)))))
 
@@ -191,9 +205,10 @@
     ((bindings-aux () ((formals expression) ...))
      `(,(make-binding formals expression #f) ...))
     ((bindings-aux (((x ...) expression) binding ...)
-		   bindings)
+		   (converted-binding ...))
      (bindings-aux (binding ...)
-		   (bindings . (((make-formals `(,x ...) #f) expression)))))
-    ((bindings-aux (((x ... . y) expression) binding ...) bindings)
+		   (converted-binding ... ((make-formals `(,x ...) #f) expression))))
+    ((bindings-aux (((x ... . y) expression) binding ...)
+		   (converted-binding ...))
      (bindings-aux (binding ...)
-		   (bindings . (((make-formals `(,x ...) y #f) expression)))))))
+		   (converted-binding ... ((make-formals `(,x ...) y #f) expression))))))

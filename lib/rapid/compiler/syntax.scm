@@ -16,7 +16,7 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-record-type <syntax>
-  (%make-syntax datum source-location context aux)
+  (make-syntax datum source-location context aux)
   syntax?
   (datum syntax-datum syntax-set-datum!)
   (source-location syntax-source-location)
@@ -63,7 +63,7 @@
   datum)
 
 (define (derive-syntax datum syntax)
-  (%make-syntax datum (syntax-source-location syntax) syntax #f))
+  (make-syntax datum (syntax-source-location syntax) syntax #f))
 
 (define (datum->syntax datum)
-  (%make-syntax datum #f #f #f))
+  (make-syntax datum #f #f #f))
