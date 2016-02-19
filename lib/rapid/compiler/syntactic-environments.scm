@@ -100,7 +100,8 @@
 
 (define (lookup-denotation! identifier)
   (cond
-   ((lookup-binding! identifier) => binding-denotation)))
+   ((lookup-binding! identifier) => binding-denotation)
+   (else #f)))
 
 (define (%insert-binding! identifier-syntax denotation)
   (define identifier (syntax-datum identifier-syntax))
@@ -131,7 +132,7 @@
       (compile-error "unbound identifier" identifier-syntax))))))
    
 (define (delete-binding! identifier-syntax)
-  (define identifier (syntax-datum identifier))
+  (define identifier (syntax-datum identifier-syntax))
   (unless (%lookup-binding identifier)
 	  (compile-error "unbound identifier" identifier-syntax))
   (set-bindings! (map-delete (get-bindings) identifier)))

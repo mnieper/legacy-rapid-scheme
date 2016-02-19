@@ -4,7 +4,7 @@
 	(rapid test))
 
 (define (source-port-string string)
-  (make-source-port (open-input-string string) #f ""))
+  (make-source-port (open-input-string string) "" #f))
 
 (define (read-datum string)
   (define port (source-port-string string))
