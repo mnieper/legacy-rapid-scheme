@@ -12,7 +12,7 @@
 (test-assert "Raising an error raises an exception"
 	     (guard (condition
 		     ((compile-error-object? condition) #t))
-		    (compile-error ((string->syntax "error") ("error")))
+		    (compile-error "error" (string->syntax "error"))
 		    #f))
 
 (test-end)

@@ -1,4 +1,5 @@
 (import (scheme base)
+	(rapid compiler syntax)
 	(rapid compiler read)
 	(rapid test))
 
