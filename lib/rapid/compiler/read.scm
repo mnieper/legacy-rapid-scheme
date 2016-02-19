@@ -113,8 +113,9 @@
 	     (yield datum-syntax)
 	     (loop))))))))
 
-;;; FIXME: start does not work (a ... b ... c): b gets the wrong start...
-;;; should better use a parameter or something like this
+;;; The parser itself
+
+;;; XXX: Positions may not yet work correctly. Simplify code below.
 
 (define (read-syntax source-port context)
   (define (read) (source-port-read-char source-port))
@@ -151,7 +152,7 @@
 	(if (char=? c #\;)
 	    '()
 	    (cons c (loop)))))
-    (integer->char (hex-scalar-value (list->string string))))
+    (integer->char (hex-scalar-value (list->string string) start)))
   (define (skip-intraline-white-space!)
     (let loop ()
       (case (peek)
@@ -215,43 +216,40 @@
   (define (read-string delimiter)
     (define list
       (let loop ()
-	(define c (peek))
-	(when (eof-object? c) (unexpected-end-of-file-error))
-	(case c
-	  ((#\return)
-	   (read)
-	   (skip-newline-after-return!)
-	   (cons #\newline (loop)))
-	  ((#\\)
-	   (read)
-	   (when (eof-object? c) (unexpected-end-of-file-error))
-	   (let ((c (peek)))
-	     (cond
-	      ((assoc c escape-sequences char=?)
-	       => (lambda (escape-sequence)
-		    (read)
-		    (cons (cdr escape-sequence) (loop))))
-	      ((char=? c #\x)
-	       (read)
-	       (let ((c (read-inline-hex-escape)))
-		 (cons c (loop))))
-	      ((member c '(#\space #\tab) char=?)
-	       (when (eq? delimiter #\|)
-		 (error "bad escape sequence" start (position)))
-	       (skip-intraline-white-space!)
-	       (case (peek)
-		 ((#\newline) (read))
-		 ((#\return)
-		  (read)
-		  (skip-newline-after-return!))
-		 (else (error "line ending expected" start (position))))
-	       (skip-intraline-white-space!))
-	      (else (error "bad escape sequence" start (position))))))
-	  (else
-	   (read)
-	   (if (char=? c delimiter) '() (cons c (loop)))))))
+	(let ((start (position)))
+	  (define c (read))
+	  (when (eof-object? c) (unexpected-end-of-file-error))
+	  (case c
+	    ((#\return)
+	     (skip-newline-after-return!)
+	     (cons #\newline (loop)))
+	    ((#\\)
+	     (when (eof-object? c) (unexpected-end-of-file-error))
+	     (let ((c (read)))
+	       (cond
+		((assoc c escape-sequences char=?)
+		 => (lambda (escape-sequence)
+		      (cons (cdr escape-sequence) (loop))))
+		((char=? c #\x)
+		 (let ((c (read-inline-hex-escape)))
+		   (cons c (loop))))
+		((member c '(#\space #\tab) char=?)
+		 (when (eq? delimiter #\|)
+		   (error "bad escape sequence" start (position)))
+		 (skip-intraline-white-space!)
+		 (case (peek)
+		   ((#\newline) (read))
+		   ((#\return)
+		    (skip-newline-after-return!))
+		   (else
+		    (error "line ending expected" start (position))))
+		 (skip-intraline-white-space!))
+		(else
+		 (error "bad escape sequence" start (position))))))
+	    (else
+	     (if (char=? c delimiter) '() (cons c (loop))))))))
     (list->string list))
-  (define (hex-scalar-value string)
+  (define (hex-scalar-value string start)  ;; TODO: let start point to the individual problem
     (define n (string-length string))
     (unless (> n 0)
       (error "bad hex scalar value" start (position)))
@@ -292,14 +290,14 @@
     (%make-reference uses) reference? (uses reference-uses reference-set-uses!))
   (define (make-reference) (%make-reference '()))
   (define (unexpected-end-of-file-error)
-    (error "unexpected end of file" start (position)))
+    (error "unexpected end of file" (position) (position)))
   (define syntax
     (let %read-syntax ((allowed-tokens '(eof-object)))
       (define (read-syntax) (%read-syntax allowed-tokens))
-      (define (abbreviation identifier)  ;; MOVE OUT
+      (define (abbreviation identifier start)  ;; MOVE OUT
 	(define syntax (make-syntax identifier start (position)))
-	(define datum (read-syntax))
-	(make-syntax (list syntax datum) start (position)))
+	(define datum-syntax (read-syntax))
+	(make-syntax (list syntax datum-syntax) start (position)))
       (define c (peek))
       (if
        (eof-object? c)
@@ -323,204 +321,206 @@
 	  (read-syntax))
 	 ;; List
 	 ((#\()
-	  (seen!)
-	  (read)
-	  (let loop ((datum* '())) ;; TODO rename datum* -> syntax* because it is syntax
-	    (define datum (%read-syntax '(closing-parenthesis dot)))
-	    (case datum
-	      ((closing-parenthesis)
-	       (make-syntax (reverse datum*) start (position)))
-	      ((dot)
-	       (let* ((dot-position
-		       (position))
-		      (dotted-list
-		       (append (reverse datum*) (%read-syntax '()))))
-		 (case (%read-syntax '(closing-parenthesis))
-		   ((closing-parenthesis)
-		    (make-syntax dotted-list start (position)))
-		   (else
-		    (error "expected end of list after dot" dot-position (position))))))
-	      (else (loop (cons datum datum*))))))
+	  (let ((start (position)))
+	    (read)
+	    (let loop ((datum* '())) ;; TODO rename datum* -> syntax* because it is syntax
+	      (define datum (%read-syntax '(closing-parenthesis dot)))
+	      (case datum
+		((closing-parenthesis)
+		 (make-syntax (reverse datum*) start (position)))
+		((dot)
+		 (let* ((dot-position
+			 (position))
+			(dotted-list
+			 (append (reverse datum*) (%read-syntax '()))))
+		   (case (%read-syntax '(closing-parenthesis))
+		     ((closing-parenthesis)
+		      (make-syntax dotted-list start (position)))
+		     (else
+		      (error "expected end of list after dot" dot-position (position))))))
+		(else (loop (cons datum datum*)))))))
 	 ;; Quote
 	 ((#\')
-	  (seen!)
-	  (read)
-	  (abbreviation 'quote))      
+	  (let ((start (position)))
+	    (read)
+	    (abbreviation 'quote start)))
 	 ;; Quasiquote
 	 ((#\`)
-	  (seen!)
-	  (read)
-	  (abbreviation 'quasiquote))
+	  (let ((start (position)))
+	    (read)
+	    (abbreviation 'quasiquote start)))
 	 ;; Unquote
 	 ((#\,)
-	  (seen!)
-	  (read)
-	  (cond
-	   ((char=? (peek) #\@)
+	  (let ((start (position)))
 	    (read)
-	    (abbreviation 'unquote-splicing))
-	   (else
-	    (abbreviation 'unquote))))
+	    (cond
+	     ((char=? (peek) #\@)
+	      (read)
+	      (abbreviation 'unquote-splicing start))
+	     (else
+	      (abbreviation 'unquote start)))))
 	 ;; Closing parenthesis
 	 ((#\))
-	  (read)
-	  (if (memq 'closing-parenthesis allowed-tokens)
-	      'closing-parenthesis
-	      (error "too many ')'s" start (position))))
+	  (let ((start (position)))
+	    (read)
+	    (if (memq 'closing-parenthesis allowed-tokens)
+		'closing-parenthesis
+		(error "too many ')'s" start (position)))))
 	 ;; Sharp token
 	 ((#\#)
 	  ;; Eat sharp
-	  (read)
-	  (when (eof-object? (peek)) (unexpected-end-of-file-error))
-	  (case (peek)
-	    ;; Datum comment
-	    ((#\;)
-	     (read)
-	     (read-syntax)
-	     (set-start!)
-	     (read-syntax))
-	    ;; Nested comment
-	    ((#\|)
-	     (read)
-	     (let loop ((level 1))
-	       (when (> level 0)
-		 (let ((c (read)))
-		   (when (eof-object? c) (unexpected-end-of-file-error))
-		   (let ((s (string c (peek))))
-		     (cond
-		      ((string=? s "#|")
-		       (read)
-		       (loop (+ level 1)))
-		      ((string=? s "|#")
-		       (read)
-		       (loop (- level 1)))
-		      (else
-		       (loop level)))))))
-	     (set-start!)
-	     (read-syntax))
-	    ;; Directive
-	    ((#\!)
-	     (read)
-	     (let ((token (read-token)))
-	       (cond
-		((string-ci=? token "fold-case")
-		 (source-port-fold-case! #t))
-		((string-ci=? token "no-fold-case")
-		 (source-port-no-fold-case! #f))
-		(else
-		 (error "invalid directive" start (position))))
+	  (let ((start (position)))
+	    (read)
+	    (when (eof-object? (peek)) (unexpected-end-of-file-error))
+	    (case (peek)
+	      ;; Datum comment
+	      ((#\;)
+	       (read)
+	       (read-syntax)
 	       (set-start!)
-	       (read-token)))
-	    ;; Boolean
-	    ((#\t #\f #\T #\F)
-	     (seen!)
-	     (let ((token (read-token)))
-	       (cond
-		((or (string-ci=? token "t") (string-ci=? token "true"))
-		 (make-syntax #t start (position)))
-		((or (string-ci=? token "f") (string-ci=? token "false"))
-		 (make-syntax #f start (position)))
-		(else (error "invalid constant" start (position))))))
-	    ;; Character
-	    ((#\\)
-	     (seen!)
-	     (read)
-	     (let ((token (read-token)))
-	       (define n (string-length token))
-	       (case n
-		 ((0)
-		  (let ((c (read)))
-		    (when (eof-object? c)
-		      (unexpected-end-of-file-error))
-		    (make-syntax c start (position))))
-		 ((1)
-		  ;; Any character
-		  (make-syntax (string-ref token 0) start (position)))
-		 (else
-		  (cond
-		   ;; Character name
-		   ((assoc token character-names (if (fold-case?) string-ci=? string=?))
-		    => (lambda (character-name)
-			 (make-syntax (cdr character-name) start (position))))
+	       (read-syntax))
+	      ;; Nested comment
+	      ((#\|)
+	       (read)
+	       (let loop ((level 1))
+		 (when (> level 0)
+		   (let ((c (read)))
+		     (when (eof-object? c) (unexpected-end-of-file-error))
+		     (let ((s (string c (peek))))
+		       (cond
+			((string=? s "#|")
+			 (read)
+			 (loop (+ level 1)))
+			((string=? s "|#")
+			 (read)
+			 (loop (- level 1)))
+			(else
+			 (loop level)))))))
+	       (set-start!)
+	       (read-syntax))
+	      ;; Directive
+	      ((#\!)
+	       (read)
+	       (let ((token (read-token)))
+		 (cond
+		  ((string-ci=? token "fold-case")
+		   (source-port-fold-case! #t))
+		  ((string-ci=? token "no-fold-case")
+		   (source-port-no-fold-case! #f))
+		  (else
+		   (error "invalid directive" start (position))))
+		 (set-start!)
+		 (read-token)))
+	      ;; Boolean
+	      ((#\t #\f #\T #\F)
+	       (seen!)
+	       (let ((token (read-token)))
+		 (cond
+		  ((or (string-ci=? token "t") (string-ci=? token "true"))
+		   (make-syntax #t start (position)))
+		  ((or (string-ci=? token "f") (string-ci=? token "false"))
+		   (make-syntax #f start (position)))
+		  (else (error "invalid constant" start (position))))))
+	      ;; Character
+	      ((#\\)
+	       (seen!)
+	       (read)
+	       (let ((token (read-token)))
+		 (define n (string-length token))
+		 (case n
+		   ((0)
+		    (let ((c (read)))
+		      (when (eof-object? c)
+			(unexpected-end-of-file-error))
+		      (make-syntax c start (position))))
+		   ((1)
+		    ;; Any character
+		    (make-syntax (string-ref token 0) start (position)))
 		   (else
-		    (unless (char=? (string-ref token 0) #\x)
-		      (error "bad character" start (position)))
-		    ;; Hex scalar value
-		    (make-syntax (integer->char (hex-scalar-value (string-copy token 1)))
-				 start (position))))))))
-	    ;; Vector
-	    ((#\()
-	     (seen!)
-	     (read)
-	     (let loop ((datum* '()))
-	       (define datum (%read-syntax '(closing-parenthesis)))
-	       (case datum
-		 ((closing-parenthesis)
-		  (make-syntax (list->vector (reverse datum*)) start (position)))
-		 (else (loop (cons datum datum*))))))
-	    ;; Bytevector
-	    ((#\u)
-	     (seen!)
-	     (unless (string-ci=? (read-token) "u8")
-	       (error "invalid sharp token" start (position)))
-	     (unless (char=? (peek) #\()
-	       (error "'(' expected" start (position)))
-	     ;; Eat opening parenthesis
-	     (read)
-	     (let loop ((byte* '()))
-	       (define datum (%read-syntax '(closing-parenthesis)))
-	       (case datum
-		 ((closing-parenthesis)
-		  (make-syntax (apply bytevector (reverse byte*)) start (position)))
-		 (else
-		  (let ((byte (syntax-datum datum)))
-		    (unless (and (exact-integer? byte) (<= 0 byte 255))
-		      (error "not a byte " (syntax-start datum) (syntax-end datum)))
-		    (loop (cons byte byte*)))))))
-	    ((#\e #\i #\d #\b #\o #\x)
-	     (seen!)
-	     (cond
-	      ((string->number (string-append "#" (read-token)))
-	       => (lambda (number)
-		    (make-syntax number start (position))))
-	      (else (error "bad number" start (position)))))
-	    (else
-	     (seen!)
-	     (unless (digit-value (peek))
-	       (error "invalid sharp syntax" start (position)))
-	     (let ((label (let loop ((value 0))
-			    (define c (peek))
-			    (cond
-			     ((digit-value c)
-			      => (lambda (n)
-				   (read)
-				   (loop (+ (* 10 value) n))))
-			     (else value)))))
-	       (case (peek)
-		 ;; Datum label
-		 ((#\=)
-		  ;; Eat =
-		  (read)
-		  (let ()
-		    (define reference (make-reference))
-		    (define declaration (cons #f reference))
-		    (table-set! references label reference)
-		    (set! declarations (cons declaration declarations))
-		    (let ((syntax (%read-syntax '())))
-		      (set-car! declaration syntax)
-		      syntax)))
-		 ;; Datum reference
-		 ((#\#)
-		  ;; Eat #
-		  (read)
-		  (let ()
-		    (define (unknown-reference-error)
-		      (error "unknown reference" start (position)))
-		    (define reference (table-ref references label unknown-reference-error))
-		    (define syntax (make-syntax reference start (position)))
-		    (reference-set-uses! reference (cons syntax (reference-uses reference)))
-		    syntax))
-		 (else (error "bad label datum" start (position))))))))
+		    (cond
+		     ;; Character name
+		     ((assoc token character-names (if (fold-case?) string-ci=? string=?))
+		      => (lambda (character-name)
+			   (make-syntax (cdr character-name) start (position))))
+		     (else
+		      (unless (char=? (string-ref token 0) #\x)
+			(error "bad character" start (position)))
+		      ;; Hex scalar value
+		      (make-syntax (integer->char (hex-scalar-value (string-copy token 1) start))
+				   start (position))))))))
+	      ;; Vector
+	      ((#\()
+	       (seen!)
+	       (read)
+	       (let loop ((datum* '()))
+		 (define datum (%read-syntax '(closing-parenthesis)))
+		 (case datum
+		   ((closing-parenthesis)
+		    (make-syntax (list->vector (reverse datum*)) start (position)))
+		   (else (loop (cons datum datum*))))))
+	      ;; Bytevector
+	      ((#\u)
+	       (seen!)
+	       (unless (string-ci=? (read-token) "u8")
+		 (error "invalid sharp token" start (position)))
+	       (unless (char=? (peek) #\()
+		 (error "'(' expected" start (position)))
+	       ;; Eat opening parenthesis
+	       (read)
+	       (let loop ((byte* '()))
+		 (define datum (%read-syntax '(closing-parenthesis)))
+		 (case datum
+		   ((closing-parenthesis)
+		    (make-syntax (apply bytevector (reverse byte*)) start (position)))
+		   (else
+		    (let ((byte (syntax-datum datum)))
+		      (unless (and (exact-integer? byte) (<= 0 byte 255))
+			(error "not a byte " (syntax-start datum) (syntax-end datum)))
+		      (loop (cons byte byte*)))))))
+	      ((#\e #\i #\d #\b #\o #\x)
+	       (seen!)
+	       (cond
+		((string->number (string-append "#" (read-token)))
+		 => (lambda (number)
+		      (make-syntax number start (position))))
+		(else (error "bad number" start (position)))))
+	      (else
+	       (seen!)
+	       (unless (digit-value (peek))
+		 (error "invalid sharp syntax" start (position)))
+	       (let ((label (let loop ((value 0))
+			      (define c (peek))
+			      (cond
+			       ((digit-value c)
+				=> (lambda (n)
+				     (read)
+				     (loop (+ (* 10 value) n))))
+			       (else value)))))
+		 (case (peek)
+		   ;; Datum label
+		   ((#\=)
+		    ;; Eat =
+		    (read)
+		    (let ()
+		      (define reference (make-reference))
+		      (define declaration (cons #f reference))
+		      (table-set! references label reference)
+		      (set! declarations (cons declaration declarations))
+		      (let ((syntax (%read-syntax '())))
+			(set-car! declaration syntax)
+			syntax)))
+		   ;; Datum reference
+		   ((#\#)
+		    ;; Eat #
+		    (read)
+		    (let ()
+		      (define (unknown-reference-error)
+			(error "unknown reference" start (position)))
+		      (define reference (table-ref references label unknown-reference-error))
+		      (define syntax (make-syntax reference start (position)))
+		      (reference-set-uses! reference (cons syntax (reference-uses reference)))
+		      syntax))
+		   (else (error "bad label datum" start (position)))))))))
 	 ((#\")
 	  (seen!)
 	  (read)
@@ -541,13 +541,13 @@
 		  'dot
 		  (error "unexpected '.'" start (position))))
 	     ((string->number token)
-	       => (lambda (number)
-		    (make-syntax number start (position))))
-	      ((string->identifier token)
-	       => (lambda (identifier)
-		    (make-syntax identifier start (position))))
-	      (else
-	       (error "bad token" start (position))))))))))
+	      => (lambda (number)
+		   (make-syntax number start (position))))
+	     ((string->identifier token)
+	      => (lambda (identifier)
+		   (make-syntax identifier start (position))))
+	     (else
+	      (error "bad token" start (position))))))))))
   ;; Body
   (let loop ((declarations declarations))
     (if (null? declarations)

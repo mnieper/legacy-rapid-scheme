@@ -54,7 +54,7 @@
   (define source (source-location-source source-location))
   (when source
     (display source)
-    (display ": ")
+    (display ":")
     (display (source-location-start-line source-location))
     (display ".")
     (display (+ (source-location-start-column source-location) 1))
@@ -104,7 +104,7 @@
 		(display-compile-error condition)
 		(exit #f))
 	       (else
-		(display "rapid-compiler: Internal error" (current-error-port))
+		(display "rapid-compiler: internal error" (current-error-port))
 		(newline (current-error-port))
 		(raise condition)))
 	 body1
