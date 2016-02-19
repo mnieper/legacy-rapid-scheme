@@ -93,17 +93,19 @@
 (define (read-error message location)
   (raise (make-read-error-object message location)))
 
+(define (locate-file filename syntax)
+  (cond
+   ((and syntax (syntax-source-location syntax))
+    => (lambda (source-location)
+	 (path-join (path-directory (source-location-source source-location))
+		    filename)))
+   (else
+    filename)))
+
 (define (read-file filename ci? syntax)
+  (define source (locate-file filename syntax))
   (make-coroutine-generator
    (lambda (yield)
-     (define source
-       (cond
-	((and syntax (syntax-source-location syntax))
-	 => (lambda (source-location)
-	      (path-join (path-directory (source-location-source source-location))
-			 filename)))
-	(else
-	 filename)))
      (call-with-input-file source
        (lambda (port)
 	 (define source-port (make-source-port port source ci?))

@@ -17,5 +17,5 @@
 
 (define-library (scheme base)
   (import (prefix (rapid primitive) %))
-  (export cons car cdr)
+  (export + apply)
   (include "base.scm"))

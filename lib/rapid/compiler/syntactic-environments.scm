@@ -129,12 +129,12 @@
       => (lambda (binding)
 	   (%insert-binding! new-identifier-syntax (binding-denotation binding))))
      (else
-      (compile-error "unbound identifier" identifier-syntax))))))
+      (compile-error (format "unbound identifier ‘~a’" identifier) identifier-syntax))))))
    
 (define (delete-binding! identifier-syntax)
   (define identifier (syntax-datum identifier-syntax))
   (unless (%lookup-binding identifier)
-	  (compile-error "unbound identifier" identifier-syntax))
+	  (compile-error (format "unbound identifier ‘~a’" identifier) identifier-syntax))
   (set-bindings! (map-delete (get-bindings) identifier)))
 
 (define derive-syntactic-environment
@@ -163,5 +163,9 @@
 (define-syntax syntactic-environment
   (syntax-rules ()
     ((syntactic-environment (identifier denotation) ...)
-     (%make-syntactic-environment
-      `(,(make-binding (datum->syntax 'identifier) denotation) ...)))))
+     (with-syntactic-environment
+      (make-syntactic-environment)
+      (lambda ()
+	(insert-binding! (datum->syntax 'identifier) denotation)
+	...
+	(get-syntactic-environment))))))

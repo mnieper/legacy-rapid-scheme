@@ -17,9 +17,10 @@
 
 (define-library (rapid compiler libraries)
   (export expand-import-sets read-file)
-  (import (scheme base)  (scheme write) ;; XXX
+  (import (scheme base)
 	  (scheme cxr)
 	  (scheme file)
+	  (rapid lists)
 	  (rapid format)
 	  (rapid table)
 	  (rapid comparators)

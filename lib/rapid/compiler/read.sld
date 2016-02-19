@@ -28,7 +28,7 @@
 	  source-location-start-column
 	  source-location-end-line
 	  source-location-end-column)
-  (import (scheme base)
+  (import (scheme base)   (scheme write) ;;XXX
 	  (scheme char)
 	  (scheme case-lambda)
 	  (scheme file)

@@ -34,6 +34,7 @@
 	  syntactic-environment)
   (import (scheme base)
 	  (scheme case-lambda)
+	  (rapid format)
 	  (rapid comparators)
 	  (rapid box)
 	  (rapid sets)
