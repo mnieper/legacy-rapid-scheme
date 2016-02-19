@@ -99,6 +99,19 @@
 (define (sequence-expressions expression)
   (expression-value expression))
 
+;;; Conditionals
+
+(define (make-conditional test consequent alternate syntax)
+  (make-expression 'conditional (vector test consequent alternate) syntax))
+(define (conditional? expression)
+  (eq? (expression-type expression) 'conditional))
+(define (conditional-test expression)
+  (vector-ref (expression-value expression) 0))
+(define (conditional-consequent expression)
+  (vector-ref (expression-value expression) 1))
+(define (conditional-alternate expression)
+  (vector-ref (expression-value expression) 2))
+
 ;;; Locations
 
 (define-record-type <location>
@@ -190,6 +203,11 @@
      ;; Sequences
      ((sequence? expression)
       `(begin ,@(map loop (sequence-expressions expression))))
+     ;; Conditionals
+     ((conditional? expression)
+      `(if ,(loop (conditional-test expression))
+	   ,(loop (conditional-consequent expression))
+	   ,(loop (conditional-alternate expression))))
      (else
       (error "bad expression" expression)))))
 

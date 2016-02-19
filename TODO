@@ -4,4 +4,4 @@
 
 * Refactor syntax objects to (rapid compiler syntax). Check test for read.
 
-* Edit libraries code because of syntactic-environment changes. Add rapid primitive.
+* Rename (rapid table) to (rapid tables)

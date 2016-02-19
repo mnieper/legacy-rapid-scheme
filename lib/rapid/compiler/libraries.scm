@@ -26,7 +26,7 @@
   (define (lookup-synthetic-environment library-name)
     (table-ref/default library-table library-name #f))
   (define (insert-library! library-name)
-    (table-set! table library-name #f))    
+    (table-set! library-table library-name #f))    
   (define (library-loading? library-name)
     (not (table-ref/default library-table library-name #t)))
   (define (create-syntactic-environment import-sets)
@@ -108,7 +108,7 @@
   ;; Adds entries to library table if library cannot be found
   ;; Adds bindings
   (define (read-library library-name-syntax)
-    (define library-name (datum-syntax library-name-syntax))
+    (define library-name (syntax-datum library-name-syntax))
     (cond
      ((lookup-synthetic-environment library-name))
      (else
@@ -154,8 +154,8 @@
 		     (loop declarations
 			   import-sets
 			   export-specs
-			   (append (reverse (read-file* (cdr form) #t)
-					    body))))
+			   (append (reverse (read-file* (cdr form) #t))
+				   body)))
 		    ((include-library-declarations)
 		     (loop (append (reverse (read-file (cdr form) #f))
 				   declarations)
@@ -207,7 +207,7 @@
 		     (insert-binding-from! (car form) syntactic-environment (cadr form)))
 		    (else
 		     (assert-identifier! export-spec)
-		     (insert-binding-from export-spec syntactic-environment))))
+		     (insert-binding-from! export-spec syntactic-environment))))
 		 export-specs)
 		(get-syntactic-environment))))))))))
   (define syntactic-environment (create-syntactic-environment import-sets))
@@ -258,14 +258,14 @@
 (define (assert-library-name! library-name-syntax)
   (define form (syntax-datum library-name-syntax))
   (define (library-name?)
-  (and (list? form)
-       (let loop ((form form))
-	 (or (null? form)
-	     (and (or (and (exact-integer? (car form)) (>= (car form) 0))
-		      (symbol? (car form)))
-		  (loop (cdr form)))))))
+    (and (list? form)
+	 (let loop ((form form))
+	   (or (null? form)
+	       (and (or (and (exact-integer? (car form)) (>= (car form) 0))
+			(symbol? (car form)))
+		    (loop (cdr form)))))))
   (unless (library-name?)
-    (compile-error "bad library name" import-set)))
+    (compile-error "bad library name" library-name-syntax)))
 
 (define (read-library-definition library-name-syntax)
   (define library-name (syntax-datum library-name))
@@ -287,15 +287,16 @@
 	  (compile-error (format "library definition not found in file ‘~a’" source)
 			 library-name-syntax))
 	(let ((form (syntax-datum syntax)))
-	  (if (and (list? form)
-		   (>= (length form) 2)
-		   (eq? (syntax-datum (car form)) 'library-definition))
-	      (if (library-name? (syntax-datum (cadr form)))
-		  (if (equal? (syntax-datum (cadr form)) library-name)
-		      syntax
-		      (loop))
-		  (compile-error "bad library name" import-set))
-	      (loop)))))))
+	  (cond
+	   ((and (list? form)
+		 (>= (length form) 2)
+		 (eq? (syntax-datum (car form)) 'library-definition))
+	    (assert-library-name! (cadr form))
+	    (if (equal? (syntax-datum (cadr form)) library-name)
+		syntax
+		(loop)))
+	   (else
+	    (loop))))))))
 
 
 (define (read-file* string-syntax* ci?)

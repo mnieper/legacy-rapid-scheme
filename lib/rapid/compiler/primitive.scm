@@ -30,11 +30,11 @@
   (make-syntax-expander
    (lambda (syntax)
      (define form (syntax-datum syntax))
-     (unless (or (= (length form) 2) (= (length form 3)))
+     (unless (or (= (length form) 2) (= (length form) 3))
        (compile-error "bad if syntax" syntax))
      (let ((test-syntax (list-ref form 1))
 	   (consequent-syntax (list-ref form 2))
-	   (alternate-syntax (and (= (length form 3)) (list-ref form 3))))
+	   (alternate-syntax (and (= (length form) 3) (list-ref form 3))))
        (make-conditional
 	(expand-expression test-syntax)
 	(expand-expression consequent-syntax)
@@ -51,7 +51,7 @@
       (map-in-order
        (lambda (clause-syntax)
 	 (define form (syntax-datum syntax))
-	 (unless (and (not (null? form) (list? form)))
+	 (unless (and (not (null? form)) (list? form))
 	   (compile-error "bad case-lambda clause" syntax))
 	 (with-scope
 	  (lambda ()

@@ -46,8 +46,8 @@
      (define expressions (%get-expressions))
      (if expressions
 	 (set-expressions! (cons expression expressions))
-	 (set-bindings! (cons (make-binding (make-dummy-formals) expression #f))
-			(%get-bindings))))))
+	 (set-bindings! (cons (make-binding (make-dummy-formals) expression #f)
+			      (%get-bindings)))))))
 
 (define (insert-location! identifier-syntax)
   (define location (make-location identifier-syntax))
@@ -176,5 +176,3 @@
       (string? expression)
       (bytevector? expression)
       (vector? expression)))
-
-(define (identifier? form) (symbol? form)) ;; TODO: syntactic closures

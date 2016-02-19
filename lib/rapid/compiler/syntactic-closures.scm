@@ -15,30 +15,5 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-library (rapid compiler syntactic-environments)
-  (export make-syntactic-environment
-	  syntactic-environment?
-	  with-syntactic-environment
-	  with-scope
-	  with-isolated-references
-	  lookup-binding!
-	  lookup-denotation!
-	  lookup-syntax!
-	  syntactic-binding?
-	  insert-binding!
-	  insert-binding-from!
-	  insert-bindings-from!
-	  delete-binding!
-	  derive-syntactic-environment
-	  get-syntactic-environment
-	  syntactic-environment)
-  (import (scheme base)
-	  (scheme case-lambda)
-	  (rapid comparators)
-	  (rapid box)
-	  (rapid sets)
-	  (rapid maps)
-	  (rapid compiler syntax)
-	  (rapid compiler read)
-	  (rapid compiler error))
-  (include "syntactic-environments.scm"))
+(define (identifier? form)
+  (symbol? form)) ;; TODO: syntactic closures

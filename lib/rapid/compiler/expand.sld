@@ -19,6 +19,7 @@
   (export expand-top-level
 	  expand-body
 	  expand-expression
+	  expand-expression*
 	  expand-syntax!
 	  expand-into-expression
 	  expand-into-definition
@@ -30,6 +31,7 @@
 	  (rapid box)
 	  (rapid compiler error)
 	  (rapid compiler syntax)
+	  (rapid compiler syntactic-closures)
 	  (rapid compiler syntactic-environments)
 	  (rapid compiler expressions))
   (include "expand.scm"))

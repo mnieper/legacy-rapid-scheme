@@ -24,6 +24,7 @@
 	  make-procedure expression-procedure?
 	  make-letrec*-expression letrec*-expression?
 	  make-sequence sequence?
+	  make-conditional conditional?
 	  make-location location?
 	  make-clause clause?
 	  make-binding binding?

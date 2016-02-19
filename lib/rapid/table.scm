@@ -1,9 +1,30 @@
+;;; Rapid Scheme --- An implementation of R7RS
+
+;; Copyright (C) 2016 Marc Nieper-Wißkirchen
+
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 (define-record-type table-type
-  (%make-table entries)
+  (%make-table comparator entries)
   table?
+  (comparator table-comparator)
   (entries table-entries table-set-entries!))
 
-(define (make-table) (%make-table '()))
+(define (make-table comparator) (%make-table comparator '()))
+
+(define (table-equality-predicate table)
+  (comparator-equality-predicate (table-comparator table)))
 
 (define table-ref
   (case-lambda
@@ -11,23 +32,29 @@
     (table-ref table key (lambda () (error "table-ref: not contained in hash table"
 					   key))))
    ((table key thunk)
+    (define equality (table-equality-predicate table))
     (cond
-     ((assv key (table-entries table)) => cdr)
+     ((assoc key (table-entries table) equality) => cdr)
      (else (thunk))))))
 
+(define (table-ref/default table key default)
+  (table-ref table key (lambda () default)))
+  
 (define (table-set! table key value)
+  (define equality (table-equality-predicate table))
   (define entries (table-entries table))
   (cond
-   ((assv key entries)
+   ((assoc key entries equality)
     => (lambda (entry)
 	 (set-cdr! entry value)))
    (else
     (table-set-entries! table (cons (cons key value) entries)))))
     
 (define (table-intern! table key failure)
+  (define equality (table-equality-predicate table))
   (define entries (table-entries table))
   (cond
-   ((assv key entries) => cdr)
+   ((assv key entries equality) => cdr)
    (else
     (let ((value (failure)))
       (table-set-entries! table (cons (cons key value) entries))
