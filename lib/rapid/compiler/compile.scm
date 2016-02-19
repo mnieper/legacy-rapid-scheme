@@ -20,11 +20,9 @@
    (define read-syntax (read-file filename #f #f))
    (define program (generator->list read-syntax))
    (define expression (expand-program program))
-   #|
    (define output (expression->datum expression))
    (write '(import (rapid primitive)))
    (newline)
    (write output)
    (newline)
-   |#
    ))

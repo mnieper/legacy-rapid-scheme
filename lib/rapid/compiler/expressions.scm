@@ -81,6 +81,7 @@
 
 ;;; Letrec* expressions
 
+;; XXX: Rename to letrec*-values-expression? Or binding-expression?
 (define (make-letrec*-expression bindings body syntax)
   (make-expression 'letrec*-expression (vector bindings body) syntax))
 (define (letrec*-expression? expression)
@@ -194,7 +195,7 @@
 	 (procedure-clauses expression))))
      ;; Letrec* expressions
      ((letrec*-expression? expression)
-      `(letrec* ,@
+      `(letrec*-values ,
 	(map
 	 (lambda (binding)
 	   `(,(formals->datum (binding-formals binding)) ,(loop (binding-expression binding))))

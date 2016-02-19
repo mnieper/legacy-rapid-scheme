@@ -37,9 +37,10 @@
       (make-binding
        (vector-ref %binding 0)
        (expand-expression (vector-ref %binding 1))
-       (vector-ref %binding 1))))
+       (vector-ref %binding 2))))
   
-(define (expand-into-expression expression) ((%expand-into-expression) expression))
+(define (expand-into-expression expression)
+  ((%expand-into-expression) expression))
 (define %expand-into-expression
   (make-parameter
    (lambda (expression)
@@ -54,6 +55,9 @@
   (insert-binding! identifier-syntax location)
   location)
 
+;; XXX: Where do we check that no two var's are the same?
+;; In insert-binding!? What about top-level then?
+;; --> TODO: redefine, that is set! (or new location, etc.)
 (define (expand-into-definition fixed-variables
 				rest-variable
 				formals-syntax
@@ -93,7 +97,7 @@
   (parameterize ((current-bindings '()))
     (for-each expand-syntax! syntax*)
     (parameterize ((current-context 'expression))
-      (map expand-%binding (get-bindings)))))
+      (map-in-order expand-%binding (get-bindings)))))
 
 ;; Expands a procedure body
 (define (expand-body syntax* syntax)
@@ -125,6 +129,8 @@
       (with-isolated-references thunk)
       (thunk)))
 
+;; TODO: Work without identifier syntax; let do the optimizer do all this
+
 (define (%expand-syntax! syntax)
   (define form (syntax-datum syntax))
   (cond
@@ -136,7 +142,7 @@
     ((lookup-transformer! syntax) syntax))
    ((list? form)
     (cond
-     ((lookup-transformer! (car form))
+     ((lookup-transformer! syntax)
       => (lambda (transform!)
 	   (transform! syntax)))
      (else

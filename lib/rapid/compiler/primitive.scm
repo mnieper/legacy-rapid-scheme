@@ -15,6 +15,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;;; TODO: Don't do syntax checks here. Let (scheme base), etc., handle those.
+
 (define (make-syntax-expander expander)
   (lambda (syntax)
     (unless (list? (syntax-datum syntax))
@@ -25,6 +27,30 @@
   (make-syntax-expander
    (lambda (syntax)
      (expand-into-sequence (cdr (syntax-datum syntax))) syntax)))
+
+(define (unpack-formals formals)
+  (let loop ((formals formals) (fixed '()))
+    (cond
+     ((null? formals)
+      (values (reverse fixed) '()))
+     ((pair? formals)
+      (loop (cdr formals) (cons (car formals) fixed)))
+     (else
+      (values (reverse fixed) (list formals))))))
+
+(define define-values-expander
+  (make-syntax-expander
+   (lambda (syntax)
+     (define form (syntax-datum syntax))
+     (define-values (fixed-variables rest-variable*)
+       (unpack-formals (syntax-datum (list-ref form 1))))
+     (expand-into-definition fixed-variables
+			     (if (null? rest-variable*)
+				 #f
+				 (car rest-variable*))
+			     (list-ref form 1)
+			     (list-ref form 2)
+			     syntax))))
 
 (define if-expander
   (make-syntax-expander
@@ -111,18 +137,23 @@
     (if (identifier? form)
 	(make-reference location syntax)
 	(make-primitive-operation operator (expand-expression* (cdr form)) syntax))))
-   
+
+;; XXX: The bindings for the primitive procedures could also be handled in (scheme base)
+;;      This way, we don't need identifier syntax (as in R6RS).
+
 (define primitive-environment
   (environment
    ;; Bindings
    (((%+) (make-primitive-procedure operator+))
     ((%apply) (make-primitive-procedure operator-apply))
+    #;((%apply-values ???))
     )
    ;; Syntactic environment
    (begin begin-expander)
+   (define-values define-values-expander)
    (case-lambda case-lambda-expander)
    (if if-expander)
    (quote quote-expander)
-   (+ (make-primitive-expander operator+ '%+))
-   (apply (make-primitive-expander operator-apply '%apply))
+   (+ (make-primitive-expander operator+ %+))
+   (apply (make-primitive-expander operator-apply %apply))
    ))

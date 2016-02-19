@@ -1,3 +1,7 @@
+* Implement define-syntax and syntax-rules
+
+* Check whether imported identifiers are being overwritten
+
 * Correct various uses of test-equal (the expected value has to come first)
 
 * Rename record types into the <...> format
