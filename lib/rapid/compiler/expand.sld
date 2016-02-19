@@ -29,6 +29,7 @@
 	  (scheme lazy)
 	  (rapid lists)
 	  (rapid box)
+	  (rapid format)
 	  (rapid compiler error)
 	  (rapid compiler syntax)
 	  (rapid compiler syntactic-closures)

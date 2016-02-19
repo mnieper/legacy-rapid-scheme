@@ -4,4 +4,6 @@
 
 * Refactor syntax objects to (rapid compiler syntax). Check test for read.
 
-* Rename (rapid table) to (rapid tables)
+* Rename (rapid table) to (rapid tables), and (rapid box) to (rapid boxes)
+
+* See whether #|... (eof) makes any problems in reader (should raise an error)

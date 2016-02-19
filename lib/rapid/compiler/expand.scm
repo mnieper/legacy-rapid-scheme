@@ -133,19 +133,17 @@
    ((null? form)
     (compile-error "empty application in source" syntax))
    ((identifier? form)
-    (cond
-     ((lookup-transformer! (car form))
-      => (lambda (transform!)
-	   (transform! syntax)))
-     (else
-      (compile-error "undefined variable" syntax))))
+    ((lookup-transformer! syntax) syntax))
    ((list? form)
     (cond
      ((lookup-transformer! (car form))
       => (lambda (transform!)
 	   (transform! syntax)))
-      (else
-       (compile-error "undefined variable" syntax))))
+     (else
+      (let ((operator (expand-expression (car form))))
+	(expand-into-expression (make-procedure-call operator
+						     (expand-expression* (cdr form))
+						     syntax))))))
    (else
     (compile-error "invalid form" syntax))))
 
@@ -154,6 +152,9 @@
   (and
    (identifier? form)
    (let ((denotation (lookup-denotation! form)))
+     (unless denotation
+       ;; XXX: Can this happen in case form is a syntactic closure?
+       (compile-error (format "undefined variable ‘~a’" form) syntax))
      (if (procedure? denotation)
 	 denotation
 	 (lambda (syntax)
