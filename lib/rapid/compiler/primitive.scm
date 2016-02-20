@@ -17,11 +17,27 @@
 
 ;;; TODO: Don't do syntax checks here. Let (scheme base), etc., handle those.
 
+;; TODO: We don't need this anymore
 (define (make-syntax-expander expander)
   (lambda (syntax)
     (unless (list? (syntax-datum syntax))
       (compile-error "invalid use of syntax as value" syntax))
     (expander syntax)))
+
+(define (syntax-error-expander syntax)
+  (define form (syntax-datum syntax))
+  (define message (syntax-datum (cadr form)))
+  (unless (string? message)
+    (compile-error "not a string literal" (cadr form)))
+  (let ((port (open-output-string)))
+    (display message port)
+    (when (> (length form) 2)
+      (display ":" port)
+      (do ((irritant-syntax* (cddr form) (cdr irritant-syntax*)))
+	  ((null? irritant-syntax*))
+	(display " " port)
+	(display (syntax-datum (car irritant-syntax*)) port)))       
+    (compile-error (get-output-string port) syntax)))
 
 (define begin-expander
   (make-syntax-expander
@@ -136,6 +152,7 @@
    (case-lambda case-lambda-expander)
    (if if-expander)
    (quote quote-expander)
+   (syntax-error syntax-error-expander)
    (+ (make-primitive-expander operator+))
    (apply (make-primitive-expander operator-apply))
    ))

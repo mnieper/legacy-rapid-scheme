@@ -18,6 +18,7 @@
 (define-library (rapid compiler primitive)
   (export primitive-environment)
   (import (scheme base)
+	  (scheme write)
 	  (rapid lists)
 	  (rapid compiler error)
 	  (rapid compiler syntax)

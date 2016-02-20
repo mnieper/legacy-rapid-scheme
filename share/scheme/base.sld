@@ -16,6 +16,6 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (scheme base)
-  (import (prefix (rapid primitive) %))
-  (export + apply)
+  (import (rename (prefix (rapid primitive) %) (%syntax-error syntax-error)))
+  (export + apply syntax-error)
   (include "base.scm"))
