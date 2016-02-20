@@ -23,5 +23,5 @@
 	  (rapid compiler expressions)
 	  (rapid compiler expand)
 	  (rapid compiler syntax)
-	  (rapid compiler libraries))
+	  (rapid compiler import-sets))
   (include "programs.scm"))

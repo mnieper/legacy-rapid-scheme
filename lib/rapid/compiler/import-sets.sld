@@ -15,7 +15,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-library (rapid compiler libraries)
+(define-library (rapid compiler import-sets)
   (export expand-import-sets read-file)
   (import (scheme base)
 	  (scheme cxr)
@@ -33,4 +33,4 @@
 	  (rapid compiler syntactic-environments)
 	  (rapid compiler path)
 	  (rapid compiler primitive))
-  (include "libraries.scm"))
+  (include "import-sets.scm"))
