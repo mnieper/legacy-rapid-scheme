@@ -112,41 +112,15 @@
     (insert-binding! syntax location)
     location))
 
-(define (make-primitive-procedure operator)
-  (define location*
-    (let loop ((i (operator-arity operator)))
-      (if (= i 0)
-	  '()
-	  (cons (make-location #f) (loop (- i 1))))))
-  (make-procedure
-   (list
-    (make-clause (make-formals location* #f #f)
-		 (list
-		  (make-primitive-operation operator
-					    (map
-					     (lambda (location)
-					       (make-reference location #f))
-					     location*)
-					    #f))
-		 #f))
-   #f))
-
-(define (make-primitive-expander operator location)
+(define (make-primitive-expander operator)
   (lambda (syntax)
     (define form (syntax-datum syntax))
-    (if (identifier? form)
-	(make-reference location syntax)
-	(make-primitive-operation operator (expand-expression* (cdr form)) syntax))))
-
-;; XXX: The bindings for the primitive procedures could also be handled in (scheme base)
-;;      This way, we don't need identifier syntax (as in R6RS).
+    (make-primitive-operation operator (expand-expression* (cdr form)) syntax)))
 
 (define primitive-environment
   (environment
    ;; Bindings
-   (((%+) (make-primitive-procedure operator+))
-    ((%apply) (make-primitive-procedure operator-apply))
-    #;((%apply-values ???))
+   (
     )
    ;; Syntactic environment
    (begin begin-expander)
@@ -154,6 +128,6 @@
    (case-lambda case-lambda-expander)
    (if if-expander)
    (quote quote-expander)
-   (+ (make-primitive-expander operator+ %+))
-   (apply (make-primitive-expander operator-apply %apply))
+   (+ (make-primitive-expander operator+))
+   (apply (make-primitive-expander operator-apply))
    ))

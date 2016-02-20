@@ -15,5 +15,11 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(%define-values (+) %+)
-(%define-values (apply) %apply)
+(%define-values
+ (+)
+ (%case-lambda
+  (a (%apply %+ a))))
+(%define-values
+ (apply)
+ (%case-lambda
+  (a (%apply %apply a))))

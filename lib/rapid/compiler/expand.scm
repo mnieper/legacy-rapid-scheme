@@ -129,8 +129,6 @@
       (with-isolated-references thunk)
       (thunk)))
 
-;; TODO: Work without identifier syntax; let do the optimizer do all this
-
 (define (%expand-syntax! syntax)
   (define form (syntax-datum syntax))
   (cond
@@ -139,10 +137,20 @@
    ((null? form)
     (compile-error "empty application in source" syntax))
    ((identifier? form)
-    ((lookup-transformer! syntax) syntax))
+    (cond
+     ((lookup-denotation! syntax)
+      => (lambda (denotation)
+	   (when (procedure? denotation)
+	     (compile-error (format "invalid use of syntax ‘~a’ as value"
+				    form)  ; synthetic identifier?
+			    syntax))
+	   denotation))
+     (else 
+      ;; XXX: Can this happen in case form is a syntactic closure?
+      (compile-error (format "undefined variable ‘~a’" form) syntax))))
    ((list? form)
     (cond
-     ((lookup-transformer! syntax)
+     ((lookup-transformer! (car form))
       => (lambda (transform!)
 	   (transform! syntax)))
      (else
@@ -158,18 +166,7 @@
   (and
    (identifier? form)
    (let ((denotation (lookup-denotation! form)))
-     (unless denotation
-       ;; XXX: Can this happen in case form is a syntactic closure?
-       (compile-error (format "undefined variable ‘~a’" form) syntax))
-     (if (procedure? denotation)
-	 denotation
-	 (lambda (syntax)
-	   (define form (syntax-datum syntax))
-	   (if (identifier? form)
-	       (make-reference denotation syntax)
-	       (make-procedure-call (make-reference denotation (car form))
-				    (expand-expression* (cdr form))
-				    syntax)))))))
+     (and (procedure? denotation) denotation))))
 
 ;;; Utility procedures
 

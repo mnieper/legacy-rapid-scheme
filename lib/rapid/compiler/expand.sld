@@ -25,7 +25,7 @@
 	  expand-into-definition
 	  expand-into-syntax-definition
 	  expand-into-sequence)
-  (import (scheme base)    (scheme write)
+  (import (scheme base)    (scheme write) ;; XXX
 	  (rapid lists)
 	  (rapid box)
 	  (rapid format)
