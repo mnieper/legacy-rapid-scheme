@@ -19,7 +19,6 @@
   (export expand-import-sets read-file)
   (import (scheme base)
 	  (scheme cxr)
-	  (scheme file)
 	  (rapid lists)
 	  (rapid format)
 	  (rapid table)

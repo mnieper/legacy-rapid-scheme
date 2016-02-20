@@ -285,28 +285,26 @@
 	  (loop (path-join filename (symbol->string (car library-name)))
 		(cdr library-name)))))
   (define source (locate-library))
-  (call-with-input-file source
-    (lambda (port)  
-      (define source-port (make-source-port port source #f))   ;; TODO: use read-file ?
-      (let loop ()
-	(define syntax (read-syntax source-port library-name-syntax))
-	(when (eof-object? syntax)
-	  (compile-error (format "library definition of ‘~a’ not found in file ‘~a’"
-				 library-name-syntax 
-				 source)
-			 library-name-syntax))
-	(let ((form (syntax-datum syntax)))
-	  (cond
-	   ((and (list? form)
-		 (>= (length form) 2)
-		 (eq? (syntax-datum (car form)) 'define-library))
-	    (assert-library-name! (cadr form))
-	    (if (equal? (syntax->datum (cadr form)) library-name)
-		syntax
-		(loop)))
-	   (else
-	    (loop))))))))
-
+  (define read-syntax (read-file source #f #f))
+  (let loop ()
+    (define syntax (read-syntax))
+    (when (eof-object? syntax)
+      (compile-error (format "library definition of ‘~a’ not found in file ‘~a’"
+			     library-name-syntax 
+			     source)
+		     library-name-syntax))
+    (let ((form (syntax-datum syntax)))
+      (cond
+       ((and (list? form)
+	     (>= (length form) 2)
+	     (eq? (syntax-datum (car form)) 'define-library))
+	(assert-library-name! (cadr form))
+	(if (equal? (syntax->datum (cadr form)) library-name)
+	    syntax
+	    (loop)))
+       (else
+	(loop))))))
+  
 (define (read-file* string-syntax* ci?)
   (apply gappend (map-in-order
 		  (lambda (string-syntax)
