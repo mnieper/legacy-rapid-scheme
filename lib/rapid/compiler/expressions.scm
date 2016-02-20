@@ -172,7 +172,7 @@
 	  (cons (lookup-identifier! (car fixed-arguments)) (loop (cdr fixed-arguments))))))
   (let loop ((expression expression))
     (cond
-     ;; References
+       ;; References
      ((reference? expression)
       (lookup-identifier! (reference-location expression)))
      ;; Literals

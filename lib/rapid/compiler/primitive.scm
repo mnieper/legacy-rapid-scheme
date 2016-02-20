@@ -61,29 +61,33 @@
      (let ((test-syntax (list-ref form 1))
 	   (consequent-syntax (list-ref form 2))
 	   (alternate-syntax (and (= (length form) 3) (list-ref form 3))))
-       (make-conditional
-	(expand-expression test-syntax)
-	(expand-expression consequent-syntax)
-	(if alternate-syntax
-	    (expand-expression alternate-syntax)
-	    (make-literal #f #f))
-	syntax)))))
+       (expand-into-expression
+	(make-conditional
+	 (expand-expression test-syntax)
+	 (expand-expression consequent-syntax)
+	 (if alternate-syntax
+	     (expand-expression alternate-syntax)
+	     (make-literal #f #f))
+	 syntax))))))
 
 (define case-lambda-expander
   (make-syntax-expander
    (lambda (syntax)
      (define form (syntax-datum syntax))
-     (make-procedure
-      (map-in-order
-       (lambda (clause-syntax)
-	 (define form (syntax-datum syntax))
-	 (unless (and (not (null? form)) (list? form))
-	   (compile-error "bad case-lambda clause" syntax))
-	 (with-scope
-	  (lambda ()
-	    (define formals (expand-formals! (car form)))
-	    (make-clause formals (list (expand-body (cdr form) clause-syntax))))))
-       (cdr form))))))
+     (expand-into-expression
+      (make-procedure
+       (map-in-order
+	(lambda (clause-syntax)
+	  (define form (syntax-datum clause-syntax))
+	  (unless (and (not (null? form)) (list? form))
+	    (compile-error "bad case-lambda clause" clause-syntax))
+	  (with-scope
+	   (lambda ()
+	     (define formals (expand-formals! (car form)))
+	     (make-clause formals (list (expand-body (cdr form) clause-syntax)) clause-syntax))))
+	(cdr form))
+       syntax)))))
+
 
 (define quote-expander
   (make-syntax-expander
@@ -91,18 +95,21 @@
      (define form (syntax-datum syntax))
      (unless (= (length form) 2)
        (compile-error "bad quote syntax" syntax))
-     (make-literal (syntax->datum (list-ref form 1)) syntax))))
+     (expand-into-expression
+      (make-literal (syntax->datum (list-ref form 1)) syntax)))))
 
 (define (expand-formals! syntax)
   (define form (syntax-datum syntax))
-  (let loop ((form form) (%fixed-arguments '()))
-    (cond
-     ((null? form)
-      (make-formals (reverse %fixed-arguments) #f syntax))
-     ((pair? form)
-      (loop (cdr form) (cons (expand-formal! (car form)) (%fixed-arguments))))
-     (else
-      (make-formals (reverse %fixed-arguments) (expand-formal! form) syntax)))))
+  (if (or (null? form) (pair? form))  
+      (let loop ((form form) (%fixed-arguments '()))
+	(cond
+	 ((null? form)
+	  (make-formals (reverse %fixed-arguments) #f syntax))
+	 ((pair? form)
+	  (loop (cdr form) (cons (expand-formal! (car form)) %fixed-arguments)))
+	 (else
+	  (make-formals (reverse %fixed-arguments) (expand-formal! form) syntax))))
+      (make-formals '() (expand-formal! syntax) syntax)))
 
 (define (expand-formal! syntax)
   (define form (syntax-datum syntax))
@@ -115,7 +122,8 @@
 (define (make-primitive-expander operator)
   (lambda (syntax)
     (define form (syntax-datum syntax))
-    (make-primitive-operation operator (expand-expression* (cdr form)) syntax)))
+    (expand-into-expression
+     (make-primitive-operation operator (expand-expression* (cdr form)) syntax))))
 
 (define primitive-environment
   (environment

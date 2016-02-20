@@ -1,5 +1,7 @@
 * Implement define-syntax and syntax-rules
 
+* Handle reader errors in read-file (and read-library-...?)
+
 * Check whether imported identifiers are being overwritten
 
 * Correct various uses of test-equal (the expected value has to come first)

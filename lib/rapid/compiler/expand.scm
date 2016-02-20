@@ -41,14 +41,7 @@
   
 (define (expand-into-expression expression)
   ((%expand-into-expression) expression))
-(define %expand-into-expression
-  (make-parameter
-   (lambda (expression)
-     (define expressions (%get-expressions))
-     (if expressions
-	 (set-expressions! (cons expression expressions))
-	 (set-bindings! (cons (make-binding (make-dummy-formals) expression #f)
-			      (%get-bindings)))))))
+(define %expand-into-expression (make-parameter #f))
 
 (define (insert-location! identifier-syntax)
   (define location (make-location identifier-syntax))
@@ -94,7 +87,11 @@
 
 ;; Expands a top level program or a library's body
 (define (expand-top-level syntax*)
-  (parameterize ((current-bindings '()))
+  (parameterize ((current-bindings '())
+		 (%expand-into-expression
+		  (lambda (expression)
+		    (set-bindings! (cons (make-binding (make-dummy-formals) expression #f)
+					 (%get-bindings))))))
     (for-each expand-syntax! syntax*)
     (parameterize ((current-context 'expression))
       (map-in-order expand-%binding (get-bindings)))))
@@ -102,14 +99,18 @@
 ;; Expands a procedure body
 (define (expand-body syntax* syntax)
   (parameterize ((current-context 'body)
-		 (current-expressions '()))
+		 (current-bindings '())
+		 (current-expressions '())
+		 (%expand-into-expression
+		  (lambda (expression)
+		    (set-expressions! (cons expression (%get-expressions))))))
     (for-each expand-syntax! syntax*)
     (when (null? (%get-expressions))
       (compile-error "no expression in body" syntax))
     (parameterize ((current-context 'expression))
       (make-letrec*-expression
        (map expand-%binding (get-bindings))
-       (map expand-expression (get-expressions))
+       (get-expressions)
        #f))))
 
 ;; Expands an expression
@@ -138,13 +139,15 @@
     (compile-error "empty application in source" syntax))
    ((identifier? form)
     (cond
-     ((lookup-denotation! syntax)
+     ((lookup-denotation! form)
       => (lambda (denotation)
 	   (when (procedure? denotation)
+	     ;; TODO: We want such a note whenever an identifier is mentioned
+	     (compile-note (format "identifier ‘~a’ was bound here" form) (lookup-syntax! form))
 	     (compile-error (format "invalid use of syntax ‘~a’ as value"
 				    form)  ; synthetic identifier?
 			    syntax))
-	   denotation))
+	   (expand-into-expression (make-reference denotation syntax))))
      (else 
       ;; XXX: Can this happen in case form is a syntactic closure?
       (compile-error (format "undefined variable ‘~a’" form) syntax))))

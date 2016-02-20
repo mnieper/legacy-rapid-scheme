@@ -15,11 +15,16 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;; TODO: Check argument types
+;; TODO: Different primitives for int, float, etc.
 (%define-values
  (+)
  (%case-lambda
-  (a (%apply %+ a))))
+  (() 0)
+  ((x) x)
+  ((x . y) (%+ x (%apply + y)))))
+
 (%define-values
  (apply)
  (%case-lambda
-  (a (%apply %apply a))))
+  ((proc args) (%apply proc args))))

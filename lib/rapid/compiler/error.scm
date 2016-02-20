@@ -68,8 +68,8 @@
     (display ": ")))
 
 (define (display-context syntax)
-  (do ((syntax syntax (syntax-context syntax)))
-      (syntax)
+  (do ((syntax (syntax-context syntax) (syntax-context syntax)))
+      ((not syntax))
     (display-source-location (syntax-source-location syntax))
     (display "  used from here")
     (newline)))
