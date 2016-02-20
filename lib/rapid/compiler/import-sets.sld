@@ -19,6 +19,7 @@
   (export expand-import-sets read-file)
   (import (scheme base)
 	  (scheme cxr)
+	  (rapid box)
 	  (rapid format)
 	  (rapid table)
 	  (rapid comparators)
