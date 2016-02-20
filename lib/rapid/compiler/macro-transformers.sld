@@ -15,7 +15,12 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define (identifier? form)
-  (symbol? form)) ;; TODO: syntactic closures
-
-;; TODO: identifier=?
+(define-library (rapid compiler macro-transformers)
+  (export)
+  (import (scheme base)
+	  (scheme eval)
+	  (rapid comparators)
+	  (rapid table)
+	  (rapid compiler syntax)
+	  (rapid compiler synthetic-closures))
+  (include "macro-transformers.scm"))
