@@ -135,7 +135,7 @@
 	  (loop (path-join filename (symbol->string (car library-name)))
 		(cdr library-name)))))
   (define source (locate-library))
-  (define read-syntax (read-file source #f #f))
+  (define read-syntax (read-file source #f library-name-syntax))
   (let loop ()
     (define syntax (read-syntax))
     (when (eof-object? syntax)
@@ -165,7 +165,7 @@
   (define filename (syntax-datum string-syntax))
   (unless (string? filename)
     (compile-error "bad string literal" string-syntax))
-  (read-file filename ci? string-syntax))
+  (read-file (locate-file filename string-syntax) ci? string-syntax))
 
 (define (assert-library-name! library-name-syntax)
   (define form (syntax-datum library-name-syntax))

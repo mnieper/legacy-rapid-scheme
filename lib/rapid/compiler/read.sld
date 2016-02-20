@@ -22,6 +22,7 @@
 	  read-error-object-message
 	  read-error-object-location
 	  read-syntax
+	  locate-file
 	  read-file
 	  source-location-source
 	  source-location-start-line

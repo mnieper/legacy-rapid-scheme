@@ -102,8 +102,7 @@
    (else
     filename)))
 
-(define (read-file filename ci? syntax)
-  (define source (locate-file filename syntax))
+(define (read-file source ci? syntax)
   (make-coroutine-generator
    (lambda (yield)
      (call-with-input-file source
