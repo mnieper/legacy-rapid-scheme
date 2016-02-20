@@ -63,7 +63,7 @@
   datum)
 
 (define (derive-syntax datum syntax)
-  (make-syntax datum (syntax-source-location syntax) syntax #f))
+  (make-syntax datum (syntax-source-location syntax) (syntax-context syntax) #f))
 
 (define (datum->syntax datum)
   (make-syntax datum #f #f #f))

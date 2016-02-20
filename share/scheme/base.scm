@@ -24,8 +24,6 @@
   ((x) x)
   ((x . y) (%+ x (%apply + y)))))
 
-%apply
-
 (%define-values
  (apply)
  (%case-lambda
