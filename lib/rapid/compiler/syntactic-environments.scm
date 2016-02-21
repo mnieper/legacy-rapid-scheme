@@ -22,6 +22,7 @@
 ;; itself.
 
 (define current-bindings (make-parameter #f box))
+(define current-scope current-bindings)
 (define (get-bindings) (unbox (current-bindings)))
 (define (set-bindings! bindings) (set-box! (current-bindings) bindings))
 
@@ -32,49 +33,69 @@
 (define (with-syntactic-environment syntactic-environment thunk)
   (parameterize
       ((current-bindings (syntactic-environment-bindings syntactic-environment))
-       (current-references (make-set (make-eq-comparator))))
+       (current-references '()))
     (thunk)))
 
 (define (with-scope thunk)
-  (let-values
-      (((references result*)
-	(parameterize
-	    ((current-bindings (get-bindings))
-	     (current-references (get-references)))
-	  (let-values ((result* (thunk)))
-	    (values (get-references) result*)))))
-    (set-references! references)
-    (apply values result*)))
+  (parameterize
+      ((current-bindings (get-bindings)))
+    (thunk)))
 
 (define (with-isolated-references thunk)
-  (parameterize ((current-references (get-references)))
-		(thunk)))
+  (parameterize ((current-references '()))
+    (dynamic-wind
+	(lambda ()
+	  (for-each
+	   (lambda (binding)
+	     (binding-increment-reference-count! binding))
+	   (get-references)))
+	thunk
+	(lambda ()
+	  (for-each
+	   (lambda (binding)
+	     (binding-decrement-reference-count! binding))
+	   (get-references))))))
 
 (define-record-type <syntactic-environment>
   (%make-syntactic-environment bindings)
   syntactic-environment?
   (bindings syntactic-environment-bindings))
 
+;;; Syntactic bindings
+
 (define-record-type <binding>
-  (make-binding syntax denotation)
+  (%make-binding syntax denotation scope reference-count)
   syntactic-binding?
   (syntax binding-syntax)
-  (denotation binding-denotation))
+  (denotation binding-denotation)
+  (scope binding-scope)
+  (reference-count binding-reference-count binding-set-reference-count!))
+
+(define (make-binding syntax denotation)
+  (%make-binding syntax denotation (current-scope) 0))
+
+(define (binding-increment-reference-count! binding)
+  (binding-set-reference-count! binding (+ (binding-reference-count binding) 1)))
+
+(define (binding-decrement-reference-count! binding)
+  (binding-set-reference-count! binding (- (binding-reference-count binding) 1)))
 
 (define (binding-identifier binding)
   (syntax-datum (binding-syntax binding)))
+
+(define (binding-reference! binding)
+  (set-references! (cons binding (get-references)))
+  (binding-increment-reference-count! binding))
+
+(define (binding-referenced? binding)
+  (and (eq? (binding-scope binding) (current-scope))
+       (> (binding-reference-count binding) 0)))
 
 (define (get-syntactic-environment)
   (%make-syntactic-environment (get-bindings)))
 
 (define (make-syntactic-environment)
   (%make-syntactic-environment (make-map (make-eq-comparator))))
-
-(define (binding-reference! binding)
-  (set-references! (set-adjoin (get-references) binding)))
-
-(define (binding-referenced? binding)
-  (set-contains? (get-references) binding))
 
 (define (%lookup-binding identifier)
   (map-ref/default (get-bindings) identifier #f))
@@ -88,12 +109,16 @@
    ((%lookup-binding identifier)
     => (lambda (binding)
 	 (binding-reference! binding)
-	 binding))
+	 (let ((new-binding (make-binding (binding-syntax binding)
+					  (binding-denotation binding))))
+	   (binding-reference! new-binding)
+	   new-binding)))
    (else #f)))
 
 (define (insert-binding! identifier-syntax denotation)
   (define identifier (syntax-datum identifier-syntax))
   (when (identifier-referenced? identifier)
+    ;; TODO include note: initial binding was here
     (compile-error "identifier has already been referenced" identifier-syntax))
   (let ((binding (make-binding identifier-syntax denotation)))
     (set-bindings! (map-set (get-bindings) identifier binding))
