@@ -15,7 +15,55 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define (identifier? form)
-  (symbol? form)) ;; TODO: syntactic closures
+;;; Data types
 
-;; TODO: identifier=?
+(define-record-type <syntactic-closure>
+  (make-syntactic-closure environment free-names form)
+  syntactic-closure?
+  (environment syntactic-closure-environment)
+  (free-names syntactic-closure-free-names)
+  (form syntactic-closure-form))
+
+(define (close-syntax form environment)
+  (make-syntactic-closure environment '() form))
+
+(define (identifier? form)
+  (or (symbol? form)
+      (and (syntactic-closure? obj)
+	   (identifier? (syntactic-closure-form obj)))))
+
+(define (make-synthetic-identifier identifier)
+  (close-syntax identifier #f))
+
+(define (identifier=? environment1 identifier1 environment2 identifier2)
+
+  )
+
+
+
+;;;
+
+(define (call-in-syntactic-closure syntactic-closure proc)
+  (let ((syntactic-environment (get-syntactic-environment)))
+    (with-syntactic-environment
+     (or (syntactic-closure-environment syntactic-closure)
+	 (make-syntactic-closure))
+     (lambda ()
+       (with-scope
+	(lambda ()
+	  ;; ADD FREE BINDINGS
+	  (proc (syntactic-closure-form syntactic-closure))))))))
+
+(define (lookup-denotation identifier environment)
+  (if (symbol? identifier)
+      ;; Symbol
+      (with-syntactic-environment
+       environment
+       (lambda ()
+	 (lookup-denotation! identifier)))
+      ;; Syntactic closure
+    ))  
+
+;;;
+
+lookup (make-syntactic-env env free-names 'a)  => ?

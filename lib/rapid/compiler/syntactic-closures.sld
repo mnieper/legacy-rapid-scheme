@@ -16,7 +16,9 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid compiler syntactic-closures)
-  (export identifier?)
-  (import (scheme base))
+  (export make-syntactic-closure syntactic-closure?
+	  close-syntax
+	  identifier? make-synthetic-identifier identifier=?)
+  (import (scheme base)
+	  (rapid compiler syntactic-environments))
   (include "syntactic-closures.scm"))
-

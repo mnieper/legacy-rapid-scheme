@@ -15,6 +15,12 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;;; Syntax definitions
+
+;; Scheme forbids definition to define an identifier whose bindings has
+;; to be known in order to determine the meaning of the definition
+;; itself.
+
 (define current-bindings (make-parameter #f box))
 (define (get-bindings) (unbox (current-bindings)))
 (define (set-bindings! bindings) (set-box! (current-bindings) bindings))
