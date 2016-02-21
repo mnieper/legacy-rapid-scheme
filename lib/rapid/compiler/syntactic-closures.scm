@@ -27,6 +27,9 @@
 (define (close-syntax form environment)
   (make-syntactic-closure environment '() form))
 
+(define (capture-syntactic-environment proc)
+  (proc (get-syntactic-environment)))
+
 (define (identifier? form)
   (or (symbol? form)
       (and (syntactic-closure? form)
@@ -36,12 +39,22 @@
   (close-syntax identifier #f))
 
 (define (identifier=? environment1 identifier1 environment2 identifier2)
-  'TODO
-  )
+  (eq? (sc-lookup-denotation! identifier1 environment1)
+       (sc-lookup-denotation! identifier2 environment2)))
 
+;; TODO use the sc-versions in expand for the lookups
 
-
-;;;
+;; XXX: Is ‘free-names-map’ a good name?
+(define current-free-names-map (make-parameter (make-map (make-eq-comparator)) box))
+(define (get-free-names-map) (unbox (current-free-names-map)))
+(define (set-free-names-map! map) (set-box! (current-free-names-map) map))
+(define (lookup-syntactic-environment name)
+  (or (map-ref/default (get-free-names-map) name #f)
+      (get-syntactic-environment)))
+(define (set-syntactic-environment! name syntactic-environment)
+  (set-free-names-map! (map-set (get-free-names-map)
+				name
+				syntactic-environment)))
 
 (define (call-in-syntactic-closure syntactic-closure proc)
   (let ((syntactic-environment (get-syntactic-environment)))
@@ -49,20 +62,31 @@
      (or (syntactic-closure-environment syntactic-closure)
 	 (make-syntactic-closure))
      (lambda ()
-       (with-scope
-	(lambda ()
-	  ;; ADD FREE BINDINGS
-	  (proc (syntactic-closure-form syntactic-closure))))))))
+       (parameterize ((current-free-names-map (get-free-names-map)))
+	 (for-each
+	  (lambda (name)
+	    (set-syntactic-environment! name syntactic-environment))
+	  (syntactic-closure-free-names syntactic-closure))
+	 (proc (syntactic-closure-form syntactic-closure)))))))
 
-(define (lookup-denotation identifier environment)
-  (if (symbol? identifier)
-      ;; Symbol
-      (with-syntactic-environment
-       environment
-       (lambda ()
-	 (lookup-denotation! identifier)))
-      ;; Syntactic closure
-    ))  
+(define sc-lookup-binding!
+  (case-lambda
+   ((identifier)
+    (let loop ((identifier identifier))
+      (if (symbol? identifier)
+	  (with-syntactic-environment
+	   (lookup-syntactic-environment identifier)
+	   (lambda ()
+	     (lookup-binding! identifier)))
+	  (call-in-syntactic-closure identifier loop))))
+   ((identifier environment)
+    (with-syntactic-environment
+     environment
+     (lambda ()
+       (sc-lookup-binding! identifier))))))
 
-;;;
+(define (sc-lookup-denotation! . arg*)
+  (binding-denotation (apply sc-lookup-binding! arg*)))
 
+(define (sc-lookup-syntax! . arg*)
+  (binding-syntax (apply sc-lookup-binding! arg*)))

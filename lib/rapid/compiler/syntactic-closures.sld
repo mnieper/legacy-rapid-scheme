@@ -17,8 +17,15 @@
 
 (define-library (rapid compiler syntactic-closures)
   (export make-syntactic-closure syntactic-closure?
+	  capture-syntactic-environment
 	  close-syntax
-	  identifier? make-synthetic-identifier identifier=?)
+	  identifier? make-synthetic-identifier identifier=?
+	  call-in-syntactic-closure
+	  sc-lookup-binding! sc-lookup-denotation! sc-lookup-syntax!)
   (import (scheme base)
+	  (scheme case-lambda)
+	  (rapid box)
+	  (rapid comparators)
+	  (rapid maps)
 	  (rapid compiler syntactic-environments))
   (include "syntactic-closures.scm"))
