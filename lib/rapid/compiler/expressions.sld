@@ -29,7 +29,7 @@
 	  make-clause clause?
 	  make-binding binding?
 	  make-formals formals?
-	  make-operator operator? operator-arity
+	  make-operator operator?
 	  expression->datum
 	  bindings)
   (import (scheme base)

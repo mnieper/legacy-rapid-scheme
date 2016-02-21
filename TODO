@@ -1,4 +1,6 @@
-* Implement syntax-error (use syntax-error syntax itself for location of compile error)
+* Write integration tests
+
+* Let rapid-scheme run the compiled program; use existing scheme to run the resulting program
 
 * Implement %define-syntax and syntax-rules
 

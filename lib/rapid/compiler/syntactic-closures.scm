@@ -29,14 +29,14 @@
 
 (define (identifier? form)
   (or (symbol? form)
-      (and (syntactic-closure? obj)
-	   (identifier? (syntactic-closure-form obj)))))
+      (and (syntactic-closure? form)
+	   (identifier? (syntactic-closure-form form)))))
 
 (define (make-synthetic-identifier identifier)
   (close-syntax identifier #f))
 
 (define (identifier=? environment1 identifier1 environment2 identifier2)
-
+  'TODO
   )
 
 
@@ -66,4 +66,3 @@
 
 ;;;
 
-lookup (make-syntactic-env env free-names 'a)  => ?

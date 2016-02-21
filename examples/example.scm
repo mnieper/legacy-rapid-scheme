@@ -1,3 +1,6 @@
-(import (scheme base))
+(import (scheme base)
+	(scheme write))
 
-(+ 1 2)
+(display (+ 1 2))
+
+(newline)

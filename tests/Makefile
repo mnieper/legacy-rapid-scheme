@@ -1,9 +1,14 @@
 TEST-RUNNER = chibi-scheme -I../lib -Ilib  
-TESTS = *-tests.scm
+SCHEME = ../bin/scheme
+UNIT-TESTS = *-tests.scm
+INTEGRATION-TESTS = check_simple
 
 all:
 
-check: $(TESTS)
+check: $(UNIT-TESTS) $(INTEGRATION-TESTS)
+
+check_simple: all
+	$(SCHEME) ../examples/example.scm | grep -q "3"
 
 %-tests.scm: all
 	./testrunner.sh $@
@@ -11,4 +16,5 @@ check: $(TESTS)
 clean:
 	rm -f testrunner.sh
 
-.PHONY: all check
+.PHONY: all check $(INTEGRATION_TESTS)
+

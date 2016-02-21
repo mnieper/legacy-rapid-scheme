@@ -16,8 +16,11 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid primitive)
-  (export case-lambda
-	  + apply)
+  (export letrec*-values
+	  case-lambda
+	  + apply
+	  display newline)
   (import (scheme base)
+	  (only (scheme write) display newline) ;; FIXME
 	  (scheme case-lambda))
   (include "primitive.scm"))

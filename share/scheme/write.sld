@@ -15,14 +15,6 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define operator+
-  (make-operator '+))
-
-(define operator-apply
-  (make-operator 'apply))
-
-(define operator-display
-  (make-operator 'display))
-
-(define operator-newline
-  (make-operator 'newline))
+(define-library (scheme write)
+  (export display)           ;; FIXME: currently just a macro
+  (import (rapid primitive)))  

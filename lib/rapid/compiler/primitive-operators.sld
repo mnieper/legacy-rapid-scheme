@@ -16,7 +16,8 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid compiler primitive-operators)
-  (export operator-apply operator+)
+  (export operator-apply operator+
+	  operator-display operator-newline) ;; TODO
   (import (scheme base)
 	  (rapid compiler expressions))
   (include "primitive-operators.scm"))

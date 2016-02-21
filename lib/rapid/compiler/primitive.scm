@@ -104,7 +104,6 @@
 	(cdr form))
        syntax)))))
 
-
 (define quote-expander
   (make-syntax-expander
    (lambda (syntax)
@@ -135,7 +134,7 @@
     (insert-binding! syntax location)
     location))
 
-(define (make-primitive-expander operator)
+(define (primitive operator)
   (lambda (syntax)
     (define form (syntax-datum syntax))
     (expand-into-expression
@@ -153,6 +152,8 @@
    (if if-expander)
    (quote quote-expander)
    (syntax-error syntax-error-expander)
-   (+ (make-primitive-expander operator+))
-   (apply (make-primitive-expander operator-apply))
+   (+ (primitive operator+))
+   (apply (primitive operator-apply))
+   (display (primitive operator-display)) ;; FIXME
+   (newline (primitive operator-newline)) ;; FIXME
    ))

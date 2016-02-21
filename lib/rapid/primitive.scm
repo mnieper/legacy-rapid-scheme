@@ -15,7 +15,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-syntax
+(define-syntax letrec*-values
   (syntax-rules ()
     ((letrec*-values ((formals init) ...) body1 body2 ...)
      (let ()

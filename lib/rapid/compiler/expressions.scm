@@ -146,10 +146,9 @@
 ;;; Operators
 
 (define-record-type <operator>
-  (make-operator identifier arity) ;; TODO: add compiling instructions, etc.
+  (make-operator identifier) ;; TODO: add compiling instructions, etc.
   operator?
-  (identifier operator-identifier)
-  (arity operator-arity))
+  (identifier operator-identifier))
 
 ;;; Expression datums
 
