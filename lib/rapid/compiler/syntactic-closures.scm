@@ -33,7 +33,7 @@
 (define (identifier? form)
   (or (symbol? form)
       (and (syntactic-closure? form)
-	   (identifier? (syntax-datum (syntactic-closure-form form))))))
+	   (identifier? (syntactic-closure-form form)))))
 
 (define (make-synthetic-identifier identifier)
   (close-syntax identifier #f))
@@ -72,14 +72,13 @@
    ((identifier)
     (let loop ((identifier identifier))
       (if (symbol? identifier)
+	  ;; Symbol
 	  (with-syntactic-environment
 	   (lookup-syntactic-environment identifier)
 	   (lambda ()
 	     (lookup-binding! identifier)))
-	  (call-in-syntactic-closure
-	   identifier
-	   (lambda (syntax)
-	     (loop (syntax-datum syntax)))))))
+	  ;; Syntactic closure
+	  (call-in-syntactic-closure identifier loop))))
    ((identifier environment)
     (with-syntactic-environment
      environment

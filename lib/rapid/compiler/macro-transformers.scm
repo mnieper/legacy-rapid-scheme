@@ -17,9 +17,8 @@
 
 (define *transformer-environment* (environment '(scheme base)))
 
-;; TODO: Use syntax objects
 (define (make-er-macro-transformer transformer macro-environment)
-  (lambda (form environment)
+  (lambda (syntax environment)
     (define renames (make-table (make-eq-comparator)))
     (define (rename identifier)
       (table-intern! renames
@@ -28,7 +27,7 @@
 		       (make-syntactic-closure macro-environment '() identifier))))
     (define (compare identifier1 identifier2)
       (identifier=? environment identifier1 environment identifier2))
-    (transformer form rename compare)))
+    (transformer syntax rename compare)))
 
 
 ;; TODO: Use syntax objects
@@ -41,7 +40,7 @@
 (define (compile-syntax-rules-transformer ellipsis literal* syntax-rule*)
 					;... clauses ...
   (define clauses '()) ;; TODO
-  `(lambda (form rename compare)
+  `(lambda (syntax rename compare)
      (cond
       ,@clauses
-      (else (error "no expansion for" form))))) ;; TODO: compile-error, syntax?
+      (else (compile-error "no expansion for" syntax)))))
