@@ -24,6 +24,7 @@
 	  (rapid compiler syntax)
 	  (rapid compiler expand)
 	  (rapid compiler environments)
+	  (rapid compiler macro-transformers)
 	  (rapid compiler syntactic-closures)
 	  (rapid compiler syntactic-environments)
 	  (rapid compiler expressions)

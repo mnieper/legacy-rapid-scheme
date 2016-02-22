@@ -113,6 +113,38 @@
      (expand-into-expression
       (make-literal (syntax->datum (list-ref form 1)) syntax)))))
 
+(define (auxiliary-syntax)
+  (lambda (syntax)
+    (compile-error "invalid use of auxiliary syntax" syntax)))
+
+(define (define-syntax-expander syntax)
+  (define syntactic-environment (get-syntactic-environment))
+  (define form (syntax-datum syntax))
+  ;; Form looks as follows:
+  ;; (define-syntax <keyword> (syntax-rules <ellipsis> (<literal> ...) <syntax-rule*>))
+  (define keyword-syntax (list-ref form 1))
+  (define transformer-syntax (list-ref form 2))
+  (define transformer (syntax-datum transformer-syntax))
+  (define ellipsis-syntax (list-ref transformer 1))
+  (define literal-syntax* (syntax-datum (list-ref transformer 2)))
+  (define syntax-rule-syntax* (list-tail transformer 3))
+  (assert-identifier! keyword-syntax)
+  (assert-identifier! ellipsis-syntax)
+  (for-each assert-identifier! literal-syntax*)
+  (let ((transformer (make-syntax-rules-transformer ellipsis-syntax
+						    literal-syntax*
+						    syntax-rule-syntax*
+						    (get-syntactic-environment))))
+    (expand-into-syntax-definition
+     keyword-syntax
+     (lambda (syntax)
+       (expand-syntax! (transformer syntax (get-syntactic-environment))))
+     syntax)))
+
+(define (assert-identifier! syntax)
+  (unless (identifier? (syntax-datum syntax))
+    (compile-error "bad identifier" syntax)))
+  
 (define (expand-formals! syntax)
   (define form (syntax-datum syntax))
   (if (or (null? form) (pair? form))  
@@ -128,8 +160,7 @@
 
 (define (expand-formal! syntax)
   (define form (syntax-datum syntax))
-  (unless (identifier? form)
-    (compile-error "bad identifier" syntax))
+  (assert-identifier! syntax)
   (let ((location (make-location syntax)))
     (insert-binding! syntax location)
     location))
@@ -152,8 +183,10 @@
    (if if-expander)
    (quote quote-expander)
    (syntax-error syntax-error-expander)
+   (define-syntax define-syntax-expander)
+   (syntax-rules (auxiliary-syntax))
    (+ (primitive operator+))
    (apply (primitive operator-apply))
-   (display (primitive operator-display)) ;; FIXME
-   (newline (primitive operator-newline)) ;; FIXME
+   (display (primitive operator-display)) ;; FIXME: should go into (scheme base)
+   (newline (primitive operator-newline)) ;; FIXME: -- "" --
    ))
