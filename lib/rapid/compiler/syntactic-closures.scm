@@ -33,7 +33,7 @@
 (define (identifier? form)
   (or (symbol? form)
       (and (syntactic-closure? form)
-	   (identifier? (syntactic-closure-form form)))))
+	   (identifier? (syntax-datum (syntactic-closure-form form))))))
 
 (define (make-synthetic-identifier identifier)
   (close-syntax identifier #f))
@@ -41,8 +41,6 @@
 (define (identifier=? environment1 identifier1 environment2 identifier2)
   (eq? (sc-lookup-denotation! identifier1 environment1)
        (sc-lookup-denotation! identifier2 environment2)))
-
-;; TODO use the sc-versions in expand for the lookups
 
 ;; XXX: Is ‘free-names-map’ a good name?
 (define current-free-names-map (make-parameter (make-map (make-eq-comparator)) box))
@@ -78,7 +76,10 @@
 	   (lookup-syntactic-environment identifier)
 	   (lambda ()
 	     (lookup-binding! identifier)))
-	  (call-in-syntactic-closure identifier loop))))
+	  (call-in-syntactic-closure
+	   identifier
+	   (lambda (syntax)
+	     (loop (syntax-datum syntax)))))))
    ((identifier environment)
     (with-syntactic-environment
      environment

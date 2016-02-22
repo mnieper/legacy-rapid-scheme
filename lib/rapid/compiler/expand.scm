@@ -133,17 +133,19 @@
 (define (%expand-syntax! syntax)
   (define form (syntax-datum syntax))
   (cond
+   ((syntactic-closure? form)
+    (call-in-syntactic-closure form %expand-syntax!))
    ((simple-datum? form)
     (expand-into-expression (make-literal form syntax)))
    ((null? form)
     (compile-error "empty application in source" syntax))
    ((identifier? form)
     (cond
-     ((lookup-denotation! form)
+     ((sc-lookup-denotation! form)
       => (lambda (denotation)
 	   (when (procedure? denotation)
 	     ;; TODO: We want such a note whenever an identifier is mentioned
-	     (compile-note (format "identifier ‘~a’ was bound here" form) (lookup-syntax! form))
+	     (compile-note (format "identifier ‘~a’ was bound here" form) (sc-lookup-syntax! form))
 	     (compile-error (format "invalid use of syntax ‘~a’ as value"
 				    form)  ; synthetic identifier?
 			    syntax))
@@ -168,7 +170,7 @@
   (define form (syntax-datum syntax))
   (and
    (identifier? form)
-   (let ((denotation (lookup-denotation! form)))
+   (let ((denotation (sc-lookup-denotation! form)))
      (and (procedure? denotation) denotation))))
 
 ;;; Utility procedures

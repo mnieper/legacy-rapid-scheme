@@ -27,5 +27,6 @@
 	  (rapid box)
 	  (rapid comparators)
 	  (rapid maps)
+	  (rapid compiler syntax)
 	  (rapid compiler syntactic-environments))
   (include "syntactic-closures.scm"))
