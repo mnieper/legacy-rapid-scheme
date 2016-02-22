@@ -21,6 +21,8 @@
 	  (scheme eval)
 	  (rapid comparators)
 	  (rapid table)
+	  (rapid format)
+	  (rapid compiler error)
 	  (rapid compiler syntax)
 	  (rapid compiler syntactic-closures))
   (include "macro-transformers.scm"))

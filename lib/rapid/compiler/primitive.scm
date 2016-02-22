@@ -134,6 +134,7 @@
   (let ((transformer (make-syntax-rules-transformer ellipsis-syntax
 						    literal-syntax*
 						    syntax-rule-syntax*
+						    transformer-syntax
 						    (get-syntactic-environment))))
     (expand-into-syntax-definition
      keyword-syntax

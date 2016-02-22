@@ -131,40 +131,41 @@
       (thunk)))
 
 (define (%expand-syntax! syntax)
-  (define form (syntax-datum syntax))
-  (cond
-   ((syntactic-closure? form)
-    (call-in-syntactic-closure form %expand-syntax!))
-   ((simple-datum? form)
-    (expand-into-expression (make-literal form syntax)))
-   ((null? form)
-    (compile-error "empty application in source" syntax))
-   ((identifier? form)
+  (let loop ((form (syntax-datum syntax)))
     (cond
-     ((sc-lookup-denotation! form)
-      => (lambda (denotation)
-	   (when (procedure? denotation)
-	     ;; TODO: We want such a note whenever an identifier is mentioned
-	     (compile-note (format "identifier ‘~a’ was bound here" form) (sc-lookup-syntax! form))
-	     (compile-error (format "invalid use of syntax ‘~a’ as value"
-				    form)  ; synthetic identifier?
-			    syntax))
-	   (expand-into-expression (make-reference denotation syntax))))
-     (else 
-      ;; XXX: Can this happen in case form is a syntactic closure?
-      (compile-error (format "undefined variable ‘~a’" form) syntax))))
-   ((list? form)
-    (cond
-     ((lookup-transformer! (car form))
-      => (lambda (transform!)
-	   (transform! syntax)))
+     ((syntactic-closure? form)
+      (call-in-syntactic-closure form loop))
+     ((simple-datum? form)
+      (expand-into-expression (make-literal form syntax)))
+     ((null? form)
+      (compile-error "empty application in source" syntax))
+     ((identifier? form)
+      (cond
+       ((sc-lookup-denotation! form)
+	=> (lambda (denotation)
+	     (when (procedure? denotation)
+	       ;; TODO: We want such a note whenever an identifier is mentioned
+	       (compile-note (format "identifier ‘~a’ was bound here" form)
+			     (sc-lookup-syntax! form))
+	       (compile-error (format "invalid use of syntax ‘~a’ as value"
+				      form)  ; synthetic identifier?
+			      syntax))
+	     (expand-into-expression (make-reference denotation syntax))))
+       (else 
+	;; XXX: Can this happen in case form is a syntactic closure?
+	(compile-error (format "undefined variable ‘~a’" form) syntax))))
+     ((list? form)
+      (cond
+       ((lookup-transformer! (car form))
+	=> (lambda (transform!)
+	     (transform! syntax)))
+       (else
+	(let ((operator (expand-expression (car form))))
+	  (expand-into-expression (make-procedure-call operator
+						       (expand-expression* (cdr form))
+						       syntax))))))
      (else
-      (let ((operator (expand-expression (car form))))
-	(expand-into-expression (make-procedure-call operator
-						     (expand-expression* (cdr form))
-						     syntax))))))
-   (else
-    (compile-error "invalid form" syntax))))
+      (compile-error "invalid form" syntax)))))
 
 (define (lookup-transformer! syntax)
   (define form (syntax-datum syntax))

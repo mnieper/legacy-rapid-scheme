@@ -17,6 +17,20 @@
 
 (define *transformer-environment* (environment '(scheme base)))
 
+(define-syntax eval-transformer
+  (syntax-rules ()
+    ((eval-transformer transformer identifier ...)
+     ((eval `(lambda (identifier ...)
+	       ,transformer)
+	    *transformer-environment*)
+      identifier ...))))
+
+#;(define (eval-transformer transformer)
+  ((eval `(lambda (compile-error format syntax->datum)
+	   ,transformer)
+	*transformer-environment*)
+   compile-error format syntax->datum))
+
 (define (make-er-macro-transformer transformer macro-environment)
   (lambda (syntax environment)
     (define renames (make-table (make-eq-comparator)))
@@ -30,17 +44,21 @@
     (transformer syntax rename compare)))
 
 
-;; TODO: Use syntax objects
-(define (make-syntax-rules-transformer ellipsis literal* syntax-rule* macro-environment)
+;; TODO: Use syntax objects for the input of make-syntax-rules-transformer
+(define (make-syntax-rules-transformer ellipsis literal* syntax-rule* transformer-syntax
+				       macro-environment)
+  ;; TODO: add transformer-syntax to environment
+  ;; We need an easy way to add extra parameter to lambda...
   (define er-macro-transformer
-    (eval (compile-syntax-rules-transformer ellipsis literal* syntax-rule*)
-	  *transformer-environment*))
+    (eval-transformer (compile-syntax-rules-transformer ellipsis literal* syntax-rule*)
+		      compile-error compile-note transformer-syntax))
   (make-er-macro-transformer er-macro-transformer macro-environment))
 
 (define (compile-syntax-rules-transformer ellipsis literal* syntax-rule*)
-					;... clauses ...
   (define clauses '()) ;; TODO
   `(lambda (syntax rename compare)
      (cond
       ,@clauses
-      (else (compile-error "no expansion for" syntax)))))
+      (else
+       (compile-note "the macro definition is here" transformer-syntax)
+       (compile-error "no expansion for macro use" syntax)))))
