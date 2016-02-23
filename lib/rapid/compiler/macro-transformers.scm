@@ -15,41 +15,6 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define *transformer-environment* (environment '(scheme base)))
-
-(define-syntax eval-transformer
-  (syntax-rules ()
-    ((eval-transformer transformer identifier ...)
-     ((eval `(lambda (identifier ...)
-	       ,transformer)
-	    *transformer-environment*)
-      identifier ...))))
-
-(define (make-er-macro-transformer transformer macro-environment)
-  (lambda (syntax environment)
-    (define renames (make-table (make-eq-comparator)))
-    (define (rename identifier)
-      (table-intern! renames
-		     identifier
-		     (lambda ()
-		       (make-syntactic-closure macro-environment '() identifier))))
-    (define (compare identifier1 identifier2)
-      (identifier=? environment identifier1 environment identifier2))
-    (transformer syntax rename compare)))
-
-(define (make-syntax-rules-transformer ellipsis
-				       literal*
-				       syntax-rule-syntax*
-				       transformer-syntax
-				       macro-environment)
-  (define er-macro-transformer
-    (eval-transformer (compile-syntax-rules-transformer ellipsis
-							literal*
-							syntax-rule-syntax*)
-		      compile-error compile-note transformer-syntax
-		      syntax-datum derive-syntax))
-  (make-er-macro-transformer er-macro-transformer macro-environment))
-
 ;; Description of the syntax rules macro compiler
 ;;
 ;; FIXME: The description does not describe the most recent verrsion of
@@ -80,20 +45,77 @@
 ;; free identifiers that are referenced. The second value is a form that
 ;; takes a vector of matched identifier bindings.
 
+(define *transformer-environment* (environment '(scheme base)))
+
+(define-syntax eval-transformer
+  (syntax-rules ()
+    ((eval-transformer transformer identifier ...)
+     ((eval `(lambda (identifier ...)
+	       ,transformer)
+	    *transformer-environment*)
+      identifier ...))))
+
+(define (make-er-macro-transformer transformer macro-environment)
+  (lambda (syntax environment)
+    (define renames (make-table (make-eq-comparator)))
+    (define (rename identifier)
+      (table-intern! renames
+		     identifier
+		     (lambda ()
+		       (make-syntactic-closure macro-environment '() identifier))))
+    (define (compare identifier1 identifier2)
+      (identifier=? environment identifier1 environment identifier2))
+    (transformer syntax rename compare)))
+
+(define (make-syntax-rules-transformer ellipsis
+				       literal*
+				       syntax-rule-syntax*
+				       transformer-syntax
+				       macro-environment)
+  (define syntax-rules-transformer
+    (compile-syntax-rules-transformer ellipsis literal* syntax-rule-syntax*))  
+  (define pattern-syntax-vector
+    (list->vector
+     (map
+      (lambda (syntax-rule-syntax)
+	(car (syntax-datum syntax-rule-syntax)))
+      syntax-rule-syntax*)))
+  (define template-syntax-vector
+    (list->vector
+     (map
+      (lambda (syntax-rule-syntax)
+	(cadr (syntax-datum syntax-rule-syntax)))
+      syntax-rule-syntax*)))
+  (define er-macro-transformer
+    (eval-transformer (compile-syntax-rules-transformer ellipsis
+							literal*
+							syntax-rule-syntax*)
+		      compile-error compile-note transformer-syntax
+		      syntax-datum derive-syntax
+		      template-syntax-vector
+		      pattern-syntax-vector))
+  (make-er-macro-transformer er-macro-transformer macro-environment))
+
 (define (compile-syntax-rules-transformer ellipsis literal* syntax-rule-syntax*)
   (define clauses
-    (map-in-order
-     (lambda (syntax-rule-syntax)
-       (define syntax-rule (syntax-datum syntax-rule-syntax))
-       (unless (and (list? syntax-rule) (= (length syntax-rule) 2))
-	 (compile-error "bad syntax-rule" syntax-rule-syntax))
-       (let*-values
-	   (((pattern-syntax) (car syntax-rule))
-	    ((template-syntax) (cadr syntax-rule))
-	    ((identifiers matcher) (compile-pattern pattern-syntax ellipsis literal*))
-	    ((transcriber) (compile-template template-syntax identifiers ellipsis literal*)))
-	 `(,matcher => ,transcriber)))
-     syntax-rule-syntax*))
+    (let loop ((syntax-rule-syntax* syntax-rule-syntax*) (i 0))
+      (if (null? syntax-rule-syntax*)
+	  '()
+	  (let ((syntax-rule (syntax-datum (car syntax-rule-syntax*))))
+	    (unless (and (list? syntax-rule) (= (length syntax-rule) 2))
+	      (compile-error "bad syntax-rule" (car syntax-rule-syntax*)))
+	    (let*-values
+		(((pattern-syntax)
+		  (car syntax-rule))
+		 ((template-syntax)
+		  (cadr syntax-rule))
+		 ((identifiers matcher)
+		  (compile-pattern pattern-syntax ellipsis literal* i))
+		 ((transcriber)
+		  (compile-template template-syntax identifiers ellipsis literal* i))
+		 ((clause)
+		  `(,matcher => ,transcriber)))
+	      (cons clause (loop (cdr syntax-rule-syntax*) (+ i 1))))))))
   `(lambda (syntax rename compare)
      (define form (syntax-datum syntax))
      (cond
@@ -106,7 +128,7 @@
 (define (pattern-variable-index variable) (vector-ref variable 0))
 (define (pattern-variable-depth variable) (vector-ref variable 1))
 
-(define (compile-pattern pattern-syntax ellipsis literal*)
+(define (compile-pattern pattern-syntax ellipsis literal* rule-index)
   (define pattern (syntax-datum pattern-syntax))
   (unless (and (list? pattern) (>= (length pattern) 1))
     (compile-error "invalid pattern" pattern-syntax))
@@ -114,7 +136,8 @@
 		(compile-subpattern (derive-syntax (cdr pattern) pattern-syntax)
 				    ellipsis
 				    literal*)))
-    (values identifiers `(,matcher (cdr form)))))
+    (values identifiers `(,matcher (cdr form)
+				   (vector-ref pattern-syntax-vector ,rule-index)))))
 
 (define (make-pattern-variable-map) (make-map (make-eq-comparator)))
 
@@ -126,27 +149,32 @@
      ((memq pattern literal*) ;; TODO: use sets
       (values
        (make-pattern-variable-map)
-      `(lambda (form)
-	 (and (compare form pattern) #()))))
+      `(lambda (form pattern-syntax)
+	 (and (compare form (syntax-datum pattern)) #()))))
      ((eq? pattern '_)
       (values
        (make-pattern-variable-map)
-       `(lambda (form)
+       `(lambda (form pattern-syntax)
 	  #())))
      (else
       (values
        (map-set (make-pattern-variable-map) pattern (make-pattern-variable 0 0))
-       `(lambda (form)
+       `(lambda (form pattern-syntax)
 	  (vector form))))))
    ((null? pattern)
     (values
      (make-pattern-variable-map)
-     `(lambda (form)
+     `(lambda (form pattern-syntax)
 	(null? form))))
+   ((constant? pattern)
+    (values
+     (make-pattern-variable-map)
+     `(lambda (form pattern-syntax)
+	(equal? form (syntax-datum pattern)))))
    (else
     (compile-error "invalid subpattern" pattern-syntax))))
 
-(define (compile-template template-syntax variables ellipsis literal*)
+(define (compile-template template-syntax variables ellipsis literal* rule-index)
   (define-values (slots transcriber)
     (compile-subtemplate template-syntax variables ellipsis literal*))
   `(lambda (match)
@@ -154,7 +182,8 @@
       (vector ,@(map
 		 (lambda (slot)
 		   `(vector-ref match ,slot))
-		 (vector->list slots))))))
+		 (vector->list slots)))
+      (vector-ref template-syntax-vector ,rule-index))))
 
 (define (compile-subtemplate template-syntax variables ellipsis literal*)
   (define template (syntax-datum template-syntax))
@@ -165,16 +194,25 @@
       => (lambda (variable)
 	   (values
 	    (vector (pattern-variable-index variable))
-	    `(lambda (match)
+	    `(lambda (match template-syntax)
 	       (derive-syntax (vector-ref match 0)
 			      template-syntax       
 			      syntax)))))
      (else
       (values
        #()
-       `(lambda (match)
-	  (derive-syntax (rename ',template)
+       `(lambda (match template-syntax)
+	  (derive-syntax (rename (syntax-datum template-syntax))
 			 template-syntax
 			 syntax))))))
+   ((constant? template)
+    (values
+     #()
+     `(lambda (match template-syntax)
+	(derive-syntax ,template template-syntax syntax))))
    (else
     (compile-error "invalid subtemplate" template-syntax))))
+
+(define (constant? datum)
+  (or (char? datum) (string? datum) (boolean? datum) (number? datum) (bytevector? datum)
+      (vector? datum)))

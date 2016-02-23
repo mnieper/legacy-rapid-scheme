@@ -86,7 +86,11 @@
        (sc-lookup-binding! identifier))))))
 
 (define (sc-lookup-denotation! . arg*)
-  (binding-denotation (apply sc-lookup-binding! arg*)))
+  (cond
+   ((apply sc-lookup-binding! arg*) => binding-denotation)
+   (else #f)))
 
 (define (sc-lookup-syntax! . arg*)
-  (binding-syntax (apply sc-lookup-binding! arg*)))
+  (cond
+   ((apply sc-lookup-binding! arg*) => binding-syntax)
+   (else #f)))

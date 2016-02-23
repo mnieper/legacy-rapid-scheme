@@ -11,7 +11,7 @@ check_simple: all
 	$(SCHEME) ../examples/example.scm | grep -q "3"
 
 check_macros: all
-	$(SCHEME) ../examples/macros.scm 2>&1 | grep -q "no expansion for macro use"
+	$(SCHEME) ../examples/macros.scm 2>&1 | grep -q "ok"
 
 %-tests.scm: all
 	./testrunner.sh $@

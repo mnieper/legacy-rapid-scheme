@@ -1,11 +1,15 @@
 (import (rapid primitive))
 
+(define-values (g) "ok")
+
 (define-syntax f
   (syntax-rules
       ... ()
       ((f) g)))
 
-(f)
+((case-lambda
+  ((g)
+   (display (f))))
+ 3)
 
-(display "ok")
 (newline)
