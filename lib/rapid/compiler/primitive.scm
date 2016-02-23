@@ -131,8 +131,8 @@
   (assert-identifier! keyword-syntax)
   (assert-identifier! ellipsis-syntax)
   (for-each assert-identifier! literal-syntax*)
-  (let ((transformer (make-syntax-rules-transformer ellipsis-syntax
-						    literal-syntax*
+  (let ((transformer (make-syntax-rules-transformer (syntax-datum ellipsis-syntax)
+						    (map syntax-datum literal-syntax*)
 						    syntax-rule-syntax*
 						    transformer-syntax
 						    (get-syntactic-environment))))

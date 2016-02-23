@@ -19,6 +19,8 @@
   (export make-syntax-rules-transformer)
   (import (scheme base)
 	  (scheme eval)
+	  (rapid lists)
+	  (rapid maps)
 	  (rapid comparators)
 	  (rapid table)
 	  (rapid format)

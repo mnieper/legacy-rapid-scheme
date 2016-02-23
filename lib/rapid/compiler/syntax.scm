@@ -62,8 +62,12 @@
    syntax-stack)
   datum)
 
-(define (derive-syntax datum syntax)
-  (make-syntax datum (syntax-source-location syntax) (syntax-context syntax) #f))
+(define derive-syntax
+  (case-lambda
+   ((datum syntax)
+    (derive-syntax datum syntax (syntax-context syntax)))
+   ((datum syntax context)
+    (make-syntax datum (syntax-source-location syntax) context #f))))
 
 (define (datum->syntax datum)
   (make-syntax datum #f #f #f))

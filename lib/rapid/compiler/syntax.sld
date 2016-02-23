@@ -19,5 +19,6 @@
   (export make-syntax syntax? syntax-datum syntax-source-location syntax-context
 	  syntax-set-datum!
 	  derive-syntax datum->syntax syntax->datum)
-  (import (scheme base))
+  (import (scheme base)
+	  (scheme case-lambda))
   (include "syntax.scm"))
