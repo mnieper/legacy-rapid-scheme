@@ -72,8 +72,12 @@
 				       syntax-rule-syntax*
 				       transformer-syntax
 				       macro-environment)
+  (define (ellipsis? identifier)
+    ;; TODO: check whether ellipsis is in identifier*
+    ;; in that case: no ellipsis
+    (identifier=? macro-environment identifier macro-environment ellipsis))
   (define syntax-rules-transformer
-    (compile-syntax-rules-transformer ellipsis literal* syntax-rule-syntax*))  
+    (compile-syntax-rules-transformer ellipsis? literal* syntax-rule-syntax*))  
   (define pattern-syntax-vector
     (list->vector
      (map
@@ -87,16 +91,14 @@
 	(cadr (syntax-datum syntax-rule-syntax)))
       syntax-rule-syntax*)))
   (define er-macro-transformer
-    (eval-transformer (compile-syntax-rules-transformer ellipsis
-							literal*
-							syntax-rule-syntax*)
+    (eval-transformer syntax-rules-transformer
 		      compile-error compile-note transformer-syntax
 		      syntax-datum derive-syntax
 		      template-syntax-vector
 		      pattern-syntax-vector))
   (make-er-macro-transformer er-macro-transformer macro-environment))
 
-(define (compile-syntax-rules-transformer ellipsis literal* syntax-rule-syntax*)
+(define (compile-syntax-rules-transformer ellipsis? literal* syntax-rule-syntax*)
   (define clauses
     (let loop ((syntax-rule-syntax* syntax-rule-syntax*) (i 0))
       (if (null? syntax-rule-syntax*)
@@ -110,9 +112,9 @@
 		 ((template-syntax)
 		  (cadr syntax-rule))
 		 ((identifiers matcher)
-		  (compile-pattern pattern-syntax ellipsis literal* i))
+		  (compile-pattern pattern-syntax ellipsis? literal* i))
 		 ((transcriber)
-		  (compile-template template-syntax identifiers ellipsis literal* i))
+		  (compile-template template-syntax identifiers ellipsis? literal* i))
 		 ((clause)
 		  `(,matcher => ,transcriber)))
 	      (cons clause (loop (cdr syntax-rule-syntax*) (+ i 1))))))))
@@ -128,20 +130,20 @@
 (define (pattern-variable-index variable) (vector-ref variable 0))
 (define (pattern-variable-depth variable) (vector-ref variable 1))
 
-(define (compile-pattern pattern-syntax ellipsis literal* rule-index)
+(define (compile-pattern pattern-syntax ellipsis? literal* rule-index)
   (define pattern (syntax-datum pattern-syntax))
   (unless (and (list? pattern) (>= (length pattern) 1))
     (compile-error "invalid pattern" pattern-syntax))
   (let-values (((identifiers matcher)
 		(compile-subpattern (derive-syntax (cdr pattern) pattern-syntax)
-				    ellipsis
+				    ellipsis?
 				    literal*)))
     (values identifiers `(,matcher (cdr form)
 				   (vector-ref pattern-syntax-vector ,rule-index)))))
 
 (define (make-pattern-variable-map) (make-map (make-eq-comparator)))
 
-(define (compile-subpattern pattern-syntax ellipsis literal*)
+(define (compile-subpattern pattern-syntax ellipsis? literal*)
   (define pattern (syntax-datum pattern-syntax))
   (cond
    ((identifier? pattern)
@@ -174,9 +176,9 @@
    (else
     (compile-error "invalid subpattern" pattern-syntax))))
 
-(define (compile-template template-syntax variables ellipsis literal* rule-index)
+(define (compile-template template-syntax variables ellipsis? literal* rule-index)
   (define-values (slots transcriber)
-    (compile-subtemplate template-syntax variables ellipsis literal*))
+    (compile-subtemplate template-syntax variables ellipsis? literal*))
   `(lambda (match)
      (,transcriber
       (vector ,@(map
@@ -185,7 +187,7 @@
 		 (vector->list slots)))
       (vector-ref template-syntax-vector ,rule-index))))
 
-(define (compile-subtemplate template-syntax variables ellipsis literal*)
+(define (compile-subtemplate template-syntax variables ellipsis? literal*)
   (define template (syntax-datum template-syntax))
   (cond
    ((identifier? template)
@@ -216,3 +218,35 @@
 (define (constant? datum)
   (or (char? datum) (string? datum) (boolean? datum) (number? datum) (bytevector? datum)
       (vector? datum)))
+
+(define (analyze-pattern-list pattern-list ellipsis?)
+  ;; Return four values.
+  ;; P... Q <ellipsis> R ... . S
+  ;; gives (P ...) (Q) (R ...) (S)
+  (let loop ((pattern-list pattern-list) (first '()))
+    (cond
+     ((null? pattern-list)
+      (values (reverse first) (list) (list) (list)))
+     ((pair? pattern-list)
+      (cond
+       ((ellipsis? (syntax-datum (car pattern-list)))
+	(when (null? first)
+	  (compile-error "ellipsis is not preceded by a pattern"
+			  (syntax-datum (car pattern-list)))) 
+	(let loop ((pattern-list (cdr pattern-list))
+		   (first (reverse (cdr first)))
+		   (ellipsis (list (car first)))
+		   (second '()))
+	  (cond
+	   ((null? pattern-list)
+	    (values first ellipsis (reverse second) (list)))
+	   ((pair? pattern-list)
+	    (if (ellipsis? (syntax-datum (car pattern-list)))
+		(compile-error "extraneous ellipsis" (syntax-datum (car pattern-list)))
+		(loop (cdr pattern-list) first ellipsis (cons (car pattern-list) second))))
+	   (else
+	    (values first ellipsis (reverse second) (list pattern-list))))))
+       (else
+	(loop (cdr pattern-list) (cons (car pattern-list) first)))))
+     (else
+      (values (reverse first) (list) (list) (list pattern-list))))))
