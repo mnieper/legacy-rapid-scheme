@@ -75,6 +75,7 @@
 (define (ellipsis? identifier) ((current-ellipsis?) identifier))
 (define (literal? identifier) ((current-literal?) identifier))
 
+;; TODO: If ellipsis? is literal? => no ellipsis
 (define (make-syntax-rules-transformer ellipsis?
 				       literal?
 				       syntax-rule-syntax*
@@ -149,7 +150,6 @@
 
 (define (make-pattern-variable-map) (make-map (make-eq-comparator)))
 
-;; TODO: view an identifier as a dotted list
 (define (compile-subpattern pattern-syntax)
   (define pattern (syntax-datum pattern-syntax))
   (cond
@@ -187,7 +187,7 @@
      (make-pattern-variable-map)
      `(lambda (syntax pattern-syntax)
 	(null? (syntax-datum syntax)))))
-   ((list? pattern)
+   ((pair? pattern)
     (compile-list-pattern pattern-syntax))
    ((constant? pattern)
     (values
@@ -309,6 +309,7 @@
       (vector-ref template-syntax-vector ,rule-index))))
 
 ;; TODO: Do something about list templates...
+;; Q: is an identifier just som
 ;; and vector templates...
 
 (define (compile-subtemplate template-syntax variables)
@@ -331,6 +332,9 @@
 	  (derive-syntax (rename (syntax-datum template-syntax))
 			 template-syntax
 			 syntax))))))
+   ((pair? template)
+    ;; TODO: filter (<ellipsis> template)
+    (compile-list-template template-syntax variables))
    ((constant? template)
     (values
      #()
@@ -338,6 +342,20 @@
 	(derive-syntax ,template template-syntax syntax))))
    (else
     (compile-error "invalid subtemplate" template-syntax))))
+
+(define (compile-list-template template-syntax variables-map)
+  (define template (syntax-datum template-syntax))
+  ;; template should be of the form
+  ;; list or dotted list
+  ;; check ellipses later
+  ;; handle (... template) above
+
+  (define slots (vector))
+  (define transcriber `
+    (lambda (match template-syntax)
+
+      ))
+  (values slots transcriber))
 
 (define (constant? datum)
   (or (char? datum) (string? datum) (boolean? datum) (number? datum) (bytevector? datum)
