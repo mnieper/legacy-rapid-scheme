@@ -23,6 +23,30 @@
 ;;; hold me liable for its use. Please send bug reports to shivers@ai.mit.edu.
 ;;;     -Olin
 
+(define (take list k)
+  (let loop ((list list) (k k))
+    (if (zero? k)
+	'()
+	(cons (car list) (loop (cdr list) (- k 1))))))
+
+(define (drop list k)
+  (let loop ((list list) (k k))
+    (if (zero? k)
+	list
+	(loop (cdr list) (- k 1)))))
+
+(define (take-right list k)
+  (let loop ((list list) (ref (drop list k)))
+    (if (pair? ref)
+	(loop (cdr list) (cdr ref))
+	list)))
+
+(define (drop-right list k)
+  (let loop ((list list) (ref (drop list k)))
+    (if (pair? ref)
+	(cons (car list) (loop (cdr list) (cdr ref)))
+	'())))
+
 (define (circular-list? obj)
   (let loop ((fast obj) (slow obj))
     (and (pair? fast)

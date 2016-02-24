@@ -17,9 +17,11 @@
 
 (define-library (rapid compiler primitive)
   (export primitive-environment)
-  (import (scheme base)
+  (import (scheme base)                  (scheme write) ;;; XXX
 	  (scheme write)
 	  (rapid lists)
+	  (rapid sets)
+	  (rapid comparators)
 	  (rapid compiler error)
 	  (rapid compiler syntax)
 	  (rapid compiler expand)

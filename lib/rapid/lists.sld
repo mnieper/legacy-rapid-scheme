@@ -17,6 +17,10 @@
 
 (define-library (rapid lists)
   (export any every map-in-order
-	  circular-list?)
+	  circular-list?
+	  take
+	  drop
+	  take-right
+	  drop-right)
   (import (scheme base))
   (include "lists.scm"))

@@ -69,38 +69,47 @@
       (identifier=? environment identifier1 environment identifier2))
     (transformer syntax rename compare)))
 
-(define (make-syntax-rules-transformer ellipsis
-				       literal*
+(define current-macro-environment (make-parameter #f))
+(define current-ellipsis? (make-parameter #f))
+(define current-literal? (make-parameter #f))
+#;(define (macro-identifier=? identifier1 identifier2)
+  (identifier=? (current-macro-environment) identifier1 (current-macro-environment) identifier2))
+#;(define (make-identifier-comparator)
+  (make-comparator identifier? macro-identifier=? #f #f))
+(define (ellipsis? identifier) ((current-ellipsis?) identifier))
+(define (literal? identifier) ((current-literal?) identifier))
+
+(define (make-syntax-rules-transformer ellipsis?
+				       literal?
 				       syntax-rule-syntax*
 				       transformer-syntax
 				       macro-environment)
-  (define (ellipsis? identifier)
-    ;; TODO: check whether ellipsis is in identifier*
-    ;; in that case: no ellipsis
-    (identifier=? macro-environment identifier macro-environment ellipsis))
-  (define syntax-rules-transformer
-    (compile-syntax-rules-transformer ellipsis? literal* syntax-rule-syntax*))  
-  (define pattern-syntax-vector
-    (list->vector
-     (map
-      (lambda (syntax-rule-syntax)
-	(car (syntax-datum syntax-rule-syntax)))
-      syntax-rule-syntax*)))
-  (define template-syntax-vector
-    (list->vector
-     (map
-      (lambda (syntax-rule-syntax)
-	(cadr (syntax-datum syntax-rule-syntax)))
-      syntax-rule-syntax*)))
-  (define er-macro-transformer
-    (eval-transformer syntax-rules-transformer
-		      compile-error compile-note transformer-syntax
-		      syntax-datum derive-syntax
-		      template-syntax-vector
-		      pattern-syntax-vector))
-  (make-er-macro-transformer er-macro-transformer macro-environment))
+  (parameterize ((current-macro-environment macro-environment)
+		 (current-ellipsis? ellipsis?)
+		 (current-literal? literal?))
+    (define syntax-rules-transformer
+      (compile-syntax-rules-transformer syntax-rule-syntax*))
+    (define pattern-syntax-vector
+      (list->vector
+       (map
+	(lambda (syntax-rule-syntax)
+	  (car (syntax-datum syntax-rule-syntax)))
+	syntax-rule-syntax*)))
+    (define template-syntax-vector
+      (list->vector
+       (map
+	(lambda (syntax-rule-syntax)
+	  (cadr (syntax-datum syntax-rule-syntax)))
+	syntax-rule-syntax*)))
+    (define er-macro-transformer
+      (eval-transformer syntax-rules-transformer
+			compile-error compile-note transformer-syntax
+			syntax-datum derive-syntax
+			template-syntax-vector
+			pattern-syntax-vector))
+    (make-er-macro-transformer er-macro-transformer macro-environment)))
 
-(define (compile-syntax-rules-transformer ellipsis? literal* syntax-rule-syntax*)
+(define (compile-syntax-rules-transformer syntax-rule-syntax*)
   (define clauses
     (let loop ((syntax-rule-syntax* syntax-rule-syntax*) (i 0))
       (if (null? syntax-rule-syntax*)
@@ -114,9 +123,9 @@
 		 ((template-syntax)
 		  (cadr syntax-rule))
 		 ((identifiers matcher)
-		  (compile-pattern pattern-syntax ellipsis? literal* i))
+		  (compile-pattern pattern-syntax i))
 		 ((transcriber)
-		  (compile-template template-syntax identifiers ellipsis? literal* i))
+		  (compile-template template-syntax identifiers i))  ;; identifiers => variable-map
 		 ((clause)
 		  `(,matcher => ,transcriber)))
 	      (cons clause (loop (cdr syntax-rule-syntax*) (+ i 1))))))))
@@ -133,26 +142,23 @@
 (define (pattern-variable-depth variable) (vector-ref variable 1))
 (define (pattern-variable-syntax variable) (vector-ref variable 2))
 
-(define (compile-pattern pattern-syntax ellipsis? literal* rule-index)
+(define (compile-pattern pattern-syntax rule-index)
   (define pattern (syntax-datum pattern-syntax))
   (unless (and (list? pattern) (>= (length pattern) 1))
     (compile-error "invalid pattern" pattern-syntax))
   (let-values (((identifiers matcher)
-		(compile-subpattern (derive-syntax (cdr pattern) pattern-syntax)
-				    ellipsis?
-				    literal*)))
+		(compile-subpattern (derive-syntax (cdr pattern) pattern-syntax))))
     (values identifiers `(,matcher (derive-syntax (cdr form) syntax)
 				   (vector-ref pattern-syntax-vector ,rule-index)))))
 
-(define (make-pattern-variable-map) (make-map (make-eq-comparator)))  ;; TODO: use identifier=?
-;; comparator
+(define (make-pattern-variable-map) (make-map (make-eq-comparator)))
 
-(define (compile-subpattern pattern-syntax ellipsis? literal*)
+(define (compile-subpattern pattern-syntax)
   (define pattern (syntax-datum pattern-syntax))
   (cond
    ((identifier? pattern)
     (cond
-     ((memq pattern literal*) ;; TODO: use sets
+     ((literal? pattern)
       (values
        (make-pattern-variable-map)
       `(lambda (syntax pattern-syntax)
@@ -173,7 +179,7 @@
      `(lambda (syntax pattern-syntax)
 	(null? (syntax-datum syntax)))))
    ((list? pattern)
-    (compile-list-pattern pattern-syntax ellipsis? literal*))
+    (compile-list-pattern pattern-syntax))
    ((constant? pattern)
     (values
      (make-pattern-variable-map)
@@ -182,12 +188,18 @@
    (else
     (compile-error "invalid subpattern" pattern-syntax))))
 
-(define (compile-list-pattern pattern-syntax ellipsis? literal*)
+(define (compile-list-pattern pattern-syntax)
   (define pattern (syntax-datum pattern-syntax))
   (define (make-compiled-matcher variables matcher index)
     (vector variables matcher index))
+  (define (compiled-matcher-variables matcher)
+    (vector-ref matcher 0))
+  (define (compiled-matcher-matcher matcher)
+    (vector-ref matcher 1))
+  (define (compiled-matcher-index matcher)
+    (vector-ref matcher 2))
   (define-values (pattern-syntax1* pattern-syntax2* pattern-syntax3* pattern-syntax4*)
-    (analyze-pattern-list pattern ellipsis?))
+    (analyze-pattern-list pattern))
   (define-values (compiled-matcher1* variables count)
     ;; TODO: refactor in extra procedure
     (let loop ((syntax* pattern-syntax1*)
@@ -198,7 +210,7 @@
 	  (values (reverse compiled-matcher*) variables index)
 	  (let ((syntax (car syntax*)))
 	    (define-values (subvariables matcher)
-	      (compile-subpattern syntax ellipsis? literal*))
+	      (compile-subpattern syntax))
 	    (apply
 	     (lambda (variables count)
 	       (loop (cdr syntax*)
@@ -220,28 +232,65 @@
 					 (pattern-variable-syntax variable)))))
 		   (list (map-set variables
 				  identifier
-				  (make-pattern-variable count (pattern-variable-depth variable)))
+				  (make-pattern-variable count
+							 (pattern-variable-depth variable)
+							 (pattern-variable-syntax variable)))
 			 (+ count 1)))
 		 identifier variable variables+count))
 	      (list variables index)))))))
+  ;; TODO: Refactor the whole code
   (define matcher
     `(lambda (syntax pattern-syntax)
-       (when (circular-list? (syntax-datum syntax))
+       (define form (syntax-datum syntax))
+       (when (circular-list? form)
 	 (compile-error "circular list in source" syntax))
-       ;; analyze list form -> before repeated after tail
-       (let ((match (make-vector ,count)))
-	 ;; match before
-	 ;; match repeated  ... and pack vars
-	 ;; match after
-	 ;; match tail
-	 ))
+       (let* ((rest* (take-right form 0))
+	      (form (drop-right form 0)))
+	 (and
+	  (,(if (not (null? pattern-syntax2*)) '>= '=)
+	   (length form)
+	   ,(+ (length pattern-syntax1*) (length pattern-syntax3*)))
+	  (let*
+	      ((form3 (take-right form ,(length pattern-syntax3*)))
+	       (form (drop-right form ,(length pattern-syntax3*)))
+	       (form1 (take form ,(length pattern-syntax1*)))
+	       (form2 (drop form ,(length pattern-syntax1*)))
+	       (match (make-vector ,count)))
+	    (and ,@
+	     (let loop ((compiled-matcher* compiled-matcher1*) (i 0))
+	       (if (null? compiled-matcher*)
+		   '()
+		   (let* ((compiled-matcher (car compiled-matcher*))
+			  (variables (compiled-matcher-variables compiled-matcher))
+			  (matcher (compiled-matcher-matcher compiled-matcher))
+			  (index (compiled-matcher-index compiled-matcher))
+			  (test
+			   `(let ((match1 (,matcher (list-ref form1 ,i)
+						    (list-ref (syntax-datum pattern-syntax) ,i))))
+			      (and
+			       match1
+			       (begin ,@
+				 (map-fold
+				  variables
+				  (lambda (identifier variable setter*) `
+				    (cons
+				     (vector-set! match
+						  ,(+ i (pattern-variable-index variable))
+						  (vector-ref
+						   match1
+						   ,(pattern-variable-index variable)))
+				     setter*))
+				  '())
+				 #t)))))
+		     (cons test (loop (cdr compiled-matcher*) (+ i 1))))))
+	     match))))))
   (values
-   pattern-variable-map
-   matcher)))
-  
-(define (compile-template template-syntax variables ellipsis? literal* rule-index)
+   variables
+   matcher))
+
+(define (compile-template template-syntax variables rule-index)
   (define-values (slots transcriber)
-    (compile-subtemplate template-syntax variables ellipsis? literal*))
+    (compile-subtemplate template-syntax variables))
   `(lambda (match)
      (,transcriber
       (vector ,@(map
@@ -250,7 +299,7 @@
 		 (vector->list slots)))
       (vector-ref template-syntax-vector ,rule-index))))
 
-(define (compile-subtemplate template-syntax variables ellipsis? literal*)
+(define (compile-subtemplate template-syntax variables)
   (define template (syntax-datum template-syntax))
   (cond
    ((identifier? template)
@@ -282,7 +331,7 @@
   (or (char? datum) (string? datum) (boolean? datum) (number? datum) (bytevector? datum)
       (vector? datum)))
 
-(define (analyze-pattern-list pattern-list ellipsis?)
+(define (analyze-pattern-list pattern-list)
   ;; Return four values.
   ;; P... Q <ellipsis> R ... . S
   ;; gives (P ...) (Q) (R ...) (S)
@@ -294,8 +343,7 @@
       (cond
        ((ellipsis? (syntax-datum (car pattern-list)))
 	(when (null? first)
-	  (compile-error "ellipsis is not preceded by a pattern"
-			  (syntax-datum (car pattern-list)))) 
+	  (compile-error "ellipsis is not preceded by a pattern" (car pattern-list)))
 	(let loop ((pattern-list (cdr pattern-list))
 		   (first (reverse (cdr first)))
 		   (ellipsis (list (car first)))
