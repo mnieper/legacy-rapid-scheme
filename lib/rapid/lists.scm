@@ -15,6 +15,24 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;;; SRFI-1 list-processing library 			-*- Scheme -*-
+;;; Reference implementation
+;;;
+;;; Copyright (c) 1998, 1999 by Olin Shivers. You may do as you please with
+;;; this code as long as you do not remove this copyright notice or
+;;; hold me liable for its use. Please send bug reports to shivers@ai.mit.edu.
+;;;     -Olin
+
+(define (circular-list? obj)
+  (let loop ((fast obj) (slow obj))
+    (and (pair? fast)
+	 (let ((fast (cdr fast)))
+	   (and (pair? fast)
+		(let ((fast (cdr fast))
+		      (slow (cdr slow)))
+		  (or (eq? fast slow)
+		      (loop fast slow))))))))
+
 (define (any pred clist)
   (let loop ((clist clist))
     (if (null? clist)

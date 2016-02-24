@@ -45,7 +45,9 @@
 ;; free identifiers that are referenced. The second value is a form that
 ;; takes a vector of matched identifier bindings.
 
-(define *transformer-environment* (environment '(scheme base)))
+(define *transformer-environment*
+  (environment '(scheme base)
+	       '(rapid lists)))
 
 (define-syntax eval-transformer
   (syntax-rules ()
@@ -126,9 +128,10 @@
        (compile-note "the macro definition is here" transformer-syntax)
        (compile-error "no expansion for macro use" syntax)))))
 
-(define (make-pattern-variable index depth) (vector index depth))
+(define (make-pattern-variable index depth syntax) (vector index depth syntax))
 (define (pattern-variable-index variable) (vector-ref variable 0))
 (define (pattern-variable-depth variable) (vector-ref variable 1))
+(define (pattern-variable-syntax variable) (vector-ref variable 2))
 
 (define (compile-pattern pattern-syntax ellipsis? literal* rule-index)
   (define pattern (syntax-datum pattern-syntax))
@@ -138,10 +141,11 @@
 		(compile-subpattern (derive-syntax (cdr pattern) pattern-syntax)
 				    ellipsis?
 				    literal*)))
-    (values identifiers `(,matcher (cdr form)
+    (values identifiers `(,matcher (derive-syntax (cdr form) syntax)
 				   (vector-ref pattern-syntax-vector ,rule-index)))))
 
-(define (make-pattern-variable-map) (make-map (make-eq-comparator)))
+(define (make-pattern-variable-map) (make-map (make-eq-comparator)))  ;; TODO: use identifier=?
+;; comparator
 
 (define (compile-subpattern pattern-syntax ellipsis? literal*)
   (define pattern (syntax-datum pattern-syntax))
@@ -151,31 +155,90 @@
      ((memq pattern literal*) ;; TODO: use sets
       (values
        (make-pattern-variable-map)
-      `(lambda (form pattern-syntax)
-	 (and (compare form (syntax-datum pattern)) #()))))
+      `(lambda (syntax pattern-syntax)
+	 (and (compare (syntax-datum syntax) (syntax-datum pattern)) #()))))
      ((eq? pattern '_)
       (values
        (make-pattern-variable-map)
-       `(lambda (form pattern-syntax)
+       `(lambda (syntax pattern-syntax)
 	  #())))
      (else
       (values
-       (map-set (make-pattern-variable-map) pattern (make-pattern-variable 0 0))
-       `(lambda (form pattern-syntax)
-	  (vector form))))))
+       (map-set (make-pattern-variable-map) pattern (make-pattern-variable 0 0 pattern-syntax))
+       `(lambda (syntax pattern-syntax)
+	  (vector (syntax-datum syntax)))))))
    ((null? pattern)
     (values
      (make-pattern-variable-map)
-     `(lambda (form pattern-syntax)
-	(null? form))))
+     `(lambda (syntax pattern-syntax)
+	(null? (syntax-datum syntax)))))
+   ((list? pattern)
+    (compile-list-pattern pattern-syntax ellipsis? literal*))
    ((constant? pattern)
     (values
      (make-pattern-variable-map)
-     `(lambda (form pattern-syntax)
-	(equal? form (syntax-datum pattern)))))
+     `(lambda (syntax pattern-syntax)
+	(equal? (syntax-datum syntax) (syntax-datum pattern)))))
    (else
     (compile-error "invalid subpattern" pattern-syntax))))
 
+(define (compile-list-pattern pattern-syntax ellipsis? literal*)
+  (define pattern (syntax-datum pattern-syntax))
+  (define (make-compiled-matcher variables matcher index)
+    (vector variables matcher index))
+  (define-values (pattern-syntax1* pattern-syntax2* pattern-syntax3* pattern-syntax4*)
+    (analyze-pattern-list pattern ellipsis?))
+  (define-values (compiled-matcher1* variables count)
+    ;; TODO: refactor in extra procedure
+    (let loop ((syntax* pattern-syntax1*)
+	       (compiled-matcher* '())
+	       (variables (make-pattern-variable-map))
+	       (index 0))
+      (if (null? syntax*)
+	  (values (reverse compiled-matcher*) variables index)
+	  (let ((syntax (car syntax*)))
+	    (define-values (subvariables matcher)
+	      (compile-subpattern syntax ellipsis? literal*))
+	    (apply
+	     (lambda (variables count)
+	       (loop (cdr syntax*)
+		     (cons (make-compiled-matcher subvariables matcher index)
+			   compiled-matcher*)
+		     variables
+		     count))	     
+	     (map-fold
+	      subvariables
+	      (lambda (identifier variable variables+count)
+		(apply
+		 (lambda (identifier variable variables count)
+		   (cond
+		    ((map-ref/default variables identifier #f)
+		     => (lambda (old-variable)
+			  (compile-note "first appearance was here" (pattern-variable-syntax
+								     old-variable))
+			  (compile-error "pattern variable has already appeared once"
+					 (pattern-variable-syntax variable)))))
+		   (list (map-set variables
+				  identifier
+				  (make-pattern-variable count (pattern-variable-depth variable)))
+			 (+ count 1)))
+		 identifier variable variables+count))
+	      (list variables index)))))))
+  (define matcher
+    `(lambda (syntax pattern-syntax)
+       (when (circular-list? (syntax-datum syntax))
+	 (compile-error "circular list in source" syntax))
+       ;; analyze list form -> before repeated after tail
+       (let ((match (make-vector ,count)))
+	 ;; match before
+	 ;; match repeated  ... and pack vars
+	 ;; match after
+	 ;; match tail
+	 ))
+  (values
+   pattern-variable-map
+   matcher)))
+  
 (define (compile-template template-syntax variables ellipsis? literal* rule-index)
   (define-values (slots transcriber)
     (compile-subtemplate template-syntax variables ellipsis? literal*))
