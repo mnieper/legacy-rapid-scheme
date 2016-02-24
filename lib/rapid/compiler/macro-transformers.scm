@@ -153,6 +153,7 @@
 
 (define (make-pattern-variable-map) (make-map (make-eq-comparator)))
 
+;; TODO: view an identifier as a dotted list
 (define (compile-subpattern pattern-syntax)
   (define pattern (syntax-datum pattern-syntax))
   (cond
@@ -173,6 +174,18 @@
        (map-set (make-pattern-variable-map) pattern (make-pattern-variable 0 0 pattern-syntax))
        `(lambda (syntax pattern-syntax)
 	  (vector (syntax-datum syntax)))))))
+   ((vector? pattern)
+    (let-values
+	(((variables-map matcher)
+	  (compile-list-pattern (derive-syntax (vector->list pattern) pattern-syntax))))
+      (values
+       variables-map
+       `(lambda (syntax pattern-syntax)
+	  (let ((form (syntax-datum syntax)))
+	    (and
+	     (vector? form)
+	     (let ((list (vector->list form)))
+	       (,matcher list (derive-syntax list pattern-syntax)))))))))
    ((null? pattern)
     (values
      (make-pattern-variable-map)
@@ -298,6 +311,9 @@
 		   `(vector-ref match ,slot))
 		 (vector->list slots)))
       (vector-ref template-syntax-vector ,rule-index))))
+
+;; TODO: Do something about list templates...
+;; and vector templates...
 
 (define (compile-subtemplate template-syntax variables)
   (define template (syntax-datum template-syntax))

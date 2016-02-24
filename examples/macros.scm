@@ -3,9 +3,9 @@
 (define-syntax h
   (syntax-rules
       ... ()
-      ((h a b) a)))
+      ((h a #(b)) a)))
 
-(display (h "hi!" 2))
+(display (h "hi!" #(2)))
 (newline)
 
 (define-values (g) "ok")
