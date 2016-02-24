@@ -3,7 +3,7 @@
 (define-syntax h
   (syntax-rules
       ... ()
-      ((h a #(b)) a)))
+      ((h a #(b)) b)))
 
 (display (h "hi!" #(2)))
 (newline)

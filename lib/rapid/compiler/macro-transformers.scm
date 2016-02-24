@@ -72,10 +72,6 @@
 (define current-macro-environment (make-parameter #f))
 (define current-ellipsis? (make-parameter #f))
 (define current-literal? (make-parameter #f))
-#;(define (macro-identifier=? identifier1 identifier2)
-  (identifier=? (current-macro-environment) identifier1 (current-macro-environment) identifier2))
-#;(define (make-identifier-comparator)
-  (make-comparator identifier? macro-identifier=? #f #f))
 (define (ellipsis? identifier) ((current-ellipsis?) identifier))
 (define (literal? identifier) ((current-literal?) identifier))
 
@@ -185,7 +181,7 @@
 	    (and
 	     (vector? form)
 	     (let ((list (vector->list form)))
-	       (,matcher list (derive-syntax list pattern-syntax)))))))))
+	       (,matcher (derive-syntax list syntax) (derive-syntax list pattern-syntax)))))))))
    ((null? pattern)
     (values
      (make-pattern-variable-map)
