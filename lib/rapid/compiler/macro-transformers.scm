@@ -265,9 +265,27 @@
     (analyze-pattern-list pattern))
   (define submatcher1* (map-in-order submatcher-compile! pattern-syntax1*))
   ;; TODO: Refactor the whole code
-  #;(define (gen-submatcher-call submatcher)
-    
-    )
+  (define (gen-submatcher-call submatcher i)   ;; put i to submatcher? What was i?
+    (define variable-map (submatcher-variable-map submatcher))
+    (define matcher (submatcher-matcher submatcher))
+    (define index (submatcher-index submatcher))  
+    `(let ((match1 (,matcher (vector-ref form1 ,i)
+			     (vector-ref pattern-vector ,i))))
+       (and
+	match1
+	(begin ,@
+	  (map-fold
+	   variable-map
+	   (lambda (identifier variable setter*) `
+	     (cons
+	      (vector-set! match
+			   ,(+ i (pattern-variable-index variable))
+			   (vector-ref
+			    match1
+			    ,(pattern-variable-index variable)))
+	      setter*))
+	   '())
+	  #t))))
   (define matcher
     `(lambda (syntax pattern-syntax)
        (define pattern-vector (list->vector (syntax-datum pattern-syntax)))
@@ -288,31 +306,10 @@
 	       (match (make-vector ,variable-count)))
 	    (and ,@
 	     (let loop ((compiled-matcher* submatcher1*) (i 0))   ;; how to count i?
-	       (if (null? compiled-matcher*)
+	       (if (null? compiled-matcher*)		   
 		   '()
-		   (let* ((submatcher (car compiled-matcher*))
-			  (variables (submatcher-variable-map submatcher))
-			  (matcher (submatcher-matcher submatcher))
-			  (index (submatcher-index submatcher))
-			  (test
-			   `(let ((match1 (,matcher (vector-ref form1 ,i)
-						    (vector-ref pattern-vector ,i))))
-			      (and
-			       match1
-			       (begin ,@
-				 (map-fold
-				  variables
-				  (lambda (identifier variable setter*) `
-				    (cons
-				     (vector-set! match
-						  ,(+ i (pattern-variable-index variable))
-						  (vector-ref
-						   match1
-						   ,(pattern-variable-index variable)))
-				     setter*))
-				  '())
-				 #t)))))
-		     (cons test (loop (cdr compiled-matcher*) (+ i 1))))))
+		   (cons (gen-submatcher-call (car compiled-matcher*) i)
+			 (loop (cdr compiled-matcher*) (+ i 1)))))
 	     match))))))
   (values
    variable-map
