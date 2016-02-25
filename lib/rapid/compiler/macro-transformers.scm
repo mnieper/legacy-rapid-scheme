@@ -196,8 +196,7 @@
    (else
     (compile-error "invalid subpattern" pattern-syntax))))
 
-;; Helper functions for ‘compile-list-pattern’
-(define (analyze-pattern-list pattern-list)
+#;(define (analyze-pattern-list pattern-list)
   ;; Return four values.
   ;; P... Q <ellipsis> R ... . S
   ;; gives (P ...) (Q) (R ...) (S)
@@ -227,6 +226,55 @@
 	(loop (cdr pattern-list) (cons (car pattern-list) first)))))
      (else
       (values (reverse first) (list) (list) (list pattern-list))))))
+
+;; Helper functions for ‘compile-list-pattern’
+(define (make-pattern-element syntax index)
+  (vector syntax index offset))
+(define (pattern-element-syntax pattern-element)
+  (vector-ref pattern-element 0))
+(define (pattern-element-index pattern-element)
+  (vector-ref pattern-element 1))
+(define (analyze-pattern-list pattern-list)
+  ;; output: pattern-element* first remaining dotted?
+  (let loop ((pattern-list pattern-list)
+	     (%pattern-element* '())
+	     (first 0)
+	     (repeated #f)
+	     (i 0))
+    (cond
+     ((null? pattern-list)
+      (values (reverse (if repeated (cons repeated %pattern-element*) %pattern-element*))
+	      first
+	      (- (- (length %pattern-element*) first) (if repeated 1 0))
+	      #f))
+     ((pair? pattern-list)
+      (cond
+       ((ellipsis? (syntax-datum (car pattern-list)))
+	(when repeated
+	  (compile-error "extraneous ellipsis" (car pattern-list)))
+	(when (null? %pattern-element*)
+	  (compile-error "ellipsis is not preceded by a pattern"
+			 (car pattern-list)))
+	(loop (cdr pattern-list)
+	      (cdr %pattern-element*)
+	      (- first 1)
+	      (car %pattern-element*)
+	      (+ i 1)))
+       (else
+	(loop (cdr pattern-list)
+	      (cons (make-pattern-element (car pattern-list) i)
+		    %pattern-element*)
+	      (if repeated first (+ first 1))
+	      repeated
+	      (+ i 1)))))
+     (else
+      ;; FIXME: add pattern-list to %pattern-element*
+      ;; use common exit
+      (values (reverse (if repeated (cons repeated %pattern-element*) %pattern-element*))
+	      (if repeated first (+ first 1))
+	      (- (- (length %pattern-elemenet*) first) (if repeated 1 0))
+	      #t)))))
+  
 (define (make-submatcher variable-map matcher index)
   (vector variable-map matcher index))
 (define (submatcher-variable-map matcher)
@@ -254,44 +302,65 @@
 				  (pattern-variable-depth variable) ;; check!
 				  (pattern-variable-syntax variable))))
     (set! variable-count (+ variable-count 1)))
-  (define (submatcher-compile! pattern-syntax)
+  (define (submatcher-compile! pattern-element)
     (define-values (subvariable-map matcher)
-      (compile-subpattern pattern-syntax))
+      (compile-subpattern (pattern-element-syntax pattern-element)))
     (define submatcher (make-submatcher subvariable-map matcher variable-count))
     (map-for-each insert-pattern-variable! subvariable-map)
-    submatcher)      
+    submatcher)
   (define pattern (syntax-datum pattern-syntax))
-  (define-values (pattern-syntax1* pattern-syntax2* pattern-syntax3* pattern-syntax4*)
+  (define-values (pattern-element* repeated-index dotted-pattern?)
     (analyze-pattern-list pattern))
-  (define submatcher1* (map-in-order submatcher-compile! pattern-syntax1*))
-  ;; TODO: Refactor the whole code
-  (define (gen-submatcher-call submatcher i)   ;; put i to submatcher? What was i?
+  (define submatcher* (map-in-order submatcher-compile! pattern-element*))
+  (define (gen-submatcher-call pattern-element submatcher offset)
     (define variable-map (submatcher-variable-map submatcher))
     (define matcher (submatcher-matcher submatcher))
-    (define index (submatcher-index submatcher))  
-    `(let ((match1 (,matcher (vector-ref form1 ,i)
-			     (vector-ref pattern-vector ,i))))
+    (define variable-offset (submatcher-index submatcher))
+    (define element-index (pattern-element-index pattern-element))
+    `(let ((submatch
+	    (,matcher (vector-ref vector1 ,(+ offset element-index))
+		      (vector-ref pattern-vector ,element-index))))
        (and
-	match1
+	submatch
 	(begin ,@
 	  (map-fold
 	   variable-map
 	   (lambda (identifier variable setter*) `
 	     (cons
 	      (vector-set! match
-			   ,(+ i (pattern-variable-index variable))
-			   (vector-ref
-			    match1
+			   ,(+ variable-offset (pattern-variable-index variable)) 
+			   (vector-ref                               
+			    submatch                                 
 			    ,(pattern-variable-index variable)))
 	      setter*))
 	   '())
 	  #t))))
+  (define (make-gen-submatcher-call offset)
+    (lambda (pattern-element submatcher)
+      (gen-submatcher-call pattern-element submatcher offset)))
   (define matcher
     `(lambda (syntax pattern-syntax)
        (define pattern-vector (list->vector (syntax-datum pattern-syntax)))
        (define form (syntax-datum syntax))
        (when (circular-list? form)
 	 (compile-error "circular list in source" syntax))
+       (let ((right (take-right form 0))
+	     (left (drop-right form 0)))
+	 (and
+	  ,(if dotted-pattern? `(not (null? right)) `(null? right))
+	  (let ((input
+		 (list->vector ,(if dotted-pattern? (append left (list right)) left))))
+	    ;; alle hintereinander
+
+       (and
+	
+	
+	,(if dotted-pattern?
+	     `(dotted-list? form)
+	     `(
+
+	   
+       ;; check dotted-list
        (let* ((rest* (take-right form 0))
 	      (form (drop-right form 0)))
 	 (and
@@ -301,15 +370,13 @@
 	  (let*
 	      ((form3 (list->vector (take-right form ,(length pattern-syntax3*))))
 	       (form (drop-right form ,(length pattern-syntax3*)))
-	       (form1 (list->vector (take form ,(length pattern-syntax1*))))
+	       (vector1 (list->vector (take form ,(length pattern-syntax1*))))
 	       (form2 (list->vector (drop form ,(length pattern-syntax1*))))
 	       (match (make-vector ,variable-count)))
-	    (and ,@
-	     (let loop ((compiled-matcher* submatcher1*) (i 0))   ;; how to count i?
-	       (if (null? compiled-matcher*)		   
-		   '()
-		   (cons (gen-submatcher-call (car compiled-matcher*) i)
-			 (loop (cdr compiled-matcher*) (+ i 1)))))
+	    (and
+	     ,@(map (make-gen-submatcher-call 0) pattern-element* submatcher*)
+	     ;; TODO: do something with offset... and whether repeated
+	     ;; --> shuffle elements ?
 	     match))))))
   (values
    variable-map
