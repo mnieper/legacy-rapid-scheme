@@ -69,5 +69,5 @@
 (define (map-for-each proc map)
   (for-each
    (lambda (entry)
-     (proc (cdr entry)))
+     (proc (car entry) (cdr entry)))
    (map-entries map)))

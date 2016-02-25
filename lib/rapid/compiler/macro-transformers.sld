@@ -17,7 +17,7 @@
 
 (define-library (rapid compiler macro-transformers)
   (export make-syntax-rules-transformer)
-  (import (scheme base)
+  (import (scheme base)                   (scheme write) ;;;X
 	  (scheme eval)
 	  (rapid lists)
 	  (rapid maps)

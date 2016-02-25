@@ -177,7 +177,7 @@
      (make-syntactic-environment)
      (lambda ()
        (map-for-each
-	(lambda (binding)
+	(lambda (identifier binding)
 	  (%insert-binding! (derive-syntax (rename (binding-identifier binding)) syntax)
 			    (binding-denotation binding)))
 	(with-syntactic-environment syntactic-environment (lambda () (get-bindings))))
@@ -185,7 +185,7 @@
 
 (define (insert-bindings-from! syntactic-environment)
   (map-for-each
-   (lambda (binding)
+   (lambda (identifier binding)
      (%insert-binding! (derive-syntax (binding-identifier binding)
 				      (binding-syntax binding))
 		       (binding-denotation binding)))

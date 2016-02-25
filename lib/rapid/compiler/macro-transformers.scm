@@ -196,56 +196,74 @@
    (else
     (compile-error "invalid subpattern" pattern-syntax))))
 
+;; Helper functions for ‘compile-list-pattern’
+(define (analyze-pattern-list pattern-list)
+  ;; Return four values.
+  ;; P... Q <ellipsis> R ... . S
+  ;; gives (P ...) (Q) (R ...) (S)
+  (let loop ((pattern-list pattern-list) (first '()))
+    (cond
+     ((null? pattern-list)
+      (values (reverse first) (list) (list) (list)))
+     ((pair? pattern-list)
+      (cond
+       ((ellipsis? (syntax-datum (car pattern-list)))
+	(when (null? first)
+	  (compile-error "ellipsis is not preceded by a pattern" (car pattern-list)))
+	(let loop ((pattern-list (cdr pattern-list))
+		   (first (reverse (cdr first)))
+		   (ellipsis (list (car first)))
+		   (second '()))
+	  (cond
+	   ((null? pattern-list)
+	    (values first ellipsis (reverse second) (list)))
+	   ((pair? pattern-list)
+	    (if (ellipsis? (syntax-datum (car pattern-list)))
+		(compile-error "extraneous ellipsis" (syntax-datum (car pattern-list)))
+		(loop (cdr pattern-list) first ellipsis (cons (car pattern-list) second))))
+	   (else
+	    (values first ellipsis (reverse second) (list pattern-list))))))
+       (else
+	(loop (cdr pattern-list) (cons (car pattern-list) first)))))
+     (else
+      (values (reverse first) (list) (list) (list pattern-list))))))
+(define (make-submatcher variable-map matcher index)
+  (vector variable-map matcher index))
+(define (submatcher-variable-map matcher)
+  (vector-ref matcher 0))
+(define (submatcher-matcher matcher)
+  (vector-ref matcher 1))
+(define (submatcher-index matcher)
+  (vector-ref matcher 2))
 (define (compile-list-pattern pattern-syntax)
+  (define variable-count 0)
+  (define variable-map (make-pattern-variable-map))
+  (define (insert-pattern-variable! identifier variable)
+    (cond
+     ((map-ref/default variable-map identifier #f)
+      => (lambda (old-variable)
+	   (compile-note "first appearance was here"
+			 (pattern-variable-syntax old-variable))
+	   (compile-error "pattern variable has already appeared once"
+			  (pattern-variable-syntax variable)))))
+    (set! variable-map
+	  (map-set
+	   variable-map
+	   identifier
+	   (make-pattern-variable variable-count
+				  (pattern-variable-depth variable) ;; check!
+				  (pattern-variable-syntax variable))))
+    (set! variable-count (+ variable-count 1)))
+  (define (submatcher-compile! pattern-syntax)
+    (define-values (subvariable-map matcher)
+      (compile-subpattern pattern-syntax))
+    (define submatcher (make-submatcher subvariable-map matcher variable-count))
+    (map-for-each insert-pattern-variable! subvariable-map)
+    submatcher)      
   (define pattern (syntax-datum pattern-syntax))
-  (define (make-compiled-matcher variables matcher index)
-    (vector variables matcher index))
-  (define (compiled-matcher-variables matcher)
-    (vector-ref matcher 0))
-  (define (compiled-matcher-matcher matcher)
-    (vector-ref matcher 1))
-  (define (compiled-matcher-index matcher)
-    (vector-ref matcher 2))
   (define-values (pattern-syntax1* pattern-syntax2* pattern-syntax3* pattern-syntax4*)
     (analyze-pattern-list pattern))
-  (define-values (compiled-matcher1* variables count)
-    ;; TODO: refactor in extra procedure
-    (let loop ((syntax* pattern-syntax1*)
-	       (compiled-matcher* '())
-	       (variables (make-pattern-variable-map))
-	       (index 0))
-      (if (null? syntax*)
-	  (values (reverse compiled-matcher*) variables index)
-	  (let ((syntax (car syntax*)))
-	    (define-values (subvariables matcher)
-	      (compile-subpattern syntax))
-	    (apply
-	     (lambda (variables count)
-	       (loop (cdr syntax*)
-		     (cons (make-compiled-matcher subvariables matcher index)
-			   compiled-matcher*)
-		     variables
-		     count))	     
-	     (map-fold
-	      subvariables
-	      (lambda (identifier variable variables+count)
-		(apply
-		 (lambda (identifier variable variables count)
-		   (cond
-		    ((map-ref/default variables identifier #f)
-		     => (lambda (old-variable)
-			  (compile-note "first appearance was here" (pattern-variable-syntax
-								     old-variable))
-			  (compile-error "pattern variable has already appeared once"
-					 (pattern-variable-syntax variable)))))
-		   (list (map-set variables
-				  identifier
-				  (make-pattern-variable count
-							 (pattern-variable-depth variable)
-							 (pattern-variable-syntax variable)))
-			 (+ count 1)))
-		 identifier variable variables+count))
-	      (list variables index)))))))
+  (define submatcher1* (map-in-order submatcher-compile! pattern-syntax1*))
   ;; TODO: Refactor the whole code
   (define matcher
     `(lambda (syntax pattern-syntax)
@@ -263,15 +281,15 @@
 	       (form (drop-right form ,(length pattern-syntax3*)))
 	       (form1 (take form ,(length pattern-syntax1*)))
 	       (form2 (drop form ,(length pattern-syntax1*)))
-	       (match (make-vector ,count)))
+	       (match (make-vector ,variable-count)))
 	    (and ,@
-	     (let loop ((compiled-matcher* compiled-matcher1*) (i 0))
+	     (let loop ((compiled-matcher* submatcher1*) (i 0))
 	       (if (null? compiled-matcher*)
 		   '()
-		   (let* ((compiled-matcher (car compiled-matcher*))
-			  (variables (compiled-matcher-variables compiled-matcher))
-			  (matcher (compiled-matcher-matcher compiled-matcher))
-			  (index (compiled-matcher-index compiled-matcher))
+		   (let* ((submatcher (car compiled-matcher*))
+			  (variables (submatcher-variable-map submatcher))
+			  (matcher (submatcher-matcher submatcher))
+			  (index (submatcher-index submatcher))
 			  (test
 			   `(let ((match1 (,matcher (list-ref form1 ,i)    ;; pattern-syntax-vec!
 						    (list-ref (syntax-datum pattern-syntax) ,i))))
@@ -293,7 +311,7 @@
 		     (cons test (loop (cdr compiled-matcher*) (+ i 1))))))
 	     match))))))
   (values
-   variables
+   variable-map
    matcher))
 
 (define (compile-template template-syntax variables rule-index)
@@ -468,34 +486,3 @@
 (define (constant? datum)
   (or (char? datum) (string? datum) (boolean? datum) (number? datum) (bytevector? datum)
       (vector? datum)))
-
-(define (analyze-pattern-list pattern-list)
-  ;; Return four values.
-  ;; P... Q <ellipsis> R ... . S
-  ;; gives (P ...) (Q) (R ...) (S)
-  (let loop ((pattern-list pattern-list) (first '()))
-    (cond
-     ((null? pattern-list)
-      (values (reverse first) (list) (list) (list)))
-     ((pair? pattern-list)
-      (cond
-       ((ellipsis? (syntax-datum (car pattern-list)))
-	(when (null? first)
-	  (compile-error "ellipsis is not preceded by a pattern" (car pattern-list)))
-	(let loop ((pattern-list (cdr pattern-list))
-		   (first (reverse (cdr first)))
-		   (ellipsis (list (car first)))
-		   (second '()))
-	  (cond
-	   ((null? pattern-list)
-	    (values first ellipsis (reverse second) (list)))
-	   ((pair? pattern-list)
-	    (if (ellipsis? (syntax-datum (car pattern-list)))
-		(compile-error "extraneous ellipsis" (syntax-datum (car pattern-list)))
-		(loop (cdr pattern-list) first ellipsis (cons (car pattern-list) second))))
-	   (else
-	    (values first ellipsis (reverse second) (list pattern-list))))))
-       (else
-	(loop (cdr pattern-list) (cons (car pattern-list) first)))))
-     (else
-      (values (reverse first) (list) (list) (list pattern-list))))))
