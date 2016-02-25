@@ -334,7 +334,11 @@
 		 (let* ((dot-position
 			 (position))
 			(dotted-list
-			 (append (reverse datum*) (%read-syntax '()))))
+			 (let* ((rest (%read-syntax '())) (datum (syntax-datum rest)))
+			   (append (reverse datum*)
+				   (if (or (list? datum) (null? datum))
+				       datum
+				       rest)))))
 		   (case (%read-syntax '(closing-parenthesis))
 		     ((closing-parenthesis)
 		      (make-syntax dotted-list start (position)))
