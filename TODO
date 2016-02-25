@@ -1,4 +1,4 @@
-* Check whether reader yields the right syntax objects for (a . ()) and (a . (b c)) ...
+* Should the expander output only tagged vectors as objects?
 
 * Write integration tests
 
