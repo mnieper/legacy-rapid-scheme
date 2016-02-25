@@ -287,7 +287,7 @@
 	       (form2 (list->vector (drop form ,(length pattern-syntax1*))))
 	       (match (make-vector ,variable-count)))
 	    (and ,@
-	     (let loop ((compiled-matcher* submatcher1*) (i 0))
+	     (let loop ((compiled-matcher* submatcher1*) (i 0))   ;; how to count i?
 	       (if (null? compiled-matcher*)
 		   '()
 		   (let* ((submatcher (car compiled-matcher*))
