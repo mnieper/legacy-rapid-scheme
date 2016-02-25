@@ -265,8 +265,12 @@
     (analyze-pattern-list pattern))
   (define submatcher1* (map-in-order submatcher-compile! pattern-syntax1*))
   ;; TODO: Refactor the whole code
+  #;(define (gen-submatcher-call submatcher)
+    
+    )
   (define matcher
     `(lambda (syntax pattern-syntax)
+       (define pattern-vector (list->vector (syntax-datum pattern-syntax)))
        (define form (syntax-datum syntax))
        (when (circular-list? form)
 	 (compile-error "circular list in source" syntax))
@@ -277,10 +281,10 @@
 	   (length form)
 	   ,(+ (length pattern-syntax1*) (length pattern-syntax3*)))
 	  (let*
-	      ((form3 (take-right form ,(length pattern-syntax3*)))
+	      ((form3 (list->vector (take-right form ,(length pattern-syntax3*))))
 	       (form (drop-right form ,(length pattern-syntax3*)))
-	       (form1 (take form ,(length pattern-syntax1*)))
-	       (form2 (drop form ,(length pattern-syntax1*)))
+	       (form1 (list->vector (take form ,(length pattern-syntax1*))))
+	       (form2 (list->vector (drop form ,(length pattern-syntax1*))))
 	       (match (make-vector ,variable-count)))
 	    (and ,@
 	     (let loop ((compiled-matcher* submatcher1*) (i 0))
@@ -291,8 +295,8 @@
 			  (matcher (submatcher-matcher submatcher))
 			  (index (submatcher-index submatcher))
 			  (test
-			   `(let ((match1 (,matcher (list-ref form1 ,i)    ;; pattern-syntax-vec!
-						    (list-ref (syntax-datum pattern-syntax) ,i))))
+			   `(let ((match1 (,matcher (vector-ref form1 ,i)
+						    (vector-ref pattern-vector ,i))))
 			      (and
 			       match1
 			       (begin ,@
