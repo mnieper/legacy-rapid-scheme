@@ -308,8 +308,6 @@
 		 (vector->list slots)))
       (vector-ref template-syntax-vector ,rule-index))))
 
-;; and vector templates...
-
 ;; What about constants and ellipses? (4 ...) ?
 (define (compile-subtemplate template-syntax variables depth)
   (define template (syntax-datum template-syntax))
@@ -353,6 +351,19 @@
 	     `(lambda (match template-syntax)
 		(,transcriber match (cadr (syntax-datum template-syntax)))))))
 	(compile-list-template template-syntax variables depth)))
+   ((vector? template)
+    (let-values
+	(((slots transcriber)
+	  (compile-list-template (derive-syntax (vector->list template) template-syntax)
+				 variables
+				 depth)))
+      (values
+       slots
+       `(lambda (match template-syntax)
+	  (let ((output
+		 (,transcriber match (derive-syntax (vector->list (syntax-datum template-syntax))
+						    template-syntax))))
+	    (derive-syntax (list->vector (syntax-datum output)) output))))))
    ((constant? template)
     (values
      #()
