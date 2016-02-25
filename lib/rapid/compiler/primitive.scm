@@ -141,8 +141,11 @@
   (define (literal? identifier)
     (set-contains? literal-set identifier))
   (define ellipsis (syntax-datum ellipsis-syntax))
-  (define (ellipsis? identifier)
-    (eq? identifier ellipsis))
+  (define ellipsis?
+    (if (literal? ellipsis)
+	(lambda (identifier) #f)
+	(lambda (identifier)
+	  (eq? identifier ellipsis))))
   (assert-identifier! keyword-syntax)
   (assert-identifier! ellipsis-syntax)
   (let ((transformer (make-syntax-rules-transformer ellipsis?

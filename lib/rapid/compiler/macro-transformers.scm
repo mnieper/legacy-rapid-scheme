@@ -75,7 +75,6 @@
 (define (ellipsis? identifier) ((current-ellipsis?) identifier))
 (define (literal? identifier) ((current-literal?) identifier))
 
-;; TODO: If ellipsis? is literal? => no ellipsis
 (define (make-syntax-rules-transformer ellipsis?
 				       literal?
 				       syntax-rule-syntax*
