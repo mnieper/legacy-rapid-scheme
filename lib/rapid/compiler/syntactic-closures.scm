@@ -35,6 +35,11 @@
       (and (syntactic-closure? form)
 	   (identifier? (syntactic-closure-form form)))))
 
+(define (unclose-form form)
+  (if (syntactic-closure? form)
+      (unclose-form (syntactic-closure-form form))
+      form))
+
 (define (make-synthetic-identifier identifier)
   (close-syntax identifier #f))
 

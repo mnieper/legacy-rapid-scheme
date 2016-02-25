@@ -23,44 +23,46 @@
   (context syntax-context syntax-set-context!)
   (aux syntax-aux syntax-set-aux!))
 
-(define (syntax->datum syntax)
-  ;; TODO: Was machen wir mit syntactic-closure?  // simple-datum?
-  (define syntax-stack '())
-  (define (push-syntax! syntax) (set! syntax-stack (cons syntax syntax-stack)))
-  (define datum
-    (let syntax->datum ((syntax syntax))
-      (cond
-       ((syntax-aux syntax) => (lambda (datum) datum))
-       (else
-	(let ((datum (syntax-datum syntax)))
-	  (cond
-	   ((vector? datum)
-	    (push-syntax! syntax)
-	    (let* ((n (vector-length datum))
-		   (vector (make-vector n)))
-	      (syntax-set-aux! syntax vector)
-	      (do ((i 0 (+ i 1)))
-		  ((>= i n))
-		(vector-set! vector i (syntax->datum (vector-ref datum i)))) 
-	      vector))
-	   ((pair? datum)
-	    (push-syntax! syntax)
-	    (let* ((pair (list #f)))
-	      (syntax-set-aux! syntax pair)
-	      (set-car! pair (syntax->datum (car datum)))
-	      (do ((datum datum (cdr datum)) (pair pair (cdr pair)))
-		  ((not (pair? (cdr datum)))
-		   (unless (null? (cdr datum))
-		     (set-cdr! pair (syntax->datum (cdr datum)))))
-		(set-cdr! pair (list (syntax->datum (cadr datum)))))		
-	      pair))
-	   (else
-	    datum)))))))
-  (for-each
-   (lambda (syntax)
-     (syntax-set-aux! syntax #f))
-   syntax-stack)
-  datum)
+(define syntax->datum
+  (case-lambda
+   ((syntax) (syntax->datum syntax (lambda (datum) datum)))
+   ((syntax proc)
+    (define syntax-stack '())
+    (define (push-syntax! syntax) (set! syntax-stack (cons syntax syntax-stack)))
+    (define datum
+      (let syntax->datum ((syntax syntax))
+	(cond
+	 ((syntax-aux syntax) => (lambda (datum) datum))
+	 (else
+	  (let ((datum (syntax-datum syntax)))
+	    (cond
+	     ((vector? datum)
+	      (push-syntax! syntax)
+	      (let* ((n (vector-length datum))
+		     (vector (make-vector n)))
+		(syntax-set-aux! syntax vector)
+		(do ((i 0 (+ i 1)))
+		    ((>= i n))
+		  (vector-set! vector i (syntax->datum (vector-ref datum i)))) 
+		vector))
+	     ((pair? datum)
+	      (push-syntax! syntax)
+	      (let* ((pair (list #f)))
+		(syntax-set-aux! syntax pair)
+		(set-car! pair (syntax->datum (car datum)))
+		(do ((datum datum (cdr datum)) (pair pair (cdr pair)))
+		    ((not (pair? (cdr datum)))
+		     (unless (null? (cdr datum))
+		       (set-cdr! pair (syntax->datum (cdr datum)))))
+		  (set-cdr! pair (list (syntax->datum (cadr datum)))))		
+		pair))
+	     (else
+	      (proc datum))))))))
+    (for-each
+     (lambda (syntax)
+       (syntax-set-aux! syntax #f))
+     syntax-stack)
+    datum)))
 
 (define derive-syntax
   (case-lambda

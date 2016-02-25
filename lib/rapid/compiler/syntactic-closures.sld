@@ -19,6 +19,7 @@
   (export make-syntactic-closure syntactic-closure?
 	  capture-syntactic-environment
 	  close-syntax
+	  unclose-form
 	  identifier? make-synthetic-identifier identifier=?
 	  call-in-syntactic-closure
 	  sc-lookup-binding! sc-lookup-denotation! sc-lookup-syntax!)

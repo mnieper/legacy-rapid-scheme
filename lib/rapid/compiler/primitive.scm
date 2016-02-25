@@ -104,14 +104,12 @@
 	(cdr form))
        syntax)))))
 
-(define quote-expander
-  (make-syntax-expander
-   (lambda (syntax)
-     (define form (syntax-datum syntax))
-     (unless (= (length form) 2)
-       (compile-error "bad quote syntax" syntax))
-     (expand-into-expression
-      (make-literal (syntax->datum (list-ref form 1)) syntax)))))
+(define (quote-expander syntax)
+  (define form (syntax-datum syntax))
+  (unless (= (length form) 2)
+    (compile-error "bad quote syntax" syntax))
+  (expand-into-expression
+   (make-literal (syntax->datum (list-ref form 1) unclose-form) syntax)))
 
 (define (auxiliary-syntax)
   (lambda (syntax)

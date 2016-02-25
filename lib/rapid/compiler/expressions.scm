@@ -176,7 +176,7 @@
       (lookup-identifier! (reference-location expression)))
      ;; Literals
      ((literal? expression)
-      (literal-value expression))
+      `(quote ,(literal-value expression)))
      ;; Procedure calls
      ((procedure-call? expression)
       `(,(loop (procedure-call-operator expression))

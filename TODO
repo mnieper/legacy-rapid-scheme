@@ -1,3 +1,5 @@
+* Check whether reader yields the right syntax objects for (a . ()) and (a . (b c)) ...
+
 * Write integration tests
 
 * Let rapid-scheme run the compiled program; use existing scheme to run the resulting program

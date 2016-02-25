@@ -341,9 +341,18 @@
 	  (derive-syntax (rename (syntax-datum template-syntax))
 			 template-syntax
 			 syntax))))))
+   ((null? template)
+    (values #() `(lambda (match template-syntax) (derive-syntax '() template-syntax syntax))))
    ((pair? template)
-    ;; TODO: filter (<ellipsis> template)
-    (compile-list-template template-syntax variables depth))
+    (if (and (list? template) (= (length template) 2) (ellipsis? (syntax-datum (car template))))
+	(parameterize ((current-ellipsis? (lambda (identifier) #f)))
+	  (let-values (((slots transcriber)
+		       (compile-subtemplate (cadr template) variables depth)))
+	    (values
+	     slots
+	     `(lambda (match template-syntax)
+		(,transcriber match (cadr (syntax-datum template-syntax)))))))
+	(compile-list-template template-syntax variables depth)))
    ((constant? template)
     (values
      #()
@@ -377,7 +386,7 @@
 			%template-element*)
 		  (+ index 1)))))
      (else
-      (values (reverse %template-element*) (make-template-element list #f index))))))
+      (values (reverse %template-element*) `(,(make-template-element list #f index)))))))
 (define (make-subtranscriber slots transcriber)
   (vector slots transcriber))
 (define (subtranscriber-slots subtranscriber)
@@ -416,32 +425,33 @@
   (define subtranscriber-rest* (map-in-order template-element-compile template-element-rest*))
   (define-values (slots slot-table)
     (make-slots+slot-table (append subtranscriber-rest* subtranscriber*)))
+  (define (gen-subtranscriber-call template-element subtranscriber)
+    (if
+     (template-element-repeated? template-element)
+     ;; Repeated template element
+     (error "FIXME: Implementation missing")
+     ;; Regular template element
+     `(,(subtranscriber-transcriber subtranscriber)
+       (vector ,@(map
+		  (lambda (slot)
+		    `(vector-ref match ,(table-ref slot-table slot)))
+		  (vector->list (subtranscriber-slots subtranscriber))))
+       (vector-ref template-syntax-vector
+		   ,(template-element-index template-element)))))
   (define transcriber `
     (lambda (match template-syntax)
       (let* ((template (syntax-datum template-syntax))
 	     (template-syntax-vector
 	      (list->vector (append (drop-right template 0)
-				    (take-right template 0))))
+				    (let ((rest (take-right template 0)))
+				      (if (null? rest) rest (list rest))))))
 	     (output
-	      (cons* ,@
-	       (map-in-order
-		(lambda (template-element subtranscriber)
-		  (if
-		   (template-element-repeated? template-element)
-		   ;; Repeated template element
-		   (error "FIXME: Implementation missing")
-		   ;; Regular template element
-		   `(,(subtranscriber-transcriber subtranscriber)
-		     (vector ,@
-		      (vector->list
-		       (vector-map
-			(lambda (slot)
-			  `(vector-ref match ,(table-ref slot-table slot)))
-			(subtranscriber-slots subtranscriber))))
-		     (vector-ref template-syntax-vector
-				 ,(template-element-index template-element)))))
-		template-element* subtranscriber*)
-	       '()))) ;; TODO: dotted tail with similar function
+	      (cons*
+	       ,@(map-in-order gen-subtranscriber-call template-element* subtranscriber*)
+	       ,(if (null? template-element-rest*)
+		    ''()
+		    (gen-subtranscriber-call (car template-element-rest*)
+					     (car subtranscriber-rest*))))))
 	(derive-syntax output template-syntax syntax))))
   (values slots transcriber))
 

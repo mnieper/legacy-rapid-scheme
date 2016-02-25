@@ -16,7 +16,8 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid primitive)
-  (export letrec*-values
+  (export quote
+          letrec*-values
 	  case-lambda
 	  + apply
 	  display newline string-append)

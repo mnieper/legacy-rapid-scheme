@@ -148,7 +148,7 @@
 	       (compile-note (format "identifier ‘~a’ was bound here" form)
 			     (sc-lookup-syntax! form))
 	       (compile-error (format "invalid use of syntax ‘~a’ as value"
-				      form)  ; synthetic identifier?
+				      form)  ; synthetic identifier? will have unclose it
 			      syntax))
 	     (expand-into-expression (make-reference denotation syntax))))
        (else 
