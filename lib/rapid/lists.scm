@@ -23,6 +23,12 @@
 ;;; hold me liable for its use. Please send bug reports to shivers@ai.mit.edu.
 ;;;     -Olin
 
+(define (cons* element . element*)
+  (let loop ((element element) (element* element*))
+    (if (null? element*)
+	element
+	(cons element (loop (car element*) (cdr element*))))))
+
 (define (take list k)
   (let loop ((list list) (k k))
     (if (zero? k)
@@ -69,9 +75,16 @@
 	#t
 	(and (pred (car clist)) (loop (cdr clist))))))
 
-(define (map-in-order proc list)  
-  (let loop ((list list))
-    (if (null? list)
-	'()
-	(let ((value (proc (car list))))
-	  (cons value (loop (cdr list)))))))
+(define (map-in-order proc . list*)
+  (let loop ((list* list*))
+    (call-with-current-continuation
+     (lambda (return)
+       (let ((value
+	      (apply proc
+		     (map
+		      (lambda (list)
+			(if (null? list)
+			    (return '())
+			    (car list)))
+		      list*))))
+	 (cons value (loop (map cdr list*))))))))

@@ -17,7 +17,7 @@
 
 (define-library (rapid compiler primitive-operators)
   (export operator-apply operator+
-	  operator-display operator-newline) ;; TODO
+	  operator-display operator-newline operator-string-append) ;; TODO
   (import (scheme base)
 	  (rapid compiler expressions))
   (include "primitive-operators.scm"))

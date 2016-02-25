@@ -19,7 +19,7 @@
   (export letrec*-values
 	  case-lambda
 	  + apply
-	  display newline)
+	  display newline string-append)
   (import (scheme base)
 	  (only (scheme write) display newline) ;; FIXME
 	  (scheme case-lambda))

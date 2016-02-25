@@ -274,7 +274,7 @@
 			  (matcher (compiled-matcher-matcher compiled-matcher))
 			  (index (compiled-matcher-index compiled-matcher))
 			  (test
-			   `(let ((match1 (,matcher (list-ref form1 ,i)
+			   `(let ((match1 (,matcher (list-ref form1 ,i)    ;; pattern-syntax-vec!
 						    (list-ref (syntax-datum pattern-syntax) ,i))))
 			      (and
 			       match1
@@ -299,7 +299,7 @@
 
 (define (compile-template template-syntax variables rule-index)
   (define-values (slots transcriber)
-    (compile-subtemplate template-syntax variables))
+    (compile-subtemplate template-syntax variables 0))
   `(lambda (match)
      (,transcriber
       (vector ,@(map
@@ -308,23 +308,32 @@
 		 (vector->list slots)))
       (vector-ref template-syntax-vector ,rule-index))))
 
-;; TODO: Do something about list templates...
-;; Q: is an identifier just som
 ;; and vector templates...
 
-(define (compile-subtemplate template-syntax variables)
+;; What about constants and ellipses? (4 ...) ?
+(define (compile-subtemplate template-syntax variables depth)
   (define template (syntax-datum template-syntax))
   (cond
    ((identifier? template)
     (cond
+     ((ellipsis? template)
+      (compile-error "extraneous ellipsis in template" template-syntax))
      ((map-ref/default variables template #f)
       => (lambda (variable)
-	   (values
-	    (vector (pattern-variable-index variable))
-	    `(lambda (match template-syntax)
-	       (derive-syntax (vector-ref match 0)
-			      template-syntax       
-			      syntax)))))
+	   (cond
+	    ((> (pattern-variable-depth variable) depth)
+	     (compile-error "pattern variable followed by too few ellipses"
+			    template-syntax))
+	    ((< (pattern-variable-depth variable) depth)
+	     (compile-error "pattern variable followed by too many ellipses"
+			    template-syntax))
+	    (else	   
+	     (values
+	      (vector (pattern-variable-index variable))
+	      `(lambda (match template-syntax)
+		 (derive-syntax (vector-ref match 0)
+				template-syntax       
+				syntax)))))))
      (else
       (values
        #()
@@ -334,7 +343,7 @@
 			 syntax))))))
    ((pair? template)
     ;; TODO: filter (<ellipsis> template)
-    (compile-list-template template-syntax variables))
+    (compile-list-template template-syntax variables depth))
    ((constant? template)
     (values
      #()
@@ -343,18 +352,97 @@
    (else
     (compile-error "invalid subtemplate" template-syntax))))
 
-(define (compile-list-template template-syntax variables-map)
-  (define template (syntax-datum template-syntax))
-  ;; template should be of the form
-  ;; list or dotted list
-  ;; check ellipses later
-  ;; handle (... template) above
+(define (make-template-element template-syntax repeated? index)
+  (vector template-syntax repeated? index))
+(define (template-element-syntax template-element)
+  (vector-ref template-element 0))
+(define (template-element-repeated? template-element)
+  (vector-ref template-element 1))
+(define (template-element-index template-element)
+  (vector-ref template-element 2))
+(define (analyze-template-list list)
+  (let loop ((list list) (%template-element* '()) (index 0))
+    (cond
+     ((null? list)
+      (values (reverse %template-element*) '()))
+     ((pair? list)
+      (let ((template-syntax (car list)))
+	(if (and (pair? (cdr list)) (ellipsis? (syntax-datum (cadr list))))
+	    (loop (cddr list)
+		  (cons (make-template-element template-syntax #t index)
+			%template-element*)
+		  (+ index 2))
+	    (loop (cdr list)
+		  (cons (make-template-element template-syntax #f index)
+			%template-element*)
+		  (+ index 1)))))
+     (else
+      (values (reverse %template-element*) (make-template-element list #f index))))))
+(define (make-subtranscriber slots transcriber)
+  (vector slots transcriber))
+(define (subtranscriber-slots subtranscriber)
+  (vector-ref subtranscriber 0))
+(define (subtranscriber-transcriber subtranscriber)
+  (vector-ref subtranscriber 1))
+(define (make-slots+slot-table subtranscriber*)
+  (define table (make-table (make-eqv-comparator)))
+  (define index 0)
+  (define %slot* '())
+  (for-each
+   (lambda (subtranscriber)
+     (vector-for-each
+      (lambda (slot)
+	(table-intern! table slot (lambda ()
+				    (set! %slot* (cons slot %slot*))				    
+				    (set! index (+ index 1))
+				    (- index 1))))
+      (subtranscriber-slots subtranscriber)))
+   subtranscriber*)
+  (values (list->vector (reverse %slot*)) table))
 
-  (define slots (vector))
+(define (compile-list-template template-syntax variables-map depth)
+  (define template (syntax-datum template-syntax))
+  (define-values (template-element* template-element-rest*)
+    (analyze-template-list template))
+  (define (template-element-compile template-element)
+    (define-values (slots transcriber)
+      (compile-subtemplate (template-element-syntax template-element)
+			   variables-map
+			   (if (template-element-repeated? template-element)
+			       (+ depth 1)
+			       depth)))
+    (make-subtranscriber slots transcriber))
+  (define subtranscriber* (map-in-order template-element-compile template-element*))
+  (define subtranscriber-rest* (map-in-order template-element-compile template-element-rest*))
+  (define-values (slots slot-table)
+    (make-slots+slot-table (append subtranscriber-rest* subtranscriber*)))
   (define transcriber `
     (lambda (match template-syntax)
-
-      ))
+      (let* ((template (syntax-datum template-syntax))
+	     (template-syntax-vector
+	      (list->vector (append (drop-right template 0)
+				    (take-right template 0))))
+	     (output
+	      (cons* ,@
+	       (map-in-order
+		(lambda (template-element subtranscriber)
+		  (if
+		   (template-element-repeated? template-element)
+		   ;; Repeated template element
+		   (error "FIXME: Implementation missing")
+		   ;; Regular template element
+		   `(,(subtranscriber-transcriber subtranscriber)
+		     (vector ,@
+		      (vector->list
+		       (vector-map
+			(lambda (slot)
+			  `(vector-ref match ,(table-ref slot-table slot)))
+			(subtranscriber-slots subtranscriber))))
+		     (vector-ref template-syntax-vector
+				 ,(template-element-index template-element)))))
+		template-element* subtranscriber*)
+	       '()))) ;; TODO: dotted tail with similar function
+	(derive-syntax output template-syntax syntax))))
   (values slots transcriber))
 
 (define (constant? datum)

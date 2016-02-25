@@ -1,21 +1,11 @@
 (import (rapid primitive))
 
-(define-syntax h
+(define-values (log)
+  (case-lambda
+   ((msg) (display msg) (newline))))
+
+(define-syntax simple-template
   (syntax-rules ... ()
-    ((h a #(b)) b)))
+    ((simple-template a b) (string-append a b (string-append a a) a))))
 
-(display (h "hi!" #(2)))
-(newline)
-
-(define-values (g) "ok")
-
-(define-syntax f
-  (syntax-rules ... ()
-    ((f) g)))
-
-((case-lambda
-  ((g)
-   (display (f))))
- 3)
-
-(newline)
+(log (simple-template "1" "2"))

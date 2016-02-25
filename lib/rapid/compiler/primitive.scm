@@ -205,4 +205,5 @@
    (apply (primitive operator-apply))
    (display (primitive operator-display)) ;; FIXME: should go into (scheme base)
    (newline (primitive operator-newline)) ;; FIXME: -- "" --
+   (string-append (primitive operator-string-append))
    ))

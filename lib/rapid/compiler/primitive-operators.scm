@@ -26,3 +26,6 @@
 
 (define operator-newline
   (make-operator 'newline))
+
+(define operator-string-append
+  (make-operator 'string-append))
