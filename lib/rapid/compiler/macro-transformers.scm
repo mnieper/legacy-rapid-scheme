@@ -196,57 +196,32 @@
    (else
     (compile-error "invalid subpattern" pattern-syntax))))
 
-#;(define (analyze-pattern-list pattern-list)
-  ;; Return four values.
-  ;; P... Q <ellipsis> R ... . S
-  ;; gives (P ...) (Q) (R ...) (S)
-  (let loop ((pattern-list pattern-list) (first '()))
-    (cond
-     ((null? pattern-list)
-      (values (reverse first) (list) (list) (list)))
-     ((pair? pattern-list)
-      (cond
-       ((ellipsis? (syntax-datum (car pattern-list)))
-	(when (null? first)
-	  (compile-error "ellipsis is not preceded by a pattern" (car pattern-list)))
-	(let loop ((pattern-list (cdr pattern-list))
-		   (first (reverse (cdr first)))
-		   (ellipsis (list (car first)))
-		   (second '()))
-	  (cond
-	   ((null? pattern-list)
-	    (values first ellipsis (reverse second) (list)))
-	   ((pair? pattern-list)
-	    (if (ellipsis? (syntax-datum (car pattern-list)))
-		(compile-error "extraneous ellipsis" (syntax-datum (car pattern-list)))
-		(loop (cdr pattern-list) first ellipsis (cons (car pattern-list) second))))
-	   (else
-	    (values first ellipsis (reverse second) (list pattern-list))))))
-       (else
-	(loop (cdr pattern-list) (cons (car pattern-list) first)))))
-     (else
-      (values (reverse first) (list) (list) (list pattern-list))))))
-
 ;; Helper functions for ‘compile-list-pattern’
-(define (make-pattern-element syntax index)
-  (vector syntax index offset))
+(define (make-pattern-element syntax index from-end? repeated?)
+  (vector syntax index from-end? repeated?))
 (define (pattern-element-syntax pattern-element)
   (vector-ref pattern-element 0))
 (define (pattern-element-index pattern-element)
   (vector-ref pattern-element 1))
+(define (pattern-element-from-end? pattern-element)
+  (vector-ref pattern-element 2))
+(define (pattern-element-repeated? pattern-element)
+  (vector-ref pattern-element 3))
+(define (pattern-element-set-repeated?! pattern-element repeated?)
+  (vector-set! pattern-element 3 repeated?))
 (define (analyze-pattern-list pattern-list)
-  ;; output: pattern-element* first remaining dotted?
+  ;; output: pattern-element* repeated? dotted?
+  (define (return %pattern-element* repeated dotted?)
+    (values (reverse (if repeated (cons repeated %pattern-element*) %pattern-element*))
+	    (and repeated #t)
+	    dotted?))
   (let loop ((pattern-list pattern-list)
 	     (%pattern-element* '())
-	     (first 0)
 	     (repeated #f)
 	     (i 0))
     (cond
-     ((null? pattern-list)
-      (values (reverse (if repeated (cons repeated %pattern-element*) %pattern-element*))
-	      first
-	      (- (- (length %pattern-element*) first) (if repeated 1 0))
-	      #f))
+     ((null? pattern-list) 
+      (return %pattern-element* repeated #f))
      ((pair? pattern-list)
       (cond
        ((ellipsis? (syntax-datum (car pattern-list)))
@@ -255,26 +230,22 @@
 	(when (null? %pattern-element*)
 	  (compile-error "ellipsis is not preceded by a pattern"
 			 (car pattern-list)))
+	(pattern-element-set-repeated?! (car %pattern-element*) #t)
 	(loop (cdr pattern-list)
 	      (cdr %pattern-element*)
-	      (- first 1)
 	      (car %pattern-element*)
 	      (+ i 1)))
        (else
 	(loop (cdr pattern-list)
-	      (cons (make-pattern-element (car pattern-list) i)
+	      (cons (make-pattern-element (car pattern-list) i (and repeated #t) #f)
 		    %pattern-element*)
-	      (if repeated first (+ first 1))
 	      repeated
 	      (+ i 1)))))
      (else
-      ;; FIXME: add pattern-list to %pattern-element*
-      ;; use common exit
-      (values (reverse (if repeated (cons repeated %pattern-element*) %pattern-element*))
-	      (if repeated first (+ first 1))
-	      (- (- (length %pattern-elemenet*) first) (if repeated 1 0))
+      (return (cons (make-pattern-element pattern-list i (and repeated #t) #f)
+		    %pattern-element*)
+	      repeated
 	      #t)))))
-  
 (define (make-submatcher variable-map matcher index)
   (vector variable-map matcher index))
 (define (submatcher-variable-map matcher)
@@ -286,7 +257,7 @@
 (define (compile-list-pattern pattern-syntax)
   (define variable-count 0)
   (define variable-map (make-pattern-variable-map))
-  (define (insert-pattern-variable! identifier variable)
+  (define (insert-pattern-variable! identifier variable depth-increase)
     (cond
      ((map-ref/default variable-map identifier #f)
       => (lambda (old-variable)
@@ -299,45 +270,83 @@
 	   variable-map
 	   identifier
 	   (make-pattern-variable variable-count
-				  (pattern-variable-depth variable) ;; check!
+				  (+ (pattern-variable-depth variable)
+				     depth-increase)
 				  (pattern-variable-syntax variable))))
     (set! variable-count (+ variable-count 1)))
   (define (submatcher-compile! pattern-element)
+    (define depth-increase (if (pattern-element-repeated? pattern-element) 1 0))
     (define-values (subvariable-map matcher)
       (compile-subpattern (pattern-element-syntax pattern-element)))
     (define submatcher (make-submatcher subvariable-map matcher variable-count))
-    (map-for-each insert-pattern-variable! subvariable-map)
+    (map-for-each
+     (lambda (identifier variable)
+       (insert-pattern-variable! identifier variable depth-increase))
+     subvariable-map)
     submatcher)
   (define pattern (syntax-datum pattern-syntax))
-  (define-values (pattern-element* repeated-index dotted-pattern?)
+  (define-values (pattern-element* repeated? dotted-pattern?)
     (analyze-pattern-list pattern))
   (define submatcher* (map-in-order submatcher-compile! pattern-element*))
-  (define (gen-submatcher-call pattern-element submatcher offset)
+  (define (gen-submatcher-call pattern-element submatcher)
     (define variable-map (submatcher-variable-map submatcher))
     (define matcher (submatcher-matcher submatcher))
     (define variable-offset (submatcher-index submatcher))
     (define element-index (pattern-element-index pattern-element))
-    `(let ((submatch
-	    (,matcher (vector-ref vector1 ,(+ offset element-index))
-		      (vector-ref pattern-vector ,element-index))))
-       (and
-	submatch
-	(begin ,@
-	  (map-fold
-	   variable-map
-	   (lambda (identifier variable setter*) `
-	     (cons
-	      (vector-set! match
-			   ,(+ variable-offset (pattern-variable-index variable)) 
-			   (vector-ref                               
-			    submatch                                 
-			    ,(pattern-variable-index variable)))
-	      setter*))
-	   '())
-	  #t))))
-  (define (make-gen-submatcher-call offset)
-    (lambda (pattern-element submatcher)
-      (gen-submatcher-call pattern-element submatcher offset)))
+    (define from-end? (pattern-element-from-end? pattern-element))
+    (define repeated? (pattern-element-repeated? pattern-element))
+    (define input-index
+      (if from-end?
+	  `(+ input-length ,(- element-index (length pattern-element*) 1))
+	  element-index))
+    ;; TODO: Refactor out common code of the two cases below
+    (if repeated?
+	;; Repeated pattern
+	`(let* ((input-end (+ input-length ,(- (- input-index 1) (length pattern-element*))))
+		(submatch*
+		 (unfold (lambda (index) (> index input-end))
+			 (lambda (index)
+			   (,matcher (vector-ref input index)
+				     (vector-ref pattern-vector ,element-index)))
+			 (lambda (index) (+ index 1))
+			 ,input-index)))
+	   (and
+	    (every (lambda (submatch) submatch) submatch*)
+	    (begin
+	      ,@(map-fold
+		 variable-map
+		 (lambda (identifier variable setter*)
+		   (cons
+		    `(vector-set! match
+				  ,(+ variable-offset (pattern-variable-index variable))
+				  (map
+				   (lambda (submatch)
+				     (vector-ref                               
+				      submatch                                 
+				      ,(pattern-variable-index variable)))
+				   submatch*))
+		    setter*))
+		 '())
+	      #t)))
+	;; Not repeated
+	`(let ((submatch
+		(,matcher (vector-ref input ,input-index)
+			  (vector-ref pattern-vector ,element-index))))
+	   (and
+	    submatch
+	    (begin
+	      ,@(map-fold
+		 variable-map
+		 (lambda (identifier variable setter*)
+		   (cons
+		    `(vector-set! match
+				  ,(+ variable-offset (pattern-variable-index variable)) 
+				  (vector-ref                               
+				   submatch                                 
+				   ,(pattern-variable-index variable)))
+		    setter*))
+		 '())
+	      #t)))))
   (define matcher
     `(lambda (syntax pattern-syntax)
        (define pattern-vector (list->vector (syntax-datum pattern-syntax)))
@@ -348,36 +357,17 @@
 	     (left (drop-right form 0)))
 	 (and
 	  ,(if dotted-pattern? `(not (null? right)) `(null? right))
-	  (let ((input
-		 (list->vector ,(if dotted-pattern? (append left (list right)) left))))
-	    ;; alle hintereinander
-
-       (and
-	
-	
-	,(if dotted-pattern?
-	     `(dotted-list? form)
-	     `(
-
-	   
-       ;; check dotted-list
-       (let* ((rest* (take-right form 0))
-	      (form (drop-right form 0)))
-	 (and
-	  (,(if (not (null? pattern-syntax2*)) '>= '=)
-	   (length form)
-	   ,(+ (length pattern-syntax1*) (length pattern-syntax3*)))
-	  (let*
-	      ((form3 (list->vector (take-right form ,(length pattern-syntax3*))))
-	       (form (drop-right form ,(length pattern-syntax3*)))
-	       (vector1 (list->vector (take form ,(length pattern-syntax1*))))
-	       (form2 (list->vector (drop form ,(length pattern-syntax1*))))
-	       (match (make-vector ,variable-count)))
+	  (let* ((input
+		  (list->vector ,(if dotted-pattern? `(append left (list right)) `left)))
+		 (input-length (vector-length input)))
 	    (and
-	     ,@(map (make-gen-submatcher-call 0) pattern-element* submatcher*)
-	     ;; TODO: do something with offset... and whether repeated
-	     ;; --> shuffle elements ?
-	     match))))))
+	     ,(if repeated?
+		  `(>= input-length ,(- (length pattern-element*) 1))
+		  `(= input-length ,(length pattern-element*)))
+	     (let ((match (make-vector ,variable-count)))
+	       (and
+		,@(map gen-submatcher-call pattern-element* submatcher*)
+		match))))))))
   (values
    variable-map
    matcher))
@@ -525,6 +515,9 @@
     (if
      (template-element-repeated? template-element)
      ;; Repeated template element
+     
+
+     
      (error "FIXME: Implementation missing")
      ;; Regular template element
      `(,(subtranscriber-transcriber subtranscriber)

@@ -22,6 +22,8 @@
 	  take
 	  drop
 	  take-right
-	  drop-right)
-  (import (scheme base))
+	  drop-right
+	  unfold)
+  (import (scheme base)
+	  (scheme case-lambda))
   (include "lists.scm"))

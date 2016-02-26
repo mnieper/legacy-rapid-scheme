@@ -88,3 +88,13 @@
 			    (car list)))
 		      list*))))
 	 (cons value (loop (map cdr list*))))))))
+
+(define unfold
+  (case-lambda
+   ((pred? proc step seed)
+    (unfold pred? proc step seed (lambda (x) '())))
+   ((pred? proc step seed tail-gen)
+    (if (pred? seed)
+	(tail-gen seed)
+	(cons (proc seed)
+	      (unfold pred? proc step (step seed) tail-gen))))))
