@@ -351,6 +351,7 @@
   (define-values (slots transcriber)
     (compile-subtemplate template-syntax variables 0))
   `(lambda (match)
+     ;(display "MATCH: "(current-error-port)) (display match (current-error-port)) (newline (current-error-port))
      (,transcriber
       (vector ,@(map
 		 (lambda (slot)
@@ -453,7 +454,7 @@
   (vector-ref subtranscriber 0))
 (define (subtranscriber-transcriber subtranscriber)
   (vector-ref subtranscriber 1))
-(define (make-slots+slot-table subtranscriber*)
+(define (make-slots+slot-table subtranscriber*)  ;; STIMMT HIER WAS NICHT?
   (define table (make-table (make-eqv-comparator)))
   (define index 0)
   (define %slot* '())
@@ -506,7 +507,7 @@
 	 (map cdr match**))
        (list ,@(map (lambda (slot)
 		      ;; FIXME: Repeated slot here is the first???
-		      ;; PROBLEM: PASS DOWN MATCH
+		      ;; PROBLEM: PASS DOWN MATCH // or: 
 		      `(vector-ref match ,(table-ref slot-table slot)))
 		    slot*)))
      ;; Regular template element
@@ -514,6 +515,7 @@
 	     ;; DOES THIS PASS DOWN THE RIGHT SLOT?
 	     (vector ,@(map
 			(lambda (slot)
+			  ;; XXX (display slot (current-error-port)) (newline (current-error-port))
 			  `(vector-ref match ,(table-ref slot-table slot)))
 			slot*))
 	     (vector-ref template-syntax-vector

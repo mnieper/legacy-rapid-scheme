@@ -1,17 +1,17 @@
 (import (rapid primitive))
 
-(define-syntax a
+(define-syntax M
   (syntax-rules ... ()
-    ((a
-       (G
-	 syntax-rule ... ))
-     (quote (syntax-rule ...)))))
+    ((a b c (R L G   ))
+     (quote (b c (R L G))))))
 
 ;;
 
-(a 
-  (F
-    ((_ 9 keyword)
-     10)))
+(display
+  (M b c
+    (F F2
+      ((_ 9 keyword)
+       10))))
+(newline)
 
 #;(macro 9 X)

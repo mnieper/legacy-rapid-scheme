@@ -2,6 +2,8 @@
 
 * The same goes with define-values
 
+* Write a syntax-rules library for use in the eval environment
+
 * TODO: Before we do the rapid lib, we have to implement redefinitions in the top-level
 
 * Should the expander output only tagged vectors as objects?
