@@ -59,7 +59,9 @@
       (list->vector
        (map
 	(lambda (syntax-rule-syntax)
-	  (car (syntax-datum syntax-rule-syntax)))
+	  (define pattern-syntax
+	    (car (syntax-datum syntax-rule-syntax)))
+	  (derive-syntax (cdr (syntax-datum pattern-syntax)) pattern-syntax))
 	syntax-rule-syntax*)))
     (define template-syntax-vector
       (list->vector
@@ -162,7 +164,7 @@
     (values
      (make-pattern-variable-map)
      `(lambda (syntax pattern-syntax)
-	(equal? (syntax-datum syntax) (syntax-datum pattern)))))
+	(equal? (syntax-datum syntax) (syntax-datum pattern-syntax)))))
    (else
     (compile-error "invalid subpattern" pattern-syntax))))
 
@@ -503,10 +505,13 @@
        (lambda (match**)
 	 (map cdr match**))
        (list ,@(map (lambda (slot)
+		      ;; FIXME: Repeated slot here is the first???
+		      ;; PROBLEM: PASS DOWN MATCH
 		      `(vector-ref match ,(table-ref slot-table slot)))
 		    slot*)))
      ;; Regular template element
      `(list (,(subtranscriber-transcriber subtranscriber)
+	     ;; DOES THIS PASS DOWN THE RIGHT SLOT?
 	     (vector ,@(map
 			(lambda (slot)
 			  `(vector-ref match ,(table-ref slot-table slot)))

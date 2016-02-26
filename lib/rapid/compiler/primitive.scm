@@ -15,7 +15,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; TODO: Don't do syntax checks here. Let (scheme base), etc., handle those.
+;;; TODO: Don't do syntax checks here. Let (rapid), etc., handle those.
 
 ;; TODO: We don't need this anymore
 (define (make-syntax-expander expander)

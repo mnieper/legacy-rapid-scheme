@@ -1,8 +1,12 @@
+* (define-syntax define-syntax (...)) is not an error, but should be
+
+* The same goes with define-values
+
+* TODO: Before we do the rapid lib, we have to implement redefinitions in the top-level
+
 * Should the expander output only tagged vectors as objects?
 
 * Write integration tests
-
-* Let rapid-scheme run the compiled program; use existing scheme to run the resulting program
 
 * Implement %define-syntax and syntax-rules
 
