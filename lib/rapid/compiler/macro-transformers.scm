@@ -15,38 +15,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-;; Description of the syntax rules macro compiler
-;;
-;; FIXME: The description does not describe the most recent verrsion of
-;; the code.
-;;
-;; Each syntax rule is compiled separately. Each syntax rule consists of
-;; a pattern and a template.
-;; The pattern compiler takes as input the pattern. It returns two
-;; values. The first value is a map that maps each free identifier in
-;; the pattern to a pair consisting of an index and the ellipsis depth
-;; of the identifier.
-;; The second value is a matcher, a form that takes a datum
-;; to match and that returns a vector of matched identifier bindings or
-;; #f if there is no match. Identifiers with a non-trivial ellipsis
-;; depth are match to lists.
-;; The template compiler takes as input the template and the map of
-;; identifiers that are free in the pattern. It returns a transcriber, a
-;; form that takes a vector of matched identifier bindings and that
-;; returns a syntax object.
-;; In order to handle subpatterns, the pattern compiler calls a special
-;; subpattern compiler, which basically has the same signature as the
-;; pattern compiler itself, except that the pattern compiler strips the
-;; syntax keyword from the input form.
-;; In order to handle subtemplates, the template compiler calls a
-;; special subtemplate compiler. The subtemplate compiler takes as input
-;; the subtemplate and the map of identifiers that are free in the
-;; pattern. It returns two values. The first value is a set of
-;; free identifiers that are referenced. The second value is a form that
-;; takes a vector of matched identifier bindings.
-
 (define *transformer-environment*
-  (environment '(scheme base)
+  (environment '(scheme base)             '(scheme write)   ;;; X
 	       '(rapid lists)))
 
 (define-syntax eval-transformer
@@ -210,7 +180,6 @@
 (define (pattern-element-set-repeated?! pattern-element repeated?)
   (vector-set! pattern-element 3 repeated?))
 (define (analyze-pattern-list pattern-list)
-  ;; output: pattern-element* repeated? dotted?
   (define (return %pattern-element* repeated dotted?)
     (values (reverse (if repeated (cons repeated %pattern-element*) %pattern-element*))
 	    (and repeated #t)
@@ -302,15 +271,19 @@
     ;; TODO: Refactor out common code of the two cases below
     (if repeated?
 	;; Repeated pattern
-	`(let* ((input-end (+ input-length ,(- (- input-index 1) (length pattern-element*))))
+	`(let* ((input-end (+ input-length ,(- input-index (length pattern-element*))))
 		(submatch*
 		 (unfold (lambda (index) (> index input-end))
 			 (lambda (index)
+			   (define X
 			   (,matcher (vector-ref input index)
 				     (vector-ref pattern-vector ,element-index)))
+			   ;;(display X (current-error-port)) (newline (current-error-port))
+			   X)
 			 (lambda (index) (+ index 1))
 			 ,input-index)))
 	   (and
+	    ;;(begin (display submatch* (current-error-port)) (newline (current-error-port)) #t)
 	    (every (lambda (submatch) submatch) submatch*)
 	    (begin
 	      ,@(map-fold
@@ -321,12 +294,12 @@
 				  ,(+ variable-offset (pattern-variable-index variable))
 				  (map
 				   (lambda (submatch)
-				     (vector-ref                               
-				      submatch                                 
-				      ,(pattern-variable-index variable)))
+				     (vector-ref submatch
+						 ,(pattern-variable-index variable)))
 				   submatch*))
 		    setter*))
 		 '())
+	      ;;(begin (display match (current-error-port)) (newline (current-error-port)) #t)
 	      #t)))
 	;; Not repeated
 	`(let ((submatch
@@ -383,7 +356,6 @@
 		 (vector->list slots)))
       (vector-ref template-syntax-vector ,rule-index))))
 
-;; What about constants and ellipses? (4 ...) ?
 (define (compile-subtemplate template-syntax variables depth)
   (define template (syntax-datum template-syntax))
   (cond
@@ -506,42 +478,56 @@
 			   (if (template-element-repeated? template-element)
 			       (+ depth 1)
 			       depth)))
+    (when (and (template-element-repeated? template-element) (= (vector-length slots) 0))
+      (compile-error "no pattern variable to repeat here"
+		     (template-element-syntax template-element)))
     (make-subtranscriber slots transcriber))
   (define subtranscriber* (map-in-order template-element-compile template-element*))
   (define subtranscriber-rest* (map-in-order template-element-compile template-element-rest*))
   (define-values (slots slot-table)
     (make-slots+slot-table (append subtranscriber-rest* subtranscriber*)))
   (define (gen-subtranscriber-call template-element subtranscriber)
+    (define slot* (vector->list (subtranscriber-slots subtranscriber)))
     (if
      (template-element-repeated? template-element)
      ;; Repeated template element
-     
-
-     
-     (error "FIXME: Implementation missing")
+     `(unfold
+       (lambda (match**)
+	 (every (lambda (match*) (null? match*)) match**))
+       (lambda (match**)
+	 (when (any (lambda (match*) (null? match*)) match**)
+	   (compile-error "output cannot be build" template-syntax))
+	 (,(subtranscriber-transcriber subtranscriber)
+	  (list->vector (map car match**))
+	  (vector-ref template-syntax-vector ,(template-element-index template-element))))
+       (lambda (match**)
+	 (map cdr match**))
+       (list ,@(map (lambda (slot)
+		      `(vector-ref match ,(table-ref slot-table slot)))
+		    slot*)))
      ;; Regular template element
-     `(,(subtranscriber-transcriber subtranscriber)
-       (vector ,@(map
-		  (lambda (slot)
-		    `(vector-ref match ,(table-ref slot-table slot)))
-		  (vector->list (subtranscriber-slots subtranscriber))))
-       (vector-ref template-syntax-vector
-		   ,(template-element-index template-element)))))
-  (define transcriber `
-    (lambda (match template-syntax)
-      (let* ((template (syntax-datum template-syntax))
-	     (template-syntax-vector
-	      (list->vector (append (drop-right template 0)
-				    (let ((rest (take-right template 0)))
-				      (if (null? rest) rest (list rest))))))
-	     (output
-	      (cons*
-	       ,@(map-in-order gen-subtranscriber-call template-element* subtranscriber*)
-	       ,(if (null? template-element-rest*)
-		    ''()
-		    (gen-subtranscriber-call (car template-element-rest*)
-					     (car subtranscriber-rest*))))))
-	(derive-syntax output template-syntax syntax))))
+     `(list (,(subtranscriber-transcriber subtranscriber)
+	     (vector ,@(map
+			(lambda (slot)
+			  `(vector-ref match ,(table-ref slot-table slot)))
+			slot*))
+	     (vector-ref template-syntax-vector
+			 ,(template-element-index template-element))))))
+  (define transcriber
+    `(lambda (match template-syntax)
+       (let* ((template (syntax-datum template-syntax))
+	      (template-syntax-vector
+	       (list->vector (append (drop-right template 0)
+				     (let ((rest (take-right template 0)))
+				       (if (null? rest) rest (list rest))))))
+	      (output
+	       (append
+		,@(map-in-order gen-subtranscriber-call template-element* subtranscriber*)
+		,(if (null? template-element-rest*)
+		     ''()
+		     (gen-subtranscriber-call (car template-element-rest*)
+					      (car subtranscriber-rest*))))))
+	 (derive-syntax output template-syntax syntax))))
   (values slots transcriber))
 
 (define (constant? datum)
