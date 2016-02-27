@@ -2,7 +2,9 @@
 	(scheme case-lambda)
 	(scheme write))
 
-(import (rapid primitive))
+(import (scheme base)
+	(scheme case-lambda)
+	(scheme write))
 
 (define-syntax aux (syntax-rules ... ()))
 
@@ -81,7 +83,7 @@
 ;; The macro below won't work that simply...
 ;; because it has to thread everything to kt and kf
 ;; need macros that expand in macros, not values... (ok!)
-(define-macro $eq? ... ()
+#;(define-macro $eq? ... ()
   (case-lambda
    ((x y kt kf)  ;; problem: have to be quoted
     '(let-syntax ((test

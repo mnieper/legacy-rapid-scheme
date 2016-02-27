@@ -131,8 +131,8 @@
      ((literal? pattern)
       (values
        (make-pattern-variable-map)
-      `(lambda (syntax pattern-syntax)
-	 (and (compare (syntax-datum syntax) (syntax-datum pattern)) #()))))
+       `(lambda (syntax pattern-syntax)
+	  (and (compare (syntax-datum syntax) (syntax-datum pattern-syntax)) #()))))
      ((eq? pattern '_)
       (values
        (make-pattern-variable-map)
@@ -208,7 +208,7 @@
 	(loop (cdr pattern-list)
 	      (cdr %pattern-element*)
 	      (car %pattern-element*)
-	      (+ i 1)))
+	      (+ i 1)))  ;; XXX One off wrt input array
        (else
 	(loop (cdr pattern-list)
 	      (cons (make-pattern-element (car pattern-list) i (and repeated #t) #f)
@@ -232,7 +232,6 @@
   (define variable-count 0)
   (define variable-map (make-pattern-variable-map))
   (define (insert-pattern-variable! identifier variable offset depth-increase)
-    ;; FIXME: Depends on the order of the call
     (cond
      ((map-ref/default variable-map identifier #f)
       => (lambda (old-variable)
@@ -270,15 +269,19 @@
     (define variable-offset (submatcher-index submatcher))
     (define element-index (pattern-element-index pattern-element))
     (define from-end? (pattern-element-from-end? pattern-element))
-    (define repeated? (pattern-element-repeated? pattern-element))
+    (define element-repeated? (pattern-element-repeated? pattern-element))
     (define input-index
       (if from-end?
-	  `(+ input-length ,(- element-index (length pattern-element*) 1))
+	  `(+ input-length ,(- element-index (length pattern-element*)
+			       1
+			       (if (and dotted-pattern? repeated?) -1 0)))
 	  element-index))
     ;; TODO: Refactor out common code of the two cases below
-    (if repeated?
+    (if element-repeated?
 	;; Repeated pattern
-	`(let* ((input-end (+ input-length ,(- input-index (length pattern-element*))))
+	`(let* ((input-end (+ input-length ,(- input-index
+					       (length pattern-element*)
+					       (if dotted-pattern? -1 0))))
 		(submatch*
 		 (unfold (lambda (index) (> index input-end))
 			 (lambda (index)
@@ -366,6 +369,17 @@
   (values
    variable-map
    matcher))
+
+;; XXX: Remove me after debugging
+(define (log . args)
+  (for-each
+   (lambda (arg)
+     (display arg (current-error-port))
+     (display " " (current-error-port))
+     #t)
+   args)
+  (newline (current-error-port))
+  #t)
 
 (define (compile-template template-syntax variables rule-index)
   (define-values (slots transcriber)
