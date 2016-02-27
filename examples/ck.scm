@@ -1,10 +1,13 @@
+;; Implement Meta-Macros/Special forms like c-if...
+;;   for the high-level macro system
+;; Special forms don't have their arguments expanded
+;;   but need a later call
+
+
 #;(import (scheme base)
 	(scheme case-lambda)
 	(scheme write))
-
-(import (scheme base)
-	(scheme case-lambda)
-	(scheme write))
+(import (rapid primitive))
 
 (define-syntax aux (syntax-rules ... ()))
 

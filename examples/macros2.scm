@@ -1,13 +1,9 @@
 (import (rapid primitive))
 
-(define-syntax define-macro
-  (syntax-rules ... (case-lambda)
-    ((define-macro op ellipsis ()
-       (case-lambda
-	(%formals %expression)
-	...))
-     2)))
+(define-syntax f
+  (syntax-rules ... ()
+    ((f a b ...) (quote (f (a) ...)))))
 
-(define-macro $cons ... ()
-  (case-lambda
-   ((h t) '(h . t))))
+
+(display (f 1 a b c))
+(newline)

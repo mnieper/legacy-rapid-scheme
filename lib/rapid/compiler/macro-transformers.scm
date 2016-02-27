@@ -32,6 +32,7 @@
   (lambda (syntax environment)
     (define renames (make-table (make-eq-comparator)))
     (define (rename identifier)
+      ;; XXX (log identifier ":" (table-ref/default renames identifier #f))
       (table-intern! renames
 		     identifier
 		     (lambda ()
@@ -208,7 +209,7 @@
 	(loop (cdr pattern-list)
 	      (cdr %pattern-element*)
 	      (car %pattern-element*)
-	      (+ i 1)))  ;; XXX One off wrt input array
+	      (+ i 1)))
        (else
 	(loop (cdr pattern-list)
 	      (cons (make-pattern-element (car pattern-list) i (and repeated #t) #f)
@@ -384,11 +385,11 @@
 (define (compile-template template-syntax variables rule-index)
   (define-values (slots transcriber)
     (compile-subtemplate template-syntax variables 0))
-  `(lambda (match)
+  `(lambda (pattern-variables)
      (,transcriber
       (vector ,@(map
 		 (lambda (slot)
-		   `(vector-ref match ,slot))
+		   `(vector-ref pattern-variables ,slot))
 		 (vector->list slots)))
       (vector-ref template-syntax-vector ,rule-index))))
 
@@ -401,20 +402,29 @@
       (compile-error "extraneous ellipsis in template" template-syntax))
      ((map-ref/default variables template #f)
       => (lambda (variable)
-	   (cond
-	    ((> (pattern-variable-depth variable) depth)
-	     (compile-error "pattern variable followed by too few ellipses"
-			    template-syntax))
-	    ((< (pattern-variable-depth variable) depth)
-	     (compile-error "pattern variable followed by too many ellipses"
-			    template-syntax))
-	    (else	   
-	     (values
-	      (vector (pattern-variable-index variable))
-	      `(lambda (match template-syntax)
-		 (derive-syntax (vector-ref match 0)
-				template-syntax       
-				syntax)))))))
+	   (define variable-depth (pattern-variable-depth variable))
+	   (if (zero? variable-depth)
+	       (values
+		#()
+		`(lambda (match template-syntax)
+		   (derive-syntax (vector-ref pattern-variables
+					      ,(pattern-variable-index variable))
+				  template-syntax
+				  syntax)))
+	       (cond
+		((> variable-depth depth)
+		 (compile-error "pattern variable followed by too few ellipses"
+				template-syntax))
+		((< variable-depth depth)
+		 (compile-error "pattern variable followed by too many ellipses"
+				template-syntax))
+		(else	   
+		 (values
+		  (vector (pattern-variable-index variable))
+		  `(lambda (match template-syntax)
+		     (derive-syntax (vector-ref match 0)
+				    template-syntax       
+				    syntax))))))))
      (else
       (values
        #()
@@ -487,7 +497,7 @@
   (vector-ref subtranscriber 0))
 (define (subtranscriber-transcriber subtranscriber)
   (vector-ref subtranscriber 1))
-(define (make-slots+slot-table subtranscriber*)  ;; STIMMT HIER WAS NICHT?
+(define (make-slots+slot-table subtranscriber*)
   (define table (make-table (make-eqv-comparator)))
   (define index 0)
   (define %slot* '())
@@ -527,6 +537,7 @@
     (if
      (template-element-repeated? template-element)
      ;; Repeated template element
+     ;; TODO: Some slots correspond to depth 0... can use indefinitly
      `(unfold
        (lambda (match**)
 	 (every (lambda (match*) (null? match*)) match**))

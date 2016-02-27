@@ -1,7 +1,7 @@
 * In the syntax-rules transformer, pattern variables without ellipses should be allowed to occur
   in front of template ellipses
 
-* ck.scm with rapid: liefert Fehler
+* (begin (define x)) does not define x in top-level scope
 
 * Rename imports can import bindings that are not bound
 

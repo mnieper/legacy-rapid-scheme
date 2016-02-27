@@ -40,7 +40,7 @@
     (compile-error (get-output-string port) syntax)))
 
 (define (begin-expander syntax)
-  (expand-into-sequence (cdr (syntax-datum syntax))) syntax)
+  (expand-into-sequence (cdr (syntax-datum syntax)) syntax))
 
 (define (unpack-formals formals)
   (let loop ((formals formals) (fixed '()))

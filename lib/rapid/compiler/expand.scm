@@ -77,14 +77,14 @@
     (insert-binding! identifier-syntax expander)))
 
 (define (expand-into-sequence syntax* syntax)
-  (cond
+  (cond  
    ((eq? (current-context) 'expression)
     (when (null? syntax*)
       (compile-error "begin expression may not be empty" syntax))
-    (for-each expand-syntax! syntax*))
+    (expand-into-expression (make-sequence syntax* syntax)))
    (else
-    (expand-into-expression (make-sequence syntax* syntax)))))
-
+    (for-each expand-syntax! syntax*))))
+  
 ;; Expands a top level program or a library's body
 (define (expand-top-level syntax*)
   (parameterize ((current-bindings '())
