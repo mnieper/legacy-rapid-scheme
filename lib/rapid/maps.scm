@@ -58,7 +58,7 @@
        (cons (car entries)
 	     (loop (cdr entries))))))))
 
-;; TODO: remove the order of arguments
+;; TODO: exchange the order of arguments
 ;; TODO: allow more than one seed and use values
 (define (map-fold map proc seed)
   (let loop ((entries (map-entries map)))

@@ -36,13 +36,11 @@
       (do ((irritant-syntax* (cddr form) (cdr irritant-syntax*)))
 	  ((null? irritant-syntax*))
 	(display " " port)
-	(display (syntax-datum (car irritant-syntax*)) port)))       
+	(display (syntax->datum (car irritant-syntax*) unclose-form) port)))       
     (compile-error (get-output-string port) syntax)))
 
-(define begin-expander
-  (make-syntax-expander
-   (lambda (syntax)
-     (expand-into-sequence (cdr (syntax-datum syntax))) syntax)))
+(define (begin-expander syntax)
+  (expand-into-sequence (cdr (syntax-datum syntax))) syntax)
 
 (define (unpack-formals formals)
   (let loop ((formals formals) (fixed '()))
@@ -54,55 +52,49 @@
      (else
       (values (reverse fixed) (list formals))))))
 
-(define define-values-expander
-  (make-syntax-expander
-   (lambda (syntax)
-     (define form (syntax-datum syntax))
-     (define-values (fixed-variables rest-variable*)
-       (unpack-formals (syntax-datum (list-ref form 1))))
-     (expand-into-definition fixed-variables
-			     (if (null? rest-variable*)
-				 #f
-				 (car rest-variable*))
-			     (list-ref form 1)
-			     (list-ref form 2)
-			     syntax))))
+(define (define-values-expander syntax)
+  (define form (syntax-datum syntax))
+  (define-values (fixed-variables rest-variable*)
+    (unpack-formals (syntax-datum (list-ref form 1))))
+  (expand-into-definition fixed-variables
+			  (if (null? rest-variable*)
+			      #f
+			      (car rest-variable*))
+			  (list-ref form 1)
+			  (list-ref form 2)
+			  syntax))
 
-(define if-expander
-  (make-syntax-expander
-   (lambda (syntax)
-     (define form (syntax-datum syntax))
-     (unless (or (= (length form) 2) (= (length form) 3))
-       (compile-error "bad if syntax" syntax))
-     (let ((test-syntax (list-ref form 1))
-	   (consequent-syntax (list-ref form 2))
-	   (alternate-syntax (and (= (length form) 3) (list-ref form 3))))
-       (expand-into-expression
-	(make-conditional
-	 (expand-expression test-syntax)
-	 (expand-expression consequent-syntax)
-	 (if alternate-syntax
-	     (expand-expression alternate-syntax)
-	     (make-literal #f #f))
-	 syntax))))))
+(define (if-expander syntax)
+  (define form (syntax-datum syntax))
+  (unless (or (= (length form) 2) (= (length form) 3))
+    (compile-error "bad if syntax" syntax))
+  (let ((test-syntax (list-ref form 1))
+	(consequent-syntax (list-ref form 2))
+	(alternate-syntax (and (= (length form) 3) (list-ref form 3))))
+    (expand-into-expression
+     (make-conditional
+      (expand-expression test-syntax)
+      (expand-expression consequent-syntax)
+      (if alternate-syntax
+	  (expand-expression alternate-syntax)
+	  (make-literal #f #f))
+      syntax))))
 
-(define case-lambda-expander
-  (make-syntax-expander
-   (lambda (syntax)
-     (define form (syntax-datum syntax))
-     (expand-into-expression
-      (make-procedure
-       (map-in-order
-	(lambda (clause-syntax)
-	  (define form (syntax-datum clause-syntax))
-	  (unless (and (not (null? form)) (list? form))
-	    (compile-error "bad case-lambda clause" clause-syntax))
-	  (with-scope
-	   (lambda ()
-	     (define formals (expand-formals! (car form)))
-	     (make-clause formals (list (expand-body (cdr form) clause-syntax)) clause-syntax))))
-	(cdr form))
-       syntax)))))
+(define (case-lambda-expander syntax)
+  (define form (syntax-datum syntax))
+  (expand-into-expression
+   (make-procedure
+    (map-in-order
+     (lambda (clause-syntax)
+       (define form (syntax-datum clause-syntax))
+       (unless (and (not (null? form)) (list? form))
+	 (compile-error "bad case-lambda clause" clause-syntax))
+       (with-scope
+	(lambda ()
+	  (define formals (expand-formals! (car form)))
+	  (make-clause formals (list (expand-body (cdr form) clause-syntax)) clause-syntax))))
+     (cdr form))
+    syntax)))
 
 (define (quote-expander syntax)
   (define form (syntax-datum syntax))
@@ -127,6 +119,9 @@
   (define literal-syntax* (syntax-datum (list-ref transformer 2)))
   (define syntax-rule-syntax* (list-tail transformer 3))
   (define macro-environment (get-syntactic-environment))
+  (define (macro-identifier=? identifier1 identifier2)
+    (identifier=? macro-environment identifier1 macro-environment identifier2))
+  (define identifier-comparator (make-comparator identifier? macro-identifier=? #f #f))
   (define literal-set
     (let loop ((literal-set (make-set (make-eq-comparator)))
 	       (literal-syntax* literal-syntax*))
@@ -202,6 +197,7 @@
    (syntax-error syntax-error-expander)
    (define-syntax define-syntax-expander)
    (syntax-rules (auxiliary-syntax))
+   (... (auxiliary-syntax))
    (+ (primitive operator+))
    (apply (primitive operator-apply))
    (display (primitive operator-display)) ;; FIXME: should go into (scheme base)

@@ -16,8 +16,9 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define *transformer-environment*
-  (environment '(scheme base)             '(scheme write)   ;;; X
-	       '(rapid lists)))
+  (environment '(scheme base)
+	       '(rapid lists)
+	       '(rapid compiler transform)))
 
 (define-syntax eval-transformer
   (syntax-rules ()
@@ -73,6 +74,7 @@
       (eval-transformer syntax-rules-transformer
 			compile-error compile-note transformer-syntax
 			syntax-datum derive-syntax
+			datum->syntax
 			template-syntax-vector
 			pattern-syntax-vector))
     (make-er-macro-transformer er-macro-transformer macro-environment)))
@@ -112,10 +114,10 @@
 
 (define (compile-pattern pattern-syntax rule-index)
   (define pattern (syntax-datum pattern-syntax))
-  (unless (and (list? pattern) (>= (length pattern) 1))
+  (unless (and (pair? pattern) (identifier? (syntax-datum (car pattern))))
     (compile-error "invalid pattern" pattern-syntax))
   (let-values (((identifiers matcher)
-		(compile-subpattern (derive-syntax (cdr pattern) pattern-syntax))))
+		(compile-list-pattern (derive-syntax (cdr pattern) pattern-syntax))))
     (values identifiers `(,matcher (derive-syntax (cdr form) syntax)
 				   (vector-ref pattern-syntax-vector ,rule-index)))))
 
@@ -152,7 +154,8 @@
 	    (and
 	     (vector? form)
 	     (let ((list (vector->list form)))
-	       (,matcher (derive-syntax list syntax) (derive-syntax list pattern-syntax)))))))))
+	       (,matcher (derive-syntax list syntax)
+			 (derive-syntax list pattern-syntax)))))))))
    ((null? pattern)
     (values
      (make-pattern-variable-map)
@@ -228,7 +231,8 @@
 (define (compile-list-pattern pattern-syntax)
   (define variable-count 0)
   (define variable-map (make-pattern-variable-map))
-  (define (insert-pattern-variable! identifier variable depth-increase)
+  (define (insert-pattern-variable! identifier variable offset depth-increase)
+    ;; FIXME: Depends on the order of the call
     (cond
      ((map-ref/default variable-map identifier #f)
       => (lambda (old-variable)
@@ -240,7 +244,7 @@
 	  (map-set
 	   variable-map
 	   identifier
-	   (make-pattern-variable variable-count
+	   (make-pattern-variable (+ offset (pattern-variable-index variable))
 				  (+ (pattern-variable-depth variable)
 				     depth-increase)
 				  (pattern-variable-syntax variable))))
@@ -250,9 +254,10 @@
     (define-values (subvariable-map matcher)
       (compile-subpattern (pattern-element-syntax pattern-element)))
     (define submatcher (make-submatcher subvariable-map matcher variable-count))
+    (define offset variable-count)
     (map-for-each
      (lambda (identifier variable)
-       (insert-pattern-variable! identifier variable depth-increase))
+       (insert-pattern-variable! identifier variable offset depth-increase))
      subvariable-map)
     submatcher)
   (define pattern (syntax-datum pattern-syntax))
@@ -277,15 +282,11 @@
 		(submatch*
 		 (unfold (lambda (index) (> index input-end))
 			 (lambda (index)
-			   (define X
 			   (,matcher (vector-ref input index)
 				     (vector-ref pattern-vector ,element-index)))
-			   ;;(display X (current-error-port)) (newline (current-error-port))
-			   X)
-			 (lambda (index) (+ index 1))
+		       	 (lambda (index) (+ index 1))
 			 ,input-index)))
 	   (and
-	    ;;(begin (display submatch* (current-error-port)) (newline (current-error-port)) #t)
 	    (every (lambda (submatch) submatch) submatch*)
 	    (begin
 	      ,@(map-fold
@@ -301,7 +302,6 @@
 				   submatch*))
 		    setter*))
 		 '())
-	      ;;(begin (display match (current-error-port)) (newline (current-error-port)) #t)
 	      #t)))
 	;; Not repeated
 	`(let ((submatch
@@ -324,25 +324,45 @@
 	      #t)))))
   (define matcher
     `(lambda (syntax pattern-syntax)
-       (define pattern-vector (list->vector (syntax-datum pattern-syntax)))
+       (define pattern (syntax-datum pattern-syntax))
+       (define pattern-vector
+	 (list->vector
+	  ,(if dotted-pattern?
+	       `(append (drop-right pattern 0) (list (take-right pattern 0)))
+	       `pattern)))
        (define form (syntax-datum syntax))
        (when (circular-list? form)
 	 (compile-error "circular list in source" syntax))
-       (let ((right (take-right form 0))
-	     (left (drop-right form 0)))
+       (let* ((left (drop-right form 0))
+	      (right (take-right form 0))
+	      (input-length (length left)))
 	 (and
-	  ,(if dotted-pattern? `(not (null? right)) `(null? right))
-	  (let* ((input
-		  (list->vector ,(if dotted-pattern? `(append left (list right)) `left)))
-		 (input-length (vector-length input)))
-	    (and
-	     ,(if repeated?
-		  `(>= input-length ,(- (length pattern-element*) 1))
-		  `(= input-length ,(length pattern-element*)))
-	     (let ((match (make-vector ,variable-count)))
+	  ,@(if dotted-pattern? '() `((null? right)))
+	  ,(if (or repeated? dotted-pattern?)
+	       `(>= input-length ,(- (length pattern-element*)
+				     (if repeated? 1 0)
+				     (if dotted-pattern? 1 0)))
+	       `(= input-length ,(length pattern-element*)))
+	  (let ((input
+		 (list->vector
+		  ,(if dotted-pattern?
+		       (if repeated?
+			   `(append left (list (if (null? right)
+						   (derive-syntax '() syntax)
+						   right)))
+			   `(let*-values
+				(((head tail)
+				  (split-at left
+					    ,(- (length pattern-element*) 1)))
+				 ((tail) (append tail right)))
+			      (append head (list (if (null? right)
+						     (derive-syntax tail syntax)
+						     tail)))))
+		       `left)))
+		(match (make-vector ,variable-count)))
 	       (and
 		,@(map gen-submatcher-call pattern-element* submatcher*)
-		match))))))))
+		match))))))
   (values
    variable-map
    matcher))
@@ -351,7 +371,6 @@
   (define-values (slots transcriber)
     (compile-subtemplate template-syntax variables 0))
   `(lambda (match)
-     ;(display "MATCH: "(current-error-port)) (display match (current-error-port)) (newline (current-error-port))
      (,transcriber
       (vector ,@(map
 		 (lambda (slot)
@@ -506,16 +525,12 @@
        (lambda (match**)
 	 (map cdr match**))
        (list ,@(map (lambda (slot)
-		      ;; FIXME: Repeated slot here is the first???
-		      ;; PROBLEM: PASS DOWN MATCH // or: 
 		      `(vector-ref match ,(table-ref slot-table slot)))
 		    slot*)))
      ;; Regular template element
      `(list (,(subtranscriber-transcriber subtranscriber)
-	     ;; DOES THIS PASS DOWN THE RIGHT SLOT?
 	     (vector ,@(map
 			(lambda (slot)
-			  ;; XXX (display slot (current-error-port)) (newline (current-error-port))
 			  `(vector-ref match ,(table-ref slot-table slot)))
 			slot*))
 	     (vector-ref template-syntax-vector
@@ -532,8 +547,13 @@
 		,@(map-in-order gen-subtranscriber-call template-element* subtranscriber*)
 		,(if (null? template-element-rest*)
 		     ''()
-		     (gen-subtranscriber-call (car template-element-rest*)
-					      (car subtranscriber-rest*))))))
+		     `(let ((tail
+			     (car
+			      ,(gen-subtranscriber-call (car template-element-rest*)
+							(car subtranscriber-rest*)))))
+			(if (or (pair? (syntax-datum tail)) (null? (syntax-datum tail)))
+			    (syntax-datum tail)
+			    tail))))))
 	 (derive-syntax output template-syntax syntax))))
   (values slots transcriber))
 

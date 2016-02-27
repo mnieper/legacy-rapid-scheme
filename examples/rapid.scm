@@ -1,17 +1,15 @@
-(import (rapid primitive))
+(import (scheme base))
 
-(define-syntax M
-  (syntax-rules ... ()
-    ((a b c (R L G   ))
-     (quote (b c (R L G))))))
+#;(define-syntax macro
+  (syntax-rules ()
+    ((macro b c (R L G   ))
+     (quote (b c (R L G)) d))))
 
-;;
+#;(display (macro b c (1 2 3)))
 
-(display
-  (M b c
-    (F F2
-      ((_ 9 keyword)
-       10))))
+(define (f x)
+  (+ x x))
+
+(display (f 3))
+
 (newline)
-
-#;(macro 9 X)

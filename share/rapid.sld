@@ -16,7 +16,12 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid)
-  (export define-syntax syntax-rules)
+  (export ...
+	  define define-syntax define-values lambda
+	  syntax-rules syntax-error
+	  quote)
   (import (rename (prefix (rapid primitive) %)
-		  (%syntax-rules syntax-rules)))
+		  (%... ...)
+		  (%syntax-rules syntax-rules)
+		  (%syntax-error syntax-error)))
   (include "rapid.scm"))

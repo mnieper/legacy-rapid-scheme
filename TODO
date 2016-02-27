@@ -1,12 +1,14 @@
-* (define-syntax define-syntax (...)) is not an error, but should be
+* Rename imports can import bindings that are not bound
 
-* The same goes with define-values
+* Flag libraries (and contexts) as internal. Do not show them in stack traces.
 
 * Write a syntax-rules library for use in the eval environment
 
 * TODO: Before we do the rapid lib, we have to implement redefinitions in the top-level
 
 * Should the expander output only tagged vectors as objects?
+
+* Add some utilities to syntax.sld to handle improper lists
 
 * Write integration tests
 
@@ -27,3 +29,5 @@
 * Rename (rapid table) to (rapid tables), and (rapid box) to (rapid boxes)
 
 * See whether #|... (eof) makes any problems in reader (should raise an error)
+
+* Check: https://drmeister.wordpress.com/2015/05/16/tagged-pointers-and-immediate-fixnums-characters-and-single-floats-in-clasp/ for nanboxing (search Cowan); cons cells could be extra

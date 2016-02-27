@@ -165,7 +165,7 @@
 						       (expand-expression* (cdr form))
 						       syntax))))))
      (else
-      (compile-error "invalid form" syntax)))))
+      (compile-error (format "invalid form ‘~a’" (list? form)) syntax)))))
 
 (define (lookup-transformer! syntax)
   (define form (syntax-datum syntax))

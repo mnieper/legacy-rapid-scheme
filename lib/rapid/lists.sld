@@ -23,6 +23,7 @@
 	  drop
 	  take-right
 	  drop-right
+	  split-at
 	  unfold)
   (import (scheme base)
 	  (scheme case-lambda))

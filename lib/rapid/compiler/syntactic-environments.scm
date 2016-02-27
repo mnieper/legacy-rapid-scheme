@@ -21,10 +21,20 @@
 ;; to be known in order to determine the meaning of the definition
 ;; itself.
 
-(define current-bindings (make-parameter #f box))
-(define current-scope current-bindings)
-(define (get-bindings) (unbox (current-bindings)))
-(define (set-bindings! bindings) (set-box! (current-bindings) bindings))
+;; TODO: we need a constant syntactic-environment throughout
+;; that is: with-syntactic--- gives always the same
+
+(define-record-type <syntactic-environment>
+  (%make-syntactic-environment bindings)
+  syntactic-environment?
+  (bindings syntactic-environment-bindings syntactic-environment-set-bindings!))
+
+(define current-syntactic-environment (make-parameter #f))
+(define current-scope current-syntactic-environment)
+(define (get-bindings)
+  (syntactic-environment-bindings (current-syntactic-environment)))
+(define (set-bindings! bindings)
+  (syntactic-environment-set-bindings! (current-syntactic-environment) bindings))
 
 (define current-references (make-parameter #f box))
 (define (get-references) (unbox (current-references)))
@@ -32,13 +42,15 @@
 
 (define (with-syntactic-environment syntactic-environment thunk)
   (parameterize
-      ((current-bindings (syntactic-environment-bindings syntactic-environment))
+      ((current-syntactic-environment
+	(%make-syntactic-environment
+	 (syntactic-environment-bindings syntactic-environment)))
        (current-references '()))
     (thunk)))
 
 (define (with-scope thunk)
   (parameterize
-      ((current-bindings (get-bindings)))
+      ((current-syntactic-environment (%make-syntactic-environment (get-bindings))))
     (thunk)))
 
 (define (with-isolated-references thunk)
@@ -55,11 +67,6 @@
 	   (lambda (binding)
 	     (binding-decrement-reference-count! binding))
 	   (get-references))))))
-
-(define-record-type <syntactic-environment>
-  (%make-syntactic-environment bindings)
-  syntactic-environment?
-  (bindings syntactic-environment-bindings))
 
 ;;; Syntactic bindings
 
@@ -92,7 +99,7 @@
        (> (binding-reference-count binding) 0)))
 
 (define (get-syntactic-environment)
-  (%make-syntactic-environment (get-bindings)))
+  (current-syntactic-environment))
 
 (define (make-syntactic-environment)
   (%make-syntactic-environment (make-map (make-eq-comparator))))

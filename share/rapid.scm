@@ -15,13 +15,57 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(%define-syntax
- define-syntax
- (syntax-rules
-  ... ()
-  ((define-syntax keyword
-     (syntax-rules ()
-       (syntax-rule ...)))
-   (%define-syntax keyword (syntax-rules (... ...) () (syntax-rule ...))))))
+;;; TODO: Check syntax (for %define-syntax, etc.)
 
-;; TODO: Check grammar of syntax-rule, etc.
+(%define-syntax define-syntax
+ (syntax-rules ::: ()              ;; XXX: ... wird eingeführt; ist aber unbekannt in syntax-rule
+  ((define-syntax keyword
+     (syntax-rules (literal :::)
+       syntax-rule :::))
+   (%define-syntax keyword (syntax-rules ... (literal :::) syntax-rule :::)))
+  ((define-syntax keyword
+     (syntax-rules ... (literal :::) syntax-rule :::))
+   (%define-syntax keyword (syntax-rules ... (literal :::) syntax-rule :::)))))
+
+(define-syntax case-lambda
+  (syntax-rules ()
+    ((case-lambda clause ...)
+     (case-lambda-aux (clause ...) ()))))
+
+(define-syntax case-lambda-aux
+  (syntax-rules ()
+    ((case-lambda-aux () (clause ...))
+     (%case-lambda-aux clause ...))
+    ((case-lambda-aux (clause1 clause2 ...) (checked-clause ...))
+     (case-lambda-aux (clause2 ...) (checked-clause ... clause1)))))
+
+(define-syntax lambda
+  (syntax-rules ()
+    ((lambda formals . body)
+     (case-lambda (formals . body)))
+    ((lambda . args)
+     (syntax-error "bad lambda form"))))
+
+;; TODO Check formals (also elsewhere)  ;; with cps-macros (?)
+(define-syntax define-values
+  (syntax-rules ()
+    ((define-values formals expression)
+     (%define-values formals expression))
+    ((define-values . args)
+     (syntax-error "bad define-values form"))))
+
+(define-syntax define
+  (syntax-rules ()
+    ((define (variable . formals) . body)
+     (define variable (lambda formals . body))) 
+    ((define variable expression)
+     (define-values (variable) expression))
+    ((define . _)
+     (syntax-error "bad define form"))))
+
+(define-syntax quote
+  (syntax-rules ()
+    ((quote datum)
+     (%quote datum))
+    ((quote . args)
+     (syntax-error "bad quote form"))))

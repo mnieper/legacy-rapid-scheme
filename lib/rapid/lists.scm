@@ -53,6 +53,13 @@
 	(cons (car list) (loop (cdr list) (cdr ref)))
 	'())))
 
+(define (split-at x k)
+  (let loop ((x x) (k k))
+    (if (zero? k)
+	(values '() x)
+	(let-values (((head tail) (loop (cdr x) (- k 1))))
+	  (values (cons (car x) head) tail)))))
+
 (define (circular-list? obj)
   (let loop ((fast obj) (slow obj))
     (and (pair? fast)
