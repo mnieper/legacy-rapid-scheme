@@ -17,13 +17,6 @@
 
 ;;; TODO: Don't do syntax checks here. Let (rapid), etc., handle those.
 
-;; TODO: We don't need this anymore
-(define (make-syntax-expander expander)
-  (lambda (syntax)
-    (unless (list? (syntax-datum syntax))
-      (compile-error "invalid use of syntax as value" syntax))
-    (expander syntax)))
-
 (define (syntax-error-expander syntax)
   (define form (syntax-datum syntax))
   (define message (syntax-datum (cadr form)))
@@ -110,8 +103,6 @@
 (define (define-syntax-expander syntax)
   (define syntactic-environment (get-syntactic-environment))
   (define form (syntax-datum syntax))
-  ;; Form looks as follows:
-  ;; (define-syntax <keyword> (syntax-rules <ellipsis> (<literal> ...) <syntax-rule*>))
   (define keyword-syntax (list-ref form 1))
   (define transformer-syntax (list-ref form 2))
   (define transformer (syntax-datum transformer-syntax))
@@ -119,9 +110,6 @@
   (define literal-syntax* (syntax-datum (list-ref transformer 2)))
   (define syntax-rule-syntax* (list-tail transformer 3))
   (define macro-environment (get-syntactic-environment))
-  (define (macro-identifier=? identifier1 identifier2)
-    (identifier=? macro-environment identifier1 macro-environment identifier2))
-  (define identifier-comparator (make-comparator identifier? macro-identifier=? #f #f))
   (define literal-set
     (let loop ((literal-set (make-set (make-eq-comparator)))
 	       (literal-syntax* literal-syntax*))

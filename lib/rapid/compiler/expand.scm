@@ -133,8 +133,6 @@
 (define (%expand-syntax! syntax)
   (let loop ((form (syntax-datum syntax)))
     (cond
-     ((syntactic-closure? form)
-      (call-in-syntactic-closure form loop))
      ((simple-datum? form)
       (expand-into-expression (make-literal form syntax)))
      ((null? form)
@@ -164,6 +162,8 @@
 	  (expand-into-expression (make-procedure-call operator
 						       (expand-expression* (cdr form))
 						       syntax))))))
+     ((syntactic-closure? form)
+      (call-in-syntactic-closure form loop))
      (else
       (compile-error (format "invalid form ‘~a’" (list? form)) syntax)))))
 

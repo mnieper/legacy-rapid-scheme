@@ -32,11 +32,13 @@
   (lambda (syntax environment)
     (define renames (make-table (make-eq-comparator)))
     (define (rename identifier)
-      ;; XXX (log identifier ":" (table-ref/default renames identifier #f))
       (table-intern! renames
 		     identifier
 		     (lambda ()
-		       (make-syntactic-closure macro-environment '() identifier))))
+		       (make-syntactic-closure macro-environment '() identifier)))
+      ; XXX:
+      #;(log "?: " identifier (hash-by-identity (table-ref renames identifier)))
+      #;(table-ref renames identifier))
     (define (compare identifier1 identifier2)
       (identifier=? environment identifier1 environment identifier2))
     (transformer syntax rename compare)))
