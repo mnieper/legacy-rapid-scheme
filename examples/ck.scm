@@ -42,6 +42,8 @@
      (ck* s "arg" (op) ea ...))))
 
 ;; TODO: Rename a few things
+;; FIXME: Need to pass a couple of things to the inner macro
+;;        Chibi does it right; don't test with gosh
 (define-syntax define-macro
   (syntax-rules ... (case-lambda)
     ((define-macro op ellipsis (literal ...)

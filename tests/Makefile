@@ -1,7 +1,7 @@
 TEST-RUNNER = chibi-scheme -I../lib -Ilib  
 SCHEME = ../bin/scheme
 UNIT-TESTS = *-tests.scm
-INTEGRATION-TESTS = check_simple check_macros
+INTEGRATION-TESTS = #check_simple check_macros
 
 all:
 

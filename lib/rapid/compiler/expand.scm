@@ -151,7 +151,7 @@
 				      form)  ; synthetic identifier? will have unclose it
 			      syntax))
 	     (expand-into-expression (make-reference denotation syntax))))
-       (else 
+       (else
 	;; XXX: Can this happen in case form is a syntactic closure?
 	(compile-error (format "undefined variable ‘~a’" form) syntax))))
      ((list? form)

@@ -26,6 +26,8 @@
 	  expand-into-syntax-definition
 	  expand-into-sequence)
   (import (scheme base)    (scheme write) ;; XXX
+	  (chibi show) (chibi show pretty) ;; XXX
+	  
 	  (rapid lists)
 	  (rapid box)
 	  (rapid format)
