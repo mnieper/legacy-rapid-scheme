@@ -77,14 +77,13 @@
   (case-lambda
    ((identifier)
     (let loop ((identifier identifier))
-      (if (symbol? identifier)
-	  ;; Symbol
-	  (with-syntactic-environment
-	   (lookup-syntactic-environment identifier)
-	   (lambda ()
-	     (lookup-binding! identifier)))
-	  ;; Syntactic closure
-	  (call-in-syntactic-closure identifier loop))))
+      (or
+       (with-syntactic-environment
+	(lookup-syntactic-environment identifier)
+	(lambda ()
+	  (lookup-binding! identifier)))
+       (and (syntactic-closure? identifier)
+	    (call-in-syntactic-closure identifier loop)))))
    ((identifier environment)
     (with-syntactic-environment
      environment

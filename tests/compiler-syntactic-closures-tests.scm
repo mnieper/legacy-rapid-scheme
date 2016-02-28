@@ -48,7 +48,7 @@
 
 (test-equal "Syntactic closures can be wrapped"
 	    'bar
-	    (let ((env (make-syntactic-environment)))   ;; problem: w/s-e creates new
+	    (let ((env (make-syntactic-environment)))
 	       (with-syntactic-environment
 		env
 		(lambda ()
@@ -60,6 +60,14 @@
 		       (let ((x (close-syntax x (get-syntactic-environment))))
 			 (sc-lookup-denotation! x)))))))))
 
-;; test macro problem with two syntactic closures
+(test-equal "Looking up aliases"
+	    'bar
+	    (with-syntactic-environment
+	     (make-syntactic-environment)
+	     (lambda ()
+	       (let ((x (make-syntactic-closure
+			 (get-syntactic-environment) '() 'x)))
+		 (insert-binding! (datum->syntax x) 'bar)
+		 (sc-lookup-denotation! x)))))
 
 (test-end)

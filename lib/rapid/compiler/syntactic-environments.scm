@@ -15,15 +15,6 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Syntax definitions
-
-;; Scheme forbids definition to define an identifier whose bindings has
-;; to be known in order to determine the meaning of the definition
-;; itself.
-
-;; TODO: we need a constant syntactic-environment throughout
-;; that is: with-syntactic--- gives always the same
-
 (define-record-type <syntactic-environment>
   (%make-syntactic-environment bindings references)
   syntactic-environment?
@@ -43,7 +34,7 @@
 (define (set-bindings! bindings)
   (syntactic-environment-set-bindings! (current-syntactic-environment) bindings))
 
-;; TODO: References should be a parameter of boxes
+;; TODO: References should/could be a parameter of boxes
 (define (current-references)
   (syntactic-environment-references (current-syntactic-environment)))
 (define (get-references)

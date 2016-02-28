@@ -2,6 +2,11 @@
 
 * (begin (define x)) does not define x in top-level scope
 
+* unclose-syntax => strip-syntactic-closures?
+
+* optimize make-syntactic-closure by not closing unnecessary things
+  - see: http://mumble.net/~campbell/t/t-synclo/synclo.t
+
 * Rename imports can import bindings that are not bound
 
 * Flag libraries (and contexts) as internal. Do not show them in stack traces.
