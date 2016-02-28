@@ -141,27 +141,29 @@
       (with-syntactic-environment
        (import*! import-sets)
        (lambda ()
-	 (add-location-bindings! (expand-top-level body))
-	 (let ((syntactic-environment (get-syntactic-environment)))
-	   (with-syntactic-environment
-	    (make-syntactic-environment)
-	    (lambda ()
-	      (for-each
-	       (lambda (export-spec)
-		 (define form (syntax-datum export-spec))
-		 (cond
-		  ((list? form)
-		   (unless (= (length form) 2)
-		     (compile-error "bad export spec" export-spec))
-		   (assert-identifier! (car form))
-		   (assert-identifier! (cadr form))
-		   (insert-binding-from! (car form) syntactic-environment (cadr form)))
-		  (else
-		   (assert-identifier! export-spec)
-		   (insert-binding-from! export-spec syntactic-environment))))
+	 (with-scope
+	  (lambda ()
+	    (add-location-bindings! (expand-top-level body))
+	    (let ((syntactic-environment (get-syntactic-environment)))
+	      (with-syntactic-environment
+	       (make-syntactic-environment)
+	       (lambda ()
+		 (for-each
+		  (lambda (export-spec)
+		    (define form (syntax-datum export-spec))
+		    (cond
+		     ((list? form)
+		      (unless (= (length form) 2)
+			(compile-error "bad export spec" export-spec))
+		      (assert-identifier! (car form))
+		      (assert-identifier! (cadr form))
+		      (insert-binding-from! (car form) syntactic-environment (cadr form)))
+		     (else
+		      (assert-identifier! export-spec)
+		      (insert-binding-from! export-spec syntactic-environment))))
 	       export-specs)
-	      (get-syntactic-environment))))))))))
-
+		 (get-syntactic-environment))))))))))))
+   
 (define (assert-identifier! identifier-syntax)
   (unless (symbol? (syntax-datum identifier-syntax))
     (compile-error (format "bad identifier ‘~a’" (syntax-datum identifier-syntax))

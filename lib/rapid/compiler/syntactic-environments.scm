@@ -25,48 +25,62 @@
 ;; that is: with-syntactic--- gives always the same
 
 (define-record-type <syntactic-environment>
-  (%make-syntactic-environment bindings)
+  (%make-syntactic-environment bindings references)
   syntactic-environment?
-  (bindings syntactic-environment-bindings syntactic-environment-set-bindings!))
+  (bindings syntactic-environment-bindings
+	    syntactic-environment-set-bindings!)
+  (references syntactic-environment-references))
 
 (define current-syntactic-environment (make-parameter #f))
 (define current-scope current-syntactic-environment)
+(define (get-syntactic-environment)
+  (current-syntactic-environment))
+(define (make-syntactic-environment)
+  (%make-syntactic-environment (make-map (make-eq-comparator)) (box '())))
+
 (define (get-bindings)
   (syntactic-environment-bindings (current-syntactic-environment)))
 (define (set-bindings! bindings)
   (syntactic-environment-set-bindings! (current-syntactic-environment) bindings))
 
-(define current-references (make-parameter #f box))
-(define (get-references) (unbox (current-references)))
-(define (set-references! references) (set-box! (current-references) references))
+;; TODO: References should be a parameter of boxes
+(define (current-references)
+  (syntactic-environment-references (current-syntactic-environment)))
+(define (get-references)
+  (unbox (current-references)))
+(define (set-references! references)
+  (set-box! (current-references) references))
 
 (define (with-syntactic-environment syntactic-environment thunk)
   (parameterize
-      ((current-syntactic-environment
-	(%make-syntactic-environment
-	 (syntactic-environment-bindings syntactic-environment)))
-       (current-references '()))
+      ((current-syntactic-environment syntactic-environment))
     (thunk)))
 
 (define (with-scope thunk)
   (parameterize
-      ((current-syntactic-environment (%make-syntactic-environment (get-bindings))))
+      ((current-syntactic-environment
+	(%make-syntactic-environment (get-bindings) (current-references))))
     (thunk)))
 
 (define (with-isolated-references thunk)
-  (parameterize ((current-references '()))
-    (dynamic-wind
-	(lambda ()
-	  (for-each
-	   (lambda (binding)
-	     (binding-increment-reference-count! binding))
-	   (get-references)))
+  (define old-references #f)
+  (define new-references '())
+  (dynamic-wind
+      (lambda ()
+	(set! old-references (get-references))
+	(set-references! new-references)
+	(for-each
+	 (lambda (binding)
+	   (binding-increment-reference-count! binding))
+	 (get-references)))
 	thunk
 	(lambda ()
 	  (for-each
 	   (lambda (binding)
 	     (binding-decrement-reference-count! binding))
-	   (get-references))))))
+	   (get-references))
+	  (set! new-references (get-references))
+	  (set-references! old-references))))
 
 ;;; Syntactic bindings
 
@@ -97,12 +111,6 @@
 (define (binding-referenced? binding)
   (and (eq? (binding-scope binding) (current-scope))
        (> (binding-reference-count binding) 0)))
-
-(define (get-syntactic-environment)
-  (current-syntactic-environment))
-
-(define (make-syntactic-environment)
-  (%make-syntactic-environment (make-map (make-eq-comparator))))
 
 (define (%lookup-binding identifier)
   (map-ref/default (get-bindings) identifier #f))

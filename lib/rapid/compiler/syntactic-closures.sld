@@ -23,7 +23,7 @@
 	  identifier? make-synthetic-identifier identifier=?
 	  call-in-syntactic-closure
 	  sc-lookup-binding! sc-lookup-denotation! sc-lookup-syntax!)
-  (import (scheme base)
+  (import (scheme base)                   (scheme write)
 	  (scheme case-lambda)
 	  (rapid box)
 	  (rapid comparators)

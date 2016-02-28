@@ -1,5 +1,4 @@
-* In the syntax-rules transformer, pattern variables without ellipses should be allowed to occur
-  in front of template ellipses
+* with-syntactic-environment, with-scope is currently a bit awkward
 
 * (begin (define x)) does not define x in top-level scope
 

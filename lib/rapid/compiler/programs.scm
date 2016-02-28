@@ -30,6 +30,8 @@
    (lambda ()
      (make-letrec*-expression
       (append (environment-bindings environment)
-	      (expand-top-level body))
+	      (with-scope
+	       (lambda ()
+		 (expand-top-level body))))
       (list (make-literal #t #f))
       #f))))

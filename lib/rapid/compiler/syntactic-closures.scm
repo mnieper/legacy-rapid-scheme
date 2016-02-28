@@ -48,7 +48,8 @@
        (sc-lookup-denotation! identifier2 environment2)))
 
 ;; XXX: Is ‘free-names-map’ a good name?
-(define current-free-names-map (make-parameter (make-map (make-eq-comparator)) box))
+(define current-free-names-map
+  (make-parameter (make-map (make-eq-comparator)) box))
 (define (get-free-names-map) (unbox (current-free-names-map)))
 (define (set-free-names-map! map) (set-box! (current-free-names-map) map))
 (define (lookup-syntactic-environment name)
