@@ -1,6 +1,7 @@
-* with-syntactic-environment, with-scope is currently a bit awkward
+* _ is auxiliary syntax in macros; have to define it at some level
+  (a macro transformer would need to introduce new vars)
 
-* (begin (define x)) does not define x in top-level scope
+* with-syntactic-environment, with-scope is currently a bit awkward
 
 * unclose-syntax => strip-syntactic-closures?
 

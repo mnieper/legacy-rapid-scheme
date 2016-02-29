@@ -23,7 +23,7 @@
     ((ck s "arg" (op ...) ea ea1 ...)
      (ck (((op ...) ea1 ...) . s) ea))
     ((ck s (op ea ...))
-     (ck s "arg" (op) ea ...))))
+     (op :prepare s ea ...))))
 
 (define-syntax define-macro
   (syntax-rules ... ()
@@ -31,22 +31,22 @@
        (pattern template)
        ...)
      (begin
-       (define-syntax define-macro1
+       (define-syntax d
 	 (syntax-rules ...1 (ellipsis op quote)
-	   ((_ o e (l ...1) () ((p t) ...1))
-	    (define-syntax op
+	   ((d o e (l ...1) () ((p t) ...1))
+	    (define-syntax o
 	      (syntax-rules e (l ...1 quote aux)
-		((op :call s . p) (ck s t))
+		((o :call s . p) (ck s t))
 		...1
-		;; TODO :prepare
-		((op . args) (ck () (op . args))))))
-	   ((_ o e l* (((op . p) t) . pt*) qu*)
-	    (_ o e l* pt* qu* (p t) ()))
-	   ((_ o e l* pt* (qu ...1) (() t) p)
-	    (_ o e l* pt* (qu ...1 (p t))))
-	   ((_ o e l* pt* qu* ((x . p) t) (y ...1))
-	    (_ o e l* pt* qu* (p t) (y ...1 x)))))
-       (define-macro1 op ellipsis (literal ...  (pattern template) ... ()))))))
+		((o :prepare s ea ...1) (ck s "arg" (o) ea ...1))
+		((o . args) (ck () (o . args))))))
+	   ((d o e l* (((op . p) t) . pt*) qu*)
+	    (d o e l* pt* qu* (p t) ()))
+	   ((d o e l* pt* (qu ...1) (() t) p)
+	    (d o e l* pt* (qu ...1 (p t))))
+	   ((d o e l* pt* qu* ((x . p) t) (y ...1))
+	    (d o e l* pt* qu* (p t) (y ...1 x)))))
+       (d op ellipsis (literal ...) ((pattern template) ...) ())))))
 
 ;; TODO: Rename a few things
 ;; FIXME: Need to pass a couple of things to the inner macro
@@ -100,6 +100,8 @@
 		     ((test x) kt)
 		     ((test _) kf))))
        (test y)))))
+
+; besides if, we want (gensym) on the macro level!
 
 (display (m-quote (m-append '(1 2 3) '(4 5))))
 (newline)
