@@ -149,21 +149,25 @@
 	   (test id2)))))
     (m))))
 
-;; TODO: Write gensym
-;; HOW? with m?
-
+(define-macro m-gensym ... ()
+  ((m-gensym)
+   (m-shift
+    k
+    (define-syntax m
+      (syntax-rules ...3 ()
+	((m) (k 'g))))
+    (m))))
 
 ;;; TESTS
 
-(define-syntax foo
-  (syntax-rules ... ()
-    ((foo a b)
-     (display
-      (m-expression
-       (m-if (m-eq? 'a 'a)
-	     (m-quote (m-append '(1 2 3) '(4 5) '(6 7)))
-	     (m-quote (m-append '(1 2 3) '(4 5)))))))))
+(display
+ (m-expression (m-quote (m-gensym))))
+(newline)
 
-(foo a a)
+(display
+ (m-expression
+  (m-if (m-eqv? (m-gensym) (m-gensym))
+	(m-quote (m-append '(1 2 3) '(4 5) '(6 7) 'TRUE))
+	(m-quote (m-append '(1 2 3) '(4 5))))))
 
 (newline)
