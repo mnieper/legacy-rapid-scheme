@@ -1,13 +1,8 @@
-;; Implement Meta-Macros/Special forms like c-if...
-;;   for the high-level macro system
-;; Special forms don't have their arguments expanded
-;;   but need a later call
-
-
 (import (scheme base)
 	(scheme write))
 ;(import (rapid primitive))
 
+;; Secret literals
 (define-syntax :call (syntax-rules ... ()))
 (define-syntax :prepare (syntax-rules ... ()))
 
@@ -33,75 +28,142 @@
      (begin
        (define-syntax d
 	 (syntax-rules ...1 (ellipsis op quote)
-	   ((d o e (l ...1) () ((p t) ...1))
+	   ((d o e (l ...1) () ((p q r t) ...1))
 	    (define-syntax o
-	      (syntax-rules e (l ...1 quote aux)
-		((o :call s . p) (ck s t))
+	      (syntax-rules e (l ...1 quote :prepare :call)
+		((o :prepare s . p)
+		 (ck s "arg" (o) . q))
 		...1
-		((o :prepare s ea ...1) (ck s "arg" (o) ea ...1))
+		((o :prepare s . args)
+		 (syntax-error "bad arguments to macro call"))
+		((o :call s . r) (ck s t))
+		...1
 		((o . args) (ck () (o . args))))))
 	   ((d o e l* (((op . p) t) . pt*) qu*)
-	    (d o e l* pt* qu* (p t) ()))
-	   ((d o e l* pt* (qu ...1) (() t) p)
-	    (d o e l* pt* (qu ...1 (p t))))
-	   ((d o e l* pt* qu* ((x . p) t) (y ...1))
-	    (d o e l* pt* qu* (p t) (y ...1 x)))))
+	    (d o e l* pt* qu* (p t) () () ()))
+	   ((d o e l* pt* (qu ...1) (() t) p q r)
+	    (d o e l* pt* (qu ...1 (p q r t))))
+	   
+	   ((d o e l* pt* qu* (('x ellipsis . p) t) (y ...1) (z ...1) (w ...1))
+	    (d o e l* pt* qu* (p t) (y ...1 x ellipsis) (z ...1 x ellipsis) (w ...1 'x ellipsis))) 
+
+	   ((d o e l* pt* qu* (('x . p) t) (y ...1) (z ...1) (w ...1))
+	    (d o e l* pt* qu* (p t) (y ...1 x) (z ...1 x) (w ...1 'x)))
+
+	   ((d o e l* pt* qu* ((x ellipsis . p) t) (y ...1) (z ...1) (w ...1))
+	    (d o e l* pt* qu* (p t) (y ...1 x ellipsis) (z ...1 'x ellipsis) (w ...1 'x ellipsis)))
+
+	   ((d o e l* pt* qu* ((x . p) t) (y ...1) (z ...1) (w ...1))
+	    (d o e l* pt* qu* (p t) (y ...1 x) (z ...1 'x) (w ...1 'x)))))
        (d op ellipsis (literal ...) ((pattern template) ...) ())))))
 
-;; TODO: Rename a few things
-;; FIXME: Need to pass a couple of things to the inner macro
-;;        Chibi does it right; don't test with gosh
-#;(define-syntax define-macro
-  (syntax-rules ... (case-lambda)
-    ((define-macro op ellipsis (literal ...)
-       (case-lambda 
-	(%formals %expression)
-	...))
+(define-syntax m-shift
+  (syntax-rules ... (quote :prepare :call)
+    ((m-shift :prepare s k body1 body2 ...)
+     (ck s "arg" (m-shift) 'k 'body1 'body2 ...))
+    ((m-shift :call s 'k 'body1 'body2 ...)
      (begin
-       (define-syntax define-macro-aux
-	 (syntax-rules ::: (ellipsis quote)
-	   ((define-macro-aux ((pattern expression) :::) ())
-	    (define-syntax op
-	      (syntax-rules ellipsis (literal ... quote aux)
-		((op aux s . pattern) (ck* s expression)) :::
-		((op . args) (ck* () (op . args))))))
-	   ((define-macro-aux pt* ((formals expression) . fe*))
-	    (define-macro-aux pt* fe* (formals expression) ()))
-	   ((define-macro-aux (pt :::) fe* (() expression) formals)
-	    (define-macro-aux (pt ::: (formals expression)) fe*))
-	   ((define-macro-aux pt* fe* ((x ellipsis . formals) expression)
-	      (f :::))
-	    (define-macro-aux pt* fe* (formals expression)
-	      (f ::: 'x ellipsis)))
-	   ((define-macro-aux pt* fe* ((x . formals) expression)
-	      (f :::))
-	    (define-macro-aux pt* fe* (formals expression)
-	      (f ::: 'x)))))     
-       (define-macro-aux () ((%formals %expression) ...))))))
+       (define-syntax m
+	 (syntax-rules ...1 ()
+	   ((m)
+	    (begin
+	      (define-syntax k
+		(syntax-rules ...2 ()
+		  ((k v) (ck s v))))
+	      body1
+	      body2
+	      ...))))
+       (m)))
+    ((m-shift k body1 body2 ...)
+     (ck () (m-shift k body1 body2 ...)))))
+
+(define-syntax m-expression
+  (syntax-rules ... (quote :prepare :call)
+    ((m-expression :prepare s expression)
+     (ck s "arg" (m-expression) 'expression))
+    ((m-expression :call s 'expression)
+     (let ()
+       (m-list 'let '() (m-list 'define 'x expression) 'x)))
+    ((m-expression expression)
+     (ck () (m-expression expression)))))
 
 (define-macro m-cons ... ()
   ((m-cons 'h 't) '(h . t)))
 
 (define-macro m-append ... ()
-  ((m-append '() 'l2) 'l2)
-  ((m-append '(h . t) 'l2) (m-cons 'h (m-append 't 'l2))))
+  ((m-append) ''())
+  ((m-append 'l) 'l)
+  ((m-append '() 'l2 'l ...) (m-append 'l2 'l ...))
+  ((m-append '(h . t) 'l2 'l ...) (m-cons 'h (m-append 't 'l2 'l ...))))
 
 (define-macro m-quote ... ()
   ((m-quote 'x) ''x))
 
-;; The macro below won't work that simply...
-;; because it has to thread everything to kt and kf
-;; need macros that expand in macros, not values... (ok!)
-#;(define-macro $eq? ... ()
-  (case-lambda
-   ((x y kt kf)  ;; problem: have to be quoted
-    '(let-syntax ((test
-		   (syntax-rules (... ...) (x)
-		     ((test x) kt)
-		     ((test _) kf))))
-       (test y)))))
+(define-macro m-mquote ... ()
+  ((m-mquote x) 'x))
 
-; besides if, we want (gensym) on the macro level!
+(define-macro m-if ... ()
+  ((m-if '#f consequent alternate)
+   alternate)
+  ((m-if 'test consequent alternate)
+   consequent))
 
-(display (m-quote (m-append '(1 2 3) '(4 5))))
+(define-macro m-list ... ()
+  ((m-list 'a ...) '(a ...)))
+
+;;; XXX: Here is a problem with the chibi macro expander...
+;;; ...1 and ...2 won't work
+
+(define-macro m-eq? ... ()
+  ((m-eq? 'id 'v)
+   (m-shift
+    k
+    (define-syntax m
+      (syntax-rules ...1 ()   ;;===> ...2!
+	((m)
+	 (begin
+	   (define-syntax id
+	     (syntax-rules ...4 ()
+	       ((id) (k '#f))))
+	   (define-syntax ok
+	     (syntax-rules ...4 ()
+	       ((ok) (k '#t))))
+	   (define-syntax test
+	     (syntax-rules ...4 ()
+	       ((test v) (id))))
+	   (test ok)))))
+    (m))))
+
+(define-macro m-eqv? ... ()
+  ((m-eqv? 'id1 'id2)
+   (m-shift
+    k
+    (define-syntax m
+      (syntax-rules ...3 ()
+	((m)
+	 (begin
+	   (define-syntax test
+	     (syntax-rules ...4 (id1)
+	       ((test id1) (k '#t))
+	       ((test x) (k '#f))))
+	   (test id2)))))
+    (m))))
+
+;; TODO: Write gensym
+;; HOW? with m?
+
+
+;;; TESTS
+
+(define-syntax foo
+  (syntax-rules ... ()
+    ((foo a b)
+     (display
+      (m-expression
+       (m-if (m-eq? 'a 'a)
+	     (m-quote (m-append '(1 2 3) '(4 5) '(6 7)))
+	     (m-quote (m-append '(1 2 3) '(4 5)))))))))
+
+(foo a a)
+
 (newline)

@@ -1,5 +1,10 @@
+* Stress test with ck.scm (does not work yet)
+
 * _ is auxiliary syntax in macros; have to define it at some level
   (a macro transformer would need to introduce new vars)
+
+* Simplify macro transformer compiler output. Don't need to pass vectors as signature of function
+  will be known. Can use let instead of function.
 
 * with-syntactic-environment, with-scope is currently a bit awkward
 
