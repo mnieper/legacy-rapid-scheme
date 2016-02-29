@@ -45,13 +45,13 @@
 	    (d o e l* pt* (qu ...1 (p q r t))))
 	   
 	   ((d o e l* pt* qu* (('x ellipsis . p) t) (y ...1) (z ...1) (w ...1))
-	    (d o e l* pt* qu* (p t) (y ...1 x ellipsis) (z ...1 x ellipsis) (w ...1 'x ellipsis))) 
+	    (d o e l* pt* qu* (p t) (y ...1 x e) (z ...1 x e) (w ...1 'x e))) 
 
 	   ((d o e l* pt* qu* (('x . p) t) (y ...1) (z ...1) (w ...1))
 	    (d o e l* pt* qu* (p t) (y ...1 x) (z ...1 x) (w ...1 'x)))
 
 	   ((d o e l* pt* qu* ((x ellipsis . p) t) (y ...1) (z ...1) (w ...1))
-	    (d o e l* pt* qu* (p t) (y ...1 x ellipsis) (z ...1 'x ellipsis) (w ...1 'x ellipsis)))
+	    (d o e l* pt* qu* (p t) (y ...1 x e) (z ...1 'x e) (w ...1 'x e)))
 
 	   ((d o e l* pt* qu* ((x . p) t) (y ...1) (z ...1) (w ...1))
 	    (d o e l* pt* qu* (p t) (y ...1 x) (z ...1 'x) (w ...1 'x)))))

@@ -1,5 +1,7 @@
 * Stress test with ck.scm (does not work yet)
 
+* When the macro expander copies code verbatim, set the context
+
 * _ is auxiliary syntax in macros; have to define it at some level
   (a macro transformer would need to introduce new vars)
 
