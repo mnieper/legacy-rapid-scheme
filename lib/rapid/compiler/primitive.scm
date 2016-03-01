@@ -113,7 +113,7 @@
   (define (macro-identifier=? identifier1 identifier2)
     (identifier=? identifier1 macro-environment identifier2 macro-environment))
   (define identifier-comparator
-    (make-comparator identifier? macro-identifier=? #f äf))
+    (make-comparator identifier? macro-identifier=? #f #f))
   (define literal-set
     (let loop ((literal-set (make-set (identifier-comparator)))
 	       (literal-syntax* literal-syntax*))
