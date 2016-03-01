@@ -231,6 +231,8 @@
 	      repeated
 	      (+ i 1)))))
      (else
+      (when (ellipsis? (syntax-datum pattern-list))
+	(compile-error "ellipsis not allowed as dotted tail" pattern-list))
       (return (cons (make-pattern-element pattern-list i (and repeated #t) #f)
 		    %pattern-element*)
 	      repeated
