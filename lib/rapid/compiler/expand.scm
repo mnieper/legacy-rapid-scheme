@@ -150,8 +150,7 @@
 			      syntax))
 	     (expand-into-expression (make-reference denotation syntax))))
        (else
-	;; XXX: Can this happen in case form is a syntactic closure?
-	(compile-error (format "undefined variable ‘~a’" form) syntax))))
+	(compile-error (format "undefined variable ‘~a’" (unclose-form form)) syntax))))
      ((list? form)
       (cond
        ((lookup-transformer! (car form))

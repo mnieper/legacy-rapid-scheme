@@ -96,9 +96,11 @@
   (expand-into-expression
    (make-literal (syntax->datum (list-ref form 1) unclose-form) syntax)))
 
-(define (auxiliary-syntax)
+(define (make-auxiliary-syntax identifier)
   (lambda (syntax)
-    (compile-error "invalid use of auxiliary syntax" syntax)))
+    (compile-error (format "invalid use of auxiliary syntax ‘~a’"
+			   identifier)
+		   syntax)))
 
 (define (define-syntax-expander syntax)
   (define syntactic-environment (get-syntactic-environment))
@@ -111,11 +113,12 @@
   (define syntax-rule-syntax* (list-tail transformer 3))
   (define macro-environment (get-syntactic-environment))
   (define (macro-identifier=? identifier1 identifier2)
-    (identifier=? identifier1 macro-environment identifier2 macro-environment))
+    (identifier=? macro-environment identifier1
+		  macro-environment identifier2))
   (define identifier-comparator
     (make-comparator identifier? macro-identifier=? #f #f))
   (define literal-set
-    (let loop ((literal-set (make-set (identifier-comparator)))
+    (let loop ((literal-set (make-set identifier-comparator))
 	       (literal-syntax* literal-syntax*))
       (if (null? literal-syntax*)
 	  literal-set
@@ -144,6 +147,11 @@
     (expand-into-syntax-definition
      keyword-syntax
      (lambda (syntax)
+       ;; XXX
+       ;;(display "Expanding " (current-error-port))
+       ;;(display (syntax->datum keyword-syntax unclose-form)
+	;;	(current-error-port))
+       ;;(newline (current-error-port))
        (expand-syntax! (transformer syntax (get-syntactic-environment))))
      syntax)))     
 
@@ -189,8 +197,8 @@
    (quote quote-expander)
    (syntax-error syntax-error-expander)
    (define-syntax define-syntax-expander)
-   (syntax-rules (auxiliary-syntax))
-   (... (auxiliary-syntax))
+   (syntax-rules (make-auxiliary-syntax 'syntax-rules))
+   (... (make-auxiliary-syntax '...))
    (+ (primitive operator+))
    (apply (primitive operator-apply))
    (display (primitive operator-display)) ;; FIXME: should go into (scheme base)

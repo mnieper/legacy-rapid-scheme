@@ -74,10 +74,15 @@
 	  (cadr (syntax-datum syntax-rule-syntax)))
 	syntax-rule-syntax*)))
     (define er-macro-transformer
+      ;; TODO: We could also make this internal to er-macro-transformer
+      ;; or sc-transformer
       (eval-transformer syntax-rules-transformer
 			compile-error compile-note transformer-syntax
 			syntax-datum derive-syntax
 			datum->syntax
+			;; XXX
+			log syntax->datum unclose-form
+			;; END XXX
 			template-syntax-vector
 			pattern-syntax-vector))
     (make-er-macro-transformer er-macro-transformer macro-environment)))
@@ -131,16 +136,21 @@
   (cond
    ((identifier? pattern)
     (cond
+     ;; Literal identifier
      ((literal? pattern)
       (values
        (make-pattern-variable-map)
        `(lambda (syntax pattern-syntax)
+	  ;; XXX
+	  ;; (log "Compare syntax" (syntax->datum syntax unclose-form) "with pattern" (syntax->datum pattern-syntax unclose-form))
+	  ;; FIXME: (syntax-datum pattern-syntax) should be enclosed in the macro-environment
 	  (and (compare (syntax-datum syntax) (syntax-datum pattern-syntax)) #()))))
-     ((eq? pattern '_)
+     #;((eq? pattern '_)  ;; FIXME: This is not hygienic (remove this feature and use custom macro)
       (values
        (make-pattern-variable-map)
        `(lambda (syntax pattern-syntax)
-	  #())))
+     #())))
+     ;; 
      (else
       (values
        (map-set (make-pattern-variable-map) pattern (make-pattern-variable 0 0 pattern-syntax))

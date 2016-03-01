@@ -15,21 +15,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-library (rapid compiler primitive)
-  (export primitive-environment)
-  (import (scheme base)                  (scheme write) ;;; XXX
-	  (scheme write)
-	  (rapid lists)
-	  (rapid sets)
-	  (rapid format)
-	  (rapid comparators)
-	  (rapid compiler error)
-	  (rapid compiler syntax)
-	  (rapid compiler expand)
-	  (rapid compiler environments)
-	  (rapid compiler macro-transformers)
-	  (rapid compiler syntactic-closures)
-	  (rapid compiler syntactic-environments)
-	  (rapid compiler expressions)
-	  (rapid compiler primitive-operators))
-  (include "primitive.scm"))
+(define-syntax define
+  (syntax-rules ... ()
+    ((define variable expression)
+     (define-values (variable) expression))))

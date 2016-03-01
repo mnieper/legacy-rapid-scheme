@@ -8,6 +8,9 @@
 * Simplify macro transformer compiler output. Don't need to pass vectors as signature of function
   will be known. Can use let instead of function.
 
+* Cache for import-sets (including the import-set); dependencies on files.
+  Caches bindings and syntactic-environment. And prerequisites... (how to cache syntax-transformers?) : by code?
+
 * with-syntactic-environment, with-scope is currently a bit awkward
 
 * unclose-syntax => strip-syntactic-closures?
