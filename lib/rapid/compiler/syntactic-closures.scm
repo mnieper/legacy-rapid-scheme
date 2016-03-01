@@ -35,6 +35,9 @@
       (and (syntactic-closure? form)
 	   (identifier? (syntactic-closure-form form)))))
 
+(define (identifier->symbol form)
+  (unclose-form form))
+
 (define (unclose-form form)
   (if (syntactic-closure? form)
       (unclose-form (syntactic-closure-form form))
@@ -44,8 +47,14 @@
   (close-syntax identifier #f))
 
 (define (identifier=? environment1 identifier1 environment2 identifier2)
-  (eq? (sc-lookup-denotation! identifier1 environment1)
-       (sc-lookup-denotation! identifier2 environment2)))
+  (define denotation1 (sc-lookup-denotation! identifier1 environment1))
+  (define denotation2 (sc-lookup-denotation! identifier2 environment2))
+  (cond
+   ((and denotation1 denotation2) (eq? denotation1 denotation2))
+   ((and (not denotation1) (not denotation2))
+    (eq? (identifier->symbol identifier1)
+	 (identifier->symbol identifier2)))
+   (else #f)))
 
 ;; XXX: Is ‘free-names-map’ a good name?
 (define current-free-names-map

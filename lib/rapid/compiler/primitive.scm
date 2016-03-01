@@ -110,8 +110,12 @@
   (define literal-syntax* (syntax-datum (list-ref transformer 2)))
   (define syntax-rule-syntax* (list-tail transformer 3))
   (define macro-environment (get-syntactic-environment))
+  (define (macro-identifier=? identifier1 identifier2)
+    (identifier=? identifier1 macro-environment identifier2 macro-environment))
+  (define identifier-comparator
+    (make-comparator identifier? macro-identifier=? #f äf))
   (define literal-set
-    (let loop ((literal-set (make-set (make-eq-comparator)))
+    (let loop ((literal-set (make-set (identifier-comparator)))
 	       (literal-syntax* literal-syntax*))
       (if (null? literal-syntax*)
 	  literal-set
@@ -126,9 +130,10 @@
   (define ellipsis (syntax-datum ellipsis-syntax))
   (define ellipsis?
     (if (literal? ellipsis)
-	(lambda (identifier) #f)
-	(lambda (identifier)
-	  (eq? identifier ellipsis))))
+	(lambda (form) #f)
+	(lambda (form)
+	  (and (identifier? form)
+	       (macro-identifier=? form ellipsis)))))
   (assert-identifier! keyword-syntax)
   (assert-identifier! ellipsis-syntax)
   (let ((transformer (make-syntax-rules-transformer ellipsis?
