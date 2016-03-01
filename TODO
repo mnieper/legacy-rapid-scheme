@@ -1,5 +1,8 @@
 * Stress test with ck.scm (does not work yet)
 
+* ellipsis as rest argument after dots do not raise error in pattern
+  (what about template)
+
 * When the macro expander copies code verbatim, set the context
 
 * _ is auxiliary syntax in macros; have to define it at some level

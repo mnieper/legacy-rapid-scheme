@@ -21,6 +21,9 @@
 	  with-syntactic-environment
 	  with-scope
 	  with-isolated-references
+	  make-denotation
+	  denotation?
+	  denotation-syntax
 	  lookup-binding!
 	  lookup-denotation!
 	  lookup-syntax!

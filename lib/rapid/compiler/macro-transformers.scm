@@ -136,21 +136,23 @@
   (cond
    ((identifier? pattern)
     (cond
+     
      ;; Literal identifier
      ((literal? pattern)
       (values
        (make-pattern-variable-map)
        `(lambda (syntax pattern-syntax)
-	  ;; XXX
-	  ;; (log "Compare syntax" (syntax->datum syntax unclose-form) "with pattern" (syntax->datum pattern-syntax unclose-form))
-	  ;; FIXME: (syntax-datum pattern-syntax) should be enclosed in the macro-environment
-	  (and (compare (syntax-datum syntax) (syntax-datum pattern-syntax)) #()))))
-     #;((eq? pattern '_)  ;; FIXME: This is not hygienic (remove this feature and use custom macro)
+	  (and (compare (syntax-datum syntax) (rename (syntax-datum pattern-syntax))) #()))))
+     
+     ;; _ identifier
+     #;((eq? pattern '_) 
+     ;; FIXME: This is not hygienic (remove this feature and use custom macro)
       (values
        (make-pattern-variable-map)
        `(lambda (syntax pattern-syntax)
      #())))
-     ;; 
+
+     ;; Pattern variable
      (else
       (values
        (map-set (make-pattern-variable-map) pattern (make-pattern-variable 0 0 pattern-syntax))

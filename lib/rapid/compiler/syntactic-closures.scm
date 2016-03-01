@@ -47,13 +47,6 @@
   (close-syntax identifier #f))
 
 (define (identifier=? environment1 identifier1 environment2 identifier2)
-;;XXX
-  ;;    (display "Comparing: " (current-error-port))
-;;    (display (identifier->symbol identifier1) (current-error-port))
-;;    (display " and " (current-error-port))
-;;    (display (identifier->symbol identifier2) (current-error-port))
-;;    (newline (current-error-port))
-
   (define denotation1 (sc-lookup-denotation! identifier1 environment1))
   (define denotation2 (sc-lookup-denotation! identifier2 environment2))
   (cond
@@ -92,11 +85,6 @@
 (define sc-lookup-binding!
   (case-lambda
    ((identifier)
-    ;; XXX
-    (define name (identifier->symbol identifier))
-    ;; END XXX
-    (define xxx-result-xxx
-    
     (let loop ((identifier identifier))
       (or
        (with-syntactic-environment
@@ -105,14 +93,6 @@
 	  (lookup-binding! identifier)))
        (and (syntactic-closure? identifier)
 	    (call-in-syntactic-closure identifier loop)))))
-
-    (when (eq? name ':prepare)
-      (display "Looking up ':prepare yields: " (current-error-port))
-      (display (unclose-form (binding-denotation xxx-result-xxx)) (current-error-port))
-      (newline (current-error-port)))
-    
-    xxx-result-xxx)
-    
    ((identifier environment)
     (with-syntactic-environment
      environment

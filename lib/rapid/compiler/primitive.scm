@@ -111,49 +111,50 @@
   (define ellipsis-syntax (list-ref transformer 1))
   (define literal-syntax* (syntax-datum (list-ref transformer 2)))
   (define syntax-rule-syntax* (list-tail transformer 3))
-  (define macro-environment (get-syntactic-environment))
-  (define (macro-identifier=? identifier1 identifier2)
-    (identifier=? macro-environment identifier1
-		  macro-environment identifier2))
-  (define identifier-comparator
-    (make-comparator identifier? macro-identifier=? #f #f))
-  (define literal-set
-    (let loop ((literal-set (make-set identifier-comparator))
-	       (literal-syntax* literal-syntax*))
-      (if (null? literal-syntax*)
-	  literal-set
-	  (let* ((literal-syntax (car literal-syntax*))
-		 (literal (syntax-datum literal-syntax)))
-	    (assert-identifier! literal-syntax)
-	    (when (set-contains? literal-set literal)
-	      (compile-error "duplicate literal identifier" literal-syntax))
-	    (loop (set-adjoin literal-set literal) (cdr literal-syntax*))))))
-  (define (literal? identifier)
-    (set-contains? literal-set identifier))
   (define ellipsis (syntax-datum ellipsis-syntax))
-  (define ellipsis?
-    (if (literal? ellipsis)
-	(lambda (form) #f)
-	(lambda (form)
-	  (and (identifier? form)
-	       (macro-identifier=? form ellipsis)))))
   (assert-identifier! keyword-syntax)
   (assert-identifier! ellipsis-syntax)
-  (let ((transformer (make-syntax-rules-transformer ellipsis?
-						    literal?
-						    syntax-rule-syntax*
-						    transformer-syntax
-						    macro-environment)))
+  (let ((macro-identifier=?
+	 (with-scope
+	  (lambda ()
+	    (define ellipsis-environment (get-syntactic-environment))
+	    (insert-binding! ellipsis-syntax (make-denotation ellipsis-syntax))
+	    (lambda (identifier1 identifier2)
+	      (identifier=? ellipsis-environment identifier1
+			    ellipsis-environment identifier2))))))
+    (define macro-environment (get-syntactic-environment))
+    (define identifier-comparator
+      (make-comparator identifier? macro-identifier=? #f #f))
+    (define literal-set
+      (let loop ((literal-set (make-set identifier-comparator))
+		 (literal-syntax* literal-syntax*))
+	(if (null? literal-syntax*)
+	    literal-set
+	    (let* ((literal-syntax (car literal-syntax*))
+		   (literal (syntax-datum literal-syntax)))
+	      (assert-identifier! literal-syntax)
+	      (when (set-contains? literal-set literal)
+		(compile-error "duplicate literal identifier" literal-syntax))
+	      (loop (set-adjoin literal-set literal) (cdr literal-syntax*))))))
+    (define (literal? identifier)
+      (set-contains? literal-set identifier))
+    (define ellipsis?
+      (if (literal? ellipsis)
+	  (lambda (form) #f)
+	  (lambda (form)
+	    (and (identifier? form)
+		 (macro-identifier=? form ellipsis)))))
+    (define transformer
+      (make-syntax-rules-transformer ellipsis?
+				     literal?
+				     syntax-rule-syntax*
+				     transformer-syntax
+				     macro-environment))
     (expand-into-syntax-definition
      keyword-syntax
      (lambda (syntax)
-       ;; XXX
-       ;;(display "Expanding " (current-error-port))
-       ;;(display (syntax->datum keyword-syntax unclose-form)
-	;;	(current-error-port))
-       ;;(newline (current-error-port))
        (expand-syntax! (transformer syntax (get-syntactic-environment))))
-     syntax)))     
+     syntax)))
 
 (define (assert-identifier! syntax)
   (unless (identifier? (syntax-datum syntax))

@@ -73,6 +73,17 @@
 	  (set! new-references (get-references))
 	  (set-references! old-references))))
 
+;;; Denotations
+
+;; At the moment, denotations are either syntactic closures or
+;; procedures. This is not extensible and the behaviour of eq?
+;; on procedures may be implementation-dependent.
+
+(define-record-type denotation
+  (make-denotation syntax)
+  denotation?
+  (syntax denotation-syntax))
+
 ;;; Syntactic bindings
 
 (define-record-type <binding>
