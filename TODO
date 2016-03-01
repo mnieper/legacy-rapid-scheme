@@ -1,7 +1,4 @@
-* Stress test with ck.scm (does not work yet)
-
-* ellipsis as rest argument after dots do not raise error in pattern
-  (what about template)
+* Include-library-declarations not tested and not working
 
 * When the macro expander copies code verbatim, set the context
 

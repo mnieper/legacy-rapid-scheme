@@ -15,9 +15,17 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-library (rapid macros)
-  (include-library-declarations "macros.exports.sld")
-  (import (rapid primitive)
-	  (rapid define)
-	  (rapid let))
-  (include "macros.scm"))
+(export
+ define-macro
+ m-shift
+ m-expression
+ m-cons
+ m-car
+ m-cdr
+ m-append
+ m-list
+ m-quote
+ m-list
+ m-eq?
+ m-eqv?
+ m-gensym)

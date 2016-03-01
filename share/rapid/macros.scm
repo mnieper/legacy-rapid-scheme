@@ -20,17 +20,21 @@
 (define-syntax :prepare (syntax-rules ... ()))
 
 (define-syntax ck
-  (syntax-rules ... (quote)
+  (syntax-rules ... (quote quasiquote)
     ((ck () 'v)
      v)
     ((ck (((op ...) ea ...) . s) 'v)
      (ck s "arg" (op ... 'v) ea ...))
+    ((ck s "arg" (quasiquote va ...))
+     (m-quasiquote :call s va ...))
     ((ck s "arg" (op va ...))
      (op :call s va ...))
     ((ck s "arg" (op ...) 'v ea1 ...)
      (ck s "arg" (op ... 'v) ea1 ...))
     ((ck s "arg" (op ...) ea ea1 ...)
      (ck (((op ...) ea1 ...) . s) ea))
+    ((ck s (quasiquote ea ...))
+     (m-quasiquote :prepare s ea ...))
     ((ck s (op ea ...))
      (op :prepare s ea ... ))))
 
@@ -104,6 +108,12 @@
 (define-macro m-cons ... ()
   ((m-cons 'h 't) '(h . t)))
 
+(define-macro m-car ... ()
+  ((m-car '(h . t)) 'h))
+
+(define-macro m-cdr ... ()
+  ((m-cdr '(h . t)) 't))
+
 (define-macro m-append ... ()
   ((m-append) ''())
   ((m-append 'l) 'l)
@@ -122,19 +132,16 @@
 (define-macro m-list ... ()
   ((m-list 'a ...) '(a ...)))
 
-;;; XXX: Here is a problem with the chibi macro expander...
-;;; ...1 and ...2 won't work
-
 (define-macro m-eq? ... ()
   ((m-eq? 'id 'v)
    (m-shift
     k
     (define-syntax m
-      (syntax-rules ...3 ()   ;;===> ...2!
+      (syntax-rules ...3 () ; https://github.com/ashinn/chibi-scheme/issues/313 
 	((m)
 	 (begin
 	   (define-syntax id
-	     (syntax-rules ...4 ()
+	     (syntax-rules ...4 () ; https://github.com/ashinn/chibi-scheme/issues/313
 	       ((id) (k '#f))))
 	   (define-syntax ok
 	     (syntax-rules ...4 ()
@@ -168,3 +175,32 @@
       (syntax-rules ...3 ()
 	((m) (k 'g))))
     (m))))
+
+;; TODO: Implement; how to work with extra arguments?
+;; Distribute this ...
+(define-macro m-quasiquote ... ()
+  ((m-quasiquote (unquote form)) form)
+  ((m-quasiquote ((unquote-splicing form) . rest))
+   (m-append form (m-quasiquote rest)))
+  ((m-quasiquote `form . depth)
+   '(...)))  
+
+ (define-syntax quasiquote 
+   (syntax-rules (unquote unquote-splicing quasiquote) 
+     ((_ (unquote form)) 
+      form) 
+     ((_ ((unquote-splicing form) . rest)) 
+      (append form (quasiquote rest))) 
+     ((_ (quasiquote form) . depth) 
+      (list 'quasiquote (quasiquote form #f . depth))) 
+     ((_ (unquote form)  x . depth) 
+      (list 'unquote (quasiquote form . depth))) 
+     ((_ (unquote-splicing form) x . depth) 
+      (list 'unquote-splicing (quasiquote form . depth))) 
+     ((_ (car . cdr) . depth) 
+      (cons (quasiquote car . depth) (quasiquote cdr . depth))) 
+     ((_ #(elt ...) . depth) 
+      (list->vector (quasiquote (elt ...) . depth))) 
+     ((_ atom . depth) 
+      'atom))) 
+          

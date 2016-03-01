@@ -16,8 +16,6 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid macros)
-  (include-library-declarations "macros.exports.sld")
-  (import (rapid primitive)
-	  (rapid define)
-	  (rapid let))
-  (include "macros.scm"))
+  (include-library-declarations "../../share/rapid/macros.exports.sld")
+  (import (scheme base))
+  (include "../../share/rapid/macros.scm"))

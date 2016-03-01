@@ -16,17 +16,21 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; TODO: Check syntax (for %define-syntax, etc.)
+;;; XXX: Check whether quote/quasiquote have to imported and re-imported from rapid macros
 
-(%define-syntax define-syntax
- (syntax-rules ::: ()              ;; XXX: ... wird eingeführt; ist aber unbekannt in syntax-rule
-  ((define-syntax keyword
-     (syntax-rules (literal :::)
-       syntax-rule :::))
-   (%define-syntax keyword (syntax-rules ... (literal :::) syntax-rule :::)))
-  ((define-syntax keyword
-     (syntax-rules ... (literal :::) syntax-rule :::))
-   (%define-syntax keyword (syntax-rules ... (literal :::) syntax-rule :::)))))
+(define-macro m-define-syntax ... (syntax-rules)
+  ((define-syntax 'keyword '(syntax-rules (literal ...) '(pattern template) ...))
+   (m-define-syntax-aux 'keyword '() (literal ...) '((pattern template) ...)))
+  ((define-syntax 'keyword '(syntax-rules ellipsis (literal ...) '(pattern template) ...))
+   (m-define-syntax-aux 'keyword '(ellipsis) '(literal ...) '((pattern template) ...))))
 
+(define-macro m-define-syntax-aux ... ()
+  ;; TODO: more complicated than this!
+  ((m-define-syntax-aux 'keyworkd 'ellipsis* 'literal* 'syntax-rule*)
+   `(%define-syntax 'keyword
+     (syntax-rules ,(m-car 'ellipsis*) 'literal* . 'syntax-rule*))))
+
+#|			
 (define-syntax case-lambda
   (syntax-rules ()
     ((case-lambda clause ...)
@@ -69,3 +73,5 @@
      (%quote datum))
     ((quote . args)
      (syntax-error "bad quote form"))))
+ 
+|#
