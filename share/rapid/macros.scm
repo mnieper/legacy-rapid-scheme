@@ -105,6 +105,21 @@
     ((m-expression expression)
      (ck () (m-expression expression)))))
 
+;; TODO: Write m-scope.
+;; FIXME: This isn't working
+(define-macro m-let ... ()
+  ((m-let loop (('variable init) ...) expression)
+   (m-shift
+    k
+    (define-syntax m
+      (syntax-rules ...1 ()
+	((m (('v i) ...1) e)
+	 (begin
+	   (define-macro loop ...2 ()
+	     ((loop 'v ...1) e))
+	   (k (loop i ...1))))))
+    (m (('variable init) ...) expression))))
+
 (define-macro m-cons ... ()
   ((m-cons 'h 't) '(h . t)))
 
@@ -169,6 +184,10 @@
 	       ((test x) (k '#f))))
 	   (test id2)))))
     (m))))
+
+(define-macro m-null? ... ()
+  ((m-null? ''()) #t)
+  ((m-null? 'x) #f))
 
 (define-macro m-gensym ... ()
   ((m-gensym)

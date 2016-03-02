@@ -19,9 +19,10 @@
   (export ...
 	  define define-syntax define-values lambda
 	  syntax-rules syntax-error
-	  quote)
+	  quote quasiquote unquote unquote-splicing)
   (import (rename (prefix (rapid primitive) %)
 		  (%... ...)
 		  (%syntax-rules syntax-rules)
-		  (%syntax-error syntax-error)))
+		  (%syntax-error syntax-error))
+	  (rapid quasiquote))
   (include "rapid.scm"))

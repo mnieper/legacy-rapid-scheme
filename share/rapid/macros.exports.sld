@@ -19,11 +19,14 @@
  define-macro
  m-shift
  m-expression
+ m-let
+ m-if
  m-quasiquote
  m-list->vector
  m-cons
  m-car
  m-cdr
+ m-null?
  m-append
  m-list
  m-quote

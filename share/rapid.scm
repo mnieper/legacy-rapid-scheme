@@ -26,9 +26,21 @@
 
 (define-macro m-define-syntax-aux ... ()
   ;; TODO: more complicated than this!
-  ((m-define-syntax-aux 'keyworkd 'ellipsis* 'literal* 'syntax-rule*)
-   `(%define-syntax 'keyword
-     (syntax-rules ,(m-car 'ellipsis*) 'literal* . 'syntax-rule*))))
+  ((m-define-syntax-aux 'keyword 'ellipsis* 'literal* 'syntax-rule*)
+   (m-quasiquote
+    (%define-syntax
+     'keyword
+     (syntax-rules ,(m-car 'ellipsis*) 'literal* . 'syntax-rule*)))))
+
+(define-macro m-check-formals ... ()
+  ((m-check-formals 'formals)
+   (m-and (not (m-clist? 'formals)) 
+
+   (m-check-formals-aux 'formals '())))
+
+(define-macro m-check-formals-aux ... ()
+  ((m-check-formals-aux '() 
+  
 
 #|			
 (define-syntax case-lambda
