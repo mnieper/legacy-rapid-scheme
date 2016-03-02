@@ -2,5 +2,5 @@
 	(rapid macros))
 
 (display
- (m-expression '#t))
+ (m-expression (m-quote `(1 2 ,(m-cons '3 '4) 5))))
 (newline)

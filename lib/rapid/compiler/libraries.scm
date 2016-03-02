@@ -57,7 +57,7 @@
 		   export-specs
 		   (generator-fold cons body (read-file* (cdr form) #t))))
 	    ((include-library-declarations)
-	     (loop (generator-fold cons declarations (read-file (cdr form) #f))
+	     (loop (generator-fold cons declarations (read-file* (cdr form) #f))
 		   import-sets
 		   export-specs
 		   body))			   
