@@ -17,9 +17,16 @@
 
 (define-library (rapid primitive)
   (export quote
+	  if
           letrec*-values
 	  case-lambda
 	  + apply
+	  cons
+	  pair?
+	  car
+	  cdr
+	  null?
+	  list->vector
 	  display newline string-append)
   (import (scheme base)
 	  (only (scheme write) display newline) ;; FIXME

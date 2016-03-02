@@ -15,6 +15,13 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+(define operator-cons (make-operator 'cons))
+(define operator-car (make-operator 'car))
+(define operator-cdr (make-operator 'cdr))
+(define operator-pair? (make-operator 'pair?))
+(define operator-null? (make-operator 'null?))
+(define operator-list->vector (make-operator 'list->vector))
+		      
 (define operator+
   (make-operator '+))
 

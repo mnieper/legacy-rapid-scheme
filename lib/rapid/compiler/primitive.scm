@@ -59,11 +59,11 @@
 
 (define (if-expander syntax)
   (define form (syntax-datum syntax))
-  (unless (or (= (length form) 2) (= (length form) 3))
+  (unless (or (= (length form) 3) (= (length form) 4))
     (compile-error "bad if syntax" syntax))
   (let ((test-syntax (list-ref form 1))
 	(consequent-syntax (list-ref form 2))
-	(alternate-syntax (and (= (length form) 3) (list-ref form 3))))
+	(alternate-syntax (and (= (length form) 4) (list-ref form 3))))
     (expand-into-expression
      (make-conditional
       (expand-expression test-syntax)
@@ -199,7 +199,13 @@
    (syntax-error syntax-error-expander)
    (define-syntax define-syntax-expander)
    (syntax-rules (make-auxiliary-syntax 'syntax-rules))
-   (... (make-auxiliary-syntax '...))
+   (... (make-auxiliary-syntax '...))  ;; move this to (rapid)
+   (cons (primitive operator-cons))
+   (car (primitive operator-car))
+   (cdr (primitive operator-cdr))
+   (pair? (primitive operator-pair?))
+   (null? (primitive operator-null?))
+   (list->vector (primitive operator-list->vector))
    (+ (primitive operator+))
    (apply (primitive operator-apply))
    (display (primitive operator-display)) ;; FIXME: should go into (scheme base)

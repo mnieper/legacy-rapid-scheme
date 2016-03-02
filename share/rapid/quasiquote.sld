@@ -15,11 +15,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-library (rapid compiler primitive-operators)
-  (export operator-cons operator-pair? operator-car operator-cdr operator-null?
-	  operator-list->vector
-	  operator-apply operator+
-	  operator-display operator-newline operator-string-append) ;; TODO
-  (import (scheme base)
-	  (rapid compiler expressions))
-  (include "primitive-operators.scm"))
+(define-library (rapid quasiquote)
+  (export quasiquote unquote unquote-splicing)
+  (import (rapid primitive))
+  (include "quasiquote.scm"))
