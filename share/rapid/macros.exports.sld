@@ -19,6 +19,8 @@
  define-macro
  m-shift
  m-expression
+ m-quasiquote
+ m-list->vector
  m-cons
  m-car
  m-cdr
