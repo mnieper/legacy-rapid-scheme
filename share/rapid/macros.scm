@@ -113,12 +113,12 @@
     k
     (define-syntax m
       (syntax-rules ...1 ()
-	((m (('v i) ...1) e)
+	((m)
 	 (begin
 	   (define-macro loop ...2 ()
-	     ((loop 'v ...1) e))
-	   (k (loop i ...1))))))
-    (m (('variable init) ...) expression))))
+	     ((loop 'variable ...) expression))
+	   (k (loop init ...))))))
+    (m))))
 
 (define-macro m-cons ... ()
   ((m-cons 'h 't) '(h . t)))
@@ -126,8 +126,11 @@
 (define-macro m-car ... ()
   ((m-car '(h . t)) 'h))
 
+;; TODO: m-error!
+
 (define-macro m-cdr ... ()
-  ((m-cdr '(h . t)) 't))
+  ((m-cdr '(h . t)) 't)
+  ((m-cdr arg) (m-error "not a pair" arg)))
 
 (define-macro m-list->vector ... ()
   ((m-list->vector '(element ...)) '#(element ...)))
@@ -186,8 +189,8 @@
     (m))))
 
 (define-macro m-null? ... ()
-  ((m-null? ''()) #t)
-  ((m-null? 'x) #f))
+  ((m-null? '()) '#t)
+  ((m-null? 'x) '#f))
 
 (define-macro m-gensym ... ()
   ((m-gensym)

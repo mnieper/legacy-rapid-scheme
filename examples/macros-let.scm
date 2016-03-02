@@ -1,17 +1,16 @@
 (import (rapid macros)
-	;(rapid primitive)
-	(scheme base)
-	(scheme write)
+	(rapid primitive)
+	;(scheme base)
+	;(scheme write)
 	)
 
 (display
  (m-expression
   (m-quote
-   (m-let
-    loop (('x '(1 2 3)) ('y ''()))
+   (m-let m-loop (('x '(1 2 3 4 5 6 7 8 9 10 11)) ('y '()))
     (m-if (m-null? 'x)
 	  'y
-	  (loop (m-cdr 'x) (m-cons '1 'y)))))))
+	  (m-loop (m-cdr 'x) (m-cons '1 'y)))))))
 
 (newline)
-  
+
