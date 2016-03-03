@@ -46,17 +46,21 @@
 (define current-macro-environment (make-parameter #f))
 (define current-ellipsis? (make-parameter #f))
 (define current-literal? (make-parameter #f))
+(define current-underscore? (make-parameter #f))
 (define (ellipsis? identifier) ((current-ellipsis?) identifier))
 (define (literal? identifier) ((current-literal?) identifier))
+(define (underscore? identifier) ((current-underscore?) identifier))
 
 (define (make-syntax-rules-transformer ellipsis?
 				       literal?
+				       underscore?
 				       syntax-rule-syntax*
 				       transformer-syntax
 				       macro-environment)
   (parameterize ((current-macro-environment macro-environment)
 		 (current-ellipsis? ellipsis?)
-		 (current-literal? literal?))
+		 (current-literal? literal?)
+		 (current-underscore? underscore?))
     (define syntax-rules-transformer
       (compile-syntax-rules-transformer syntax-rule-syntax*))
     (define pattern-syntax-vector
@@ -143,14 +147,13 @@
        (make-pattern-variable-map)
        `(lambda (syntax pattern-syntax)
 	  (and (compare (syntax-datum syntax) (rename (syntax-datum pattern-syntax))) #()))))
-     
+
      ;; _ identifier
-     #;((eq? pattern '_) 
-     ;; FIXME: This is not hygienic (remove this feature and use custom macro)
+     ((underscore? pattern)
       (values
        (make-pattern-variable-map)
        `(lambda (syntax pattern-syntax)
-     #())))
+	  #())))
 
      ;; Pattern variable
      (else
@@ -171,6 +174,8 @@
 	     (let ((list (vector->list form)))
 	       (,matcher (derive-syntax list syntax)
 			 (derive-syntax list pattern-syntax)))))))))
+   ((circular-list? pattern)
+    (compile-error "circular pattern in source" pattern-syntax))
    ((null? pattern)
     (values
      (make-pattern-variable-map)
@@ -448,6 +453,8 @@
 	  (derive-syntax (rename (syntax-datum template-syntax))
 			 template-syntax
 			 syntax))))))
+   ((circular-list? template)
+    (compile-error "circular template in source" template-syntax))
    ((null? template)
     (values #() `(lambda (match template-syntax) (derive-syntax '() template-syntax syntax))))
    ((pair? template)

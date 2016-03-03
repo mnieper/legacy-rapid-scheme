@@ -42,6 +42,13 @@
 (define (literal-value expression)
   (expression-value expression))
 
+;;; Undefined values
+
+(define (make-undefined syntax)
+  (make-expression 'undefined #f syntax))
+(define (undefined? expression)
+  (eq? (expression-type expression) 'undefined))
+
 ;;; Procedure calls
 
 (define (make-procedure-call operator operand* syntax)
@@ -131,6 +138,8 @@
 
 ;;; Formals
 
+;; TODO: Rename into ‘parameters’
+
 (define-record-type <formals>
   (%make-formals fixed-arguments rest-argument syntax)
   formals?
@@ -177,6 +186,9 @@
      ;; Literals
      ((literal? expression)
       `(quote ,(literal-value expression)))
+     ;; Undefined values
+     ((undefined? expression)
+      `(if #f #f))
      ;; Procedure calls
      ((procedure-call? expression)
       `(,(loop (procedure-call-operator expression))

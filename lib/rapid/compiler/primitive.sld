@@ -20,6 +20,7 @@
   (import (scheme base)                  (scheme write) ;;; XXX
 	  (scheme write)
 	  (rapid lists)
+	  (rapid table)
 	  (rapid sets)
 	  (rapid format)
 	  (rapid comparators)

@@ -19,6 +19,7 @@
   (export expression?
 	  make-reference reference?
 	  make-literal literal?
+	  make-undefined undefined?
 	  make-procedure-call procedure-call?
 	  make-primitive-operation primitive-operation?
 	  make-procedure expression-procedure?

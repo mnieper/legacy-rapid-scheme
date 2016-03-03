@@ -15,7 +15,83 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; TODO: Don't do syntax checks here. Let (rapid), etc., handle those.
+;;; Utility functions
+
+(define (assert-identifier! syntax)
+  (unless (identifier? (syntax-datum syntax))
+    (compile-error "bad identifier" syntax)))
+
+(define (assert-flist! syntax)
+  (when (circular-list? syntax)
+    (compile-error "circular list in source" syntax)))
+
+(define (unpack-parameters parameters-syntax)
+  (define variable-set (make-table (make-eq-comparator)))
+  (define (assert-unique-variable! variable-syntax)
+    (assert-identifier! variable-syntax)
+    (table-update!
+     variable-set
+     (syntax-datum variable-syntax)
+     (lambda (syntax) syntax)
+     (lambda () variable-syntax)
+     (lambda (syntax)
+       (compile-note "previous appearance was here" syntax)
+       (compile-error "duplicate parameter" variable-syntax))))
+  (define parameters
+    (let ((form (syntax-datum parameters-syntax)))
+      (if (or (null? form) (pair? form))
+	  form
+	  parameters-syntax)))
+  (assert-flist! parameters)
+  (let loop ((parameters parameters) (fixed '()))
+    (cond
+     ((null? parameters)
+      (values (reverse fixed) '()))
+     ((pair? parameters)
+      (assert-unique-variable! (car parameters))
+      (loop (cdr parameters) (cons (car parameters) fixed)))
+     (else
+      (assert-unique-variable! parameters)
+      (values (reverse fixed) (list parameters))))))
+
+(define (expand-parameters! parameters-syntax)
+  (define-values (fixed rest*)
+    (unpack-parameters parameters-syntax))
+  (make-formals
+   (map expand-parameter! fixed)
+   (if (null? rest*)
+       #f
+       (expand-parameter! (car rest*)))
+   parameters-syntax))
+  
+(define (expand-parameter! syntax)
+  (let ((location (make-location syntax)))
+    (insert-binding! syntax location)
+    location))
+
+(define (make-auxiliary-syntax identifier)
+  (lambda (syntax)
+    (compile-error (format "invalid use of auxiliary syntax ‘~a’"
+			   identifier)
+		   syntax)))
+
+;;; Expanders
+
+(define (define-values-expander syntax)
+  (define form
+    (let ((datum (syntax-datum syntax)))
+      (unless (= (length datum) 3)
+	(compile-error "bad define-values syntax" syntax))
+      datum))
+  (define-values (fixed-variables rest-variable*)
+    (unpack-parameters (list-ref form 1)))
+  (expand-into-definition fixed-variables
+			  (if (null? rest-variable*)
+			      #f
+			      (car rest-variable*))
+			  (list-ref form 1)
+			  (list-ref form 2)
+			  syntax))
 
 (define (syntax-error-expander syntax)
   (define form (syntax-datum syntax))
@@ -35,28 +111,6 @@
 (define (begin-expander syntax)
   (expand-into-sequence (cdr (syntax-datum syntax)) syntax))
 
-(define (unpack-formals formals)
-  (let loop ((formals formals) (fixed '()))
-    (cond
-     ((null? formals)
-      (values (reverse fixed) '()))
-     ((pair? formals)
-      (loop (cdr formals) (cons (car formals) fixed)))
-     (else
-      (values (reverse fixed) (list formals))))))
-
-(define (define-values-expander syntax)
-  (define form (syntax-datum syntax))
-  (define-values (fixed-variables rest-variable*)
-    (unpack-formals (syntax-datum (list-ref form 1))))
-  (expand-into-definition fixed-variables
-			  (if (null? rest-variable*)
-			      #f
-			      (car rest-variable*))
-			  (list-ref form 1)
-			  (list-ref form 2)
-			  syntax))
-
 (define (if-expander syntax)
   (define form (syntax-datum syntax))
   (unless (or (= (length form) 3) (= (length form) 4))
@@ -70,7 +124,7 @@
       (expand-expression consequent-syntax)
       (if alternate-syntax
 	  (expand-expression alternate-syntax)
-	  (make-literal #f #f))
+	  (make-undefined syntax))
       syntax))))
 
 (define (case-lambda-expander syntax)
@@ -84,8 +138,8 @@
 	 (compile-error "bad case-lambda clause" clause-syntax))
        (with-scope
 	(lambda ()
-	  (define formals (expand-formals! (car form)))
-	  (make-clause formals (list (expand-body (cdr form) clause-syntax)) clause-syntax))))
+	  (define parameters (expand-parameters! (car form)))
+	  (make-clause parameters (list (expand-body (cdr form) clause-syntax)) clause-syntax))))
      (cdr form))
     syntax)))
 
@@ -96,89 +150,89 @@
   (expand-into-expression
    (make-literal (syntax->datum (list-ref form 1) unclose-form) syntax)))
 
-(define (make-auxiliary-syntax identifier)
-  (lambda (syntax)
-    (compile-error (format "invalid use of auxiliary syntax ‘~a’"
-			   identifier)
-		   syntax)))
+(define syntax-rules-expander (make-auxiliary-syntax 'syntax-rules))
+(define ellipsis-expander (make-auxiliary-syntax '...))
+(define underscore-expander (make-auxiliary-syntax '_))
 
 (define (define-syntax-expander syntax)
-  (define syntactic-environment (get-syntactic-environment))
-  (define form (syntax-datum syntax))
-  (define keyword-syntax (list-ref form 1))
+  (define form
+    (let ((datum (syntax-datum syntax)))
+      (unless (= (length datum) 3)
+	(compile-error "bad define-syntax syntax" syntax))
+      datum))
+  (define keyword-syntax
+    (let ((syntax (list-ref form 1)))
+      (assert-identifier! syntax)
+      syntax))
   (define transformer-syntax (list-ref form 2))
-  (define transformer (syntax-datum transformer-syntax))
-  (define ellipsis-syntax (list-ref transformer 1))
-  (define literal-syntax* (syntax-datum (list-ref transformer 2)))
-  (define syntax-rule-syntax* (list-tail transformer 3))
-  (define ellipsis (syntax-datum ellipsis-syntax))
-  (assert-identifier! keyword-syntax)
-  (assert-identifier! ellipsis-syntax)
-  (let ((macro-identifier=?
-	 (with-scope
-	  (lambda ()
-	    (define ellipsis-environment (get-syntactic-environment))
-	    (insert-binding! ellipsis-syntax (make-denotation ellipsis-syntax))
-	    (lambda (identifier1 identifier2)
-	      (identifier=? ellipsis-environment identifier1
-			    ellipsis-environment identifier2))))))
-    (define macro-environment (get-syntactic-environment))
-    (define identifier-comparator
-      (make-comparator identifier? macro-identifier=? #f #f))
-    (define literal-set
-      (let loop ((literal-set (make-set identifier-comparator))
-		 (literal-syntax* literal-syntax*))
-	(if (null? literal-syntax*)
-	    literal-set
-	    (let* ((literal-syntax (car literal-syntax*))
-		   (literal (syntax-datum literal-syntax)))
-	      (assert-identifier! literal-syntax)
-	      (when (set-contains? literal-set literal)
-		(compile-error "duplicate literal identifier" literal-syntax))
-	      (loop (set-adjoin literal-set literal) (cdr literal-syntax*))))))
-    (define (literal? identifier)
-      (set-contains? literal-set identifier))
-    (define ellipsis?
-      (if (literal? ellipsis)
-	  (lambda (form) #f)
-	  (lambda (form)
-	    (and (identifier? form)
-		 (macro-identifier=? form ellipsis)))))
-    (define transformer
-      (make-syntax-rules-transformer ellipsis?
-				     literal?
-				     syntax-rule-syntax*
-				     transformer-syntax
-				     macro-environment))
-    (expand-into-syntax-definition
-     keyword-syntax
-     (lambda (syntax)
-       (expand-syntax! (transformer syntax (get-syntactic-environment))))
-     syntax)))
-
-(define (assert-identifier! syntax)
-  (unless (identifier? (syntax-datum syntax))
-    (compile-error "bad identifier" syntax)))
-  
-(define (expand-formals! syntax)
-  (define form (syntax-datum syntax))
-  (if (or (null? form) (pair? form))  
-      (let loop ((form form) (%fixed-arguments '()))
-	(cond
-	 ((null? form)
-	  (make-formals (reverse %fixed-arguments) #f syntax))
-	 ((pair? form)
-	  (loop (cdr form) (cons (expand-formal! (car form)) %fixed-arguments)))
-	 (else
-	  (make-formals (reverse %fixed-arguments) (expand-formal! form) syntax))))
-      (make-formals '() (expand-formal! syntax) syntax)))
-
-(define (expand-formal! syntax)
-  (define form (syntax-datum syntax))
-  (assert-identifier! syntax)
-  (let ((location (make-location syntax)))
-    (insert-binding! syntax location)
-    location))
+  (define-values (ellipsis-syntax literal-syntax* syntax-rule-syntax*)
+    (let ((transformer (syntax-datum transformer-syntax)))
+      (unless (and (not (null? transformer)) (list? transformer))
+	(compile-error "bad transformer spec" transformer-syntax))
+      (unless (eq? (sc-lookup-denotation! (syntax-datum (car transformer)))
+		   syntax-rules-expander)
+	(compile-error "unknown transformer spec" transformer-syntax))
+      (cond
+       ((and (>= (length transformer) 2)
+	     (list? (syntax-datum (list-ref transformer 1))))
+	(values #f
+		(syntax-datum (list-ref transformer 1))
+		(list-tail transformer 2)))
+       ((and (>= (length transformer) 3)
+	     (identifier? (syntax-datum (list-ref transformer 1)))
+	     (list? (syntax-datum (list-ref transformer 2))))
+	(values (list-ref transformer 1)
+		(syntax-datum (list-ref transformer 2))
+		(list-tail transformer 3)))
+       (else
+	(compile-error "bad syntax-rules syntax" transformer-syntax)))))
+  (define ellipsis (if ellipsis-syntax (syntax-datum ellipsis-syntax) #f))
+  (define macro-identifier=?
+    (with-scope
+     (lambda ()
+       (define ellipsis-environment (get-syntactic-environment))
+       (when ellipsis-syntax
+	 (insert-binding! ellipsis-syntax (make-denotation ellipsis-syntax)))
+       (lambda (identifier1 identifier2)
+	 (identifier=? ellipsis-environment identifier1
+		       ellipsis-environment identifier2)))))
+  (define macro-environment (get-syntactic-environment))
+  (define identifier-comparator
+    (make-comparator identifier? macro-identifier=? #f #f))
+  (define literal-set
+    (let loop ((literal-set (make-set identifier-comparator))
+	       (literal-syntax* literal-syntax*))
+      (if (null? literal-syntax*)
+	  literal-set
+	  (let* ((literal-syntax (car literal-syntax*))
+		 (literal (syntax-datum literal-syntax)))
+	    (assert-identifier! literal-syntax)
+	    (when (set-contains? literal-set literal)
+	      (compile-error "duplicate literal identifier" literal-syntax))
+	    (loop (set-adjoin literal-set literal) (cdr literal-syntax*))))))
+  (define (literal? identifier)
+    (set-contains? literal-set identifier))
+  (define ellipsis?
+    (lambda (form)
+      (and (identifier? form)
+	   (not (literal? form))
+	   (if ellipsis
+	       (macro-identifier=? form ellipsis)
+	       (eq? (sc-lookup-denotation! form) ellipsis-expander)))))
+  (define (underscore? identifier)
+    (eq? (sc-lookup-denotation! identifier) underscore-expander))
+  (define transformer
+    (make-syntax-rules-transformer ellipsis?
+				   literal?
+				   underscore?
+				   syntax-rule-syntax*
+				   transformer-syntax
+				   macro-environment))
+  (expand-into-syntax-definition
+   keyword-syntax
+   (lambda (syntax)
+     (expand-syntax! (transformer syntax (get-syntactic-environment))))
+   syntax))
 
 (define (primitive operator)
   (lambda (syntax)
@@ -198,8 +252,10 @@
    (quote quote-expander)
    (syntax-error syntax-error-expander)
    (define-syntax define-syntax-expander)
-   (syntax-rules (make-auxiliary-syntax 'syntax-rules))
-   (... (make-auxiliary-syntax '...))  ;; move this to (rapid)
+   (syntax-rules syntax-rules-expander)
+   (... ellipsis-expander)
+   (_ underscore-expander)
+   ;; TODO: set!
    (cons (primitive operator-cons))
    (car (primitive operator-car))
    (cdr (primitive operator-cdr))

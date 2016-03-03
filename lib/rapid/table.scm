@@ -49,7 +49,17 @@
 	 (set-cdr! entry value)))
    (else
     (table-set-entries! table (cons (cons key value) entries)))))
-    
+
+(define (table-update! table key updater failure success)
+  (define equality (table-equality-predicate table))
+  (define entries (table-entries table))
+  (cond
+   ((assoc key entries equality)
+    => (lambda (entry)
+	 (set-cdr! entry (updater (success (cdr entry))))))
+   (else
+    (table-set-entries! table (cons (cons key (updater (failure))) entries)))))
+
 (define (table-intern! table key failure)
   (define equality (table-equality-predicate table))
   (define entries (table-entries table))
