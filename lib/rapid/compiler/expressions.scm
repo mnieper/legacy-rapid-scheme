@@ -86,6 +86,17 @@
   (body clause-body)
   (syntax clause-syntax))
 
+;;; Assignments
+
+(define (make-assignment location expression syntax)
+  (make-expression 'assignment (vector location expression) syntax))
+(define (assignment? expression)
+  (eq? (expression-type expression) 'assignment))
+(define (assignment-location assignment)
+  (vector-ref (expression-value assignment) 0))
+(define (assignment-expression assignment)
+  (vector-ref (expression-value assignment) 1))
+
 ;;; Letrec* expressions
 
 ;; XXX: Rename to letrec*-values-expression? Or binding-expression?
@@ -204,6 +215,10 @@
 	 (lambda (clause)
 	   `(,(formals->datum (clause-formals clause)) ,@(map loop (clause-body clause))))
 	 (procedure-clauses expression))))
+     ;; Assignments
+     ((expression-assignment? expression)
+      `(set! ,(lookup-identifier! (assignment-location expression))
+	     ,(loop (assignment-expression))))
      ;; Letrec* expressions
      ((letrec*-expression? expression)
       `(letrec*-values ,

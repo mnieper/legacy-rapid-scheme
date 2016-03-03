@@ -111,6 +111,17 @@
 (define (begin-expander syntax)
   (expand-into-sequence (cdr (syntax-datum syntax)) syntax))
 
+(define (set!-expander syntax)
+  (define form (syntax-datum syntax))
+  (unless (and (= (length form) 3)
+	       (identifier? (list-ref form 1)))
+    (compile-error "bad set! syntax"))
+  (expand-into-expression
+   (make-assignment
+    (...)
+    (expand-expression (list-ref form 2))
+    syntax)))
+
 (define (if-expander syntax)
   (define form (syntax-datum syntax))
   (unless (or (= (length form) 3) (= (length form) 4))
@@ -248,6 +259,7 @@
    (begin begin-expander)
    (define-values define-values-expander)
    (case-lambda case-lambda-expander)
+   (set! set!-expander)
    (if if-expander)
    (quote quote-expander)
    (syntax-error syntax-error-expander)
@@ -255,7 +267,7 @@
    (syntax-rules syntax-rules-expander)
    (... ellipsis-expander)
    (_ underscore-expander)
-   ;; TODO: set!
+   (call-with-current-continuation (primitive operator-call-with-current-continuation))
    (cons (primitive operator-cons))
    (car (primitive operator-car))
    (cdr (primitive operator-cdr))

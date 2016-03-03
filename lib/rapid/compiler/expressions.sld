@@ -23,6 +23,7 @@
 	  make-procedure-call procedure-call?
 	  make-primitive-operation primitive-operation?
 	  make-procedure expression-procedure?
+	  make-assignment assignment?
 	  make-letrec*-expression letrec*-expression?
 	  make-sequence sequence?
 	  make-conditional conditional?

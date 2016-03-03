@@ -25,3 +25,9 @@
 	 body1
 	 body2
 	 ...)))))
+
+(define (make-error-object message obj*)
+  (guard
+      (condition
+       (else condition))
+    (apply error message obj*)))

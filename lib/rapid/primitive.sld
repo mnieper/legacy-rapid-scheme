@@ -20,7 +20,10 @@
 	  if
           letrec*-values
 	  case-lambda
+	  make-error-object
+	  call-with-current-continuation
 	  + apply
+	  string?
 	  cons
 	  pair?
 	  car

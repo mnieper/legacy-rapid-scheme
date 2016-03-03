@@ -16,13 +16,25 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid)
-  (export ...
-	  define define-syntax define-values lambda
-	  syntax-rules syntax-error
+  (export define-syntax syntax-rules syntax-error ... _
+	  define define-values case-lambda lambda
+	  set! if cond => else
+	  let letrec
+	  eq?
+	  values dynamic-wind call-with-current-continuation
+	  make-parameter parameterize
+	  error
+	  cons pair? car cdr null? list append
 	  quote quasiquote unquote unquote-splicing)
   (import (rename (prefix (rapid primitive) %)
+		  (%_ _)
 		  (%... ...)
 		  (%syntax-rules syntax-rules)
-		  (%syntax-error syntax-error))
-	  (rapid quasiquote))
+		  (%define-syntax define-syntax)
+		  (%define-values define-values)
+		  (%case-lambda case-lambda)
+		  (%quote quote)
+		  (%set! set!)
+		  (%if if)
+		  (%syntax-error syntax-error)))
   (include "rapid.scm"))
