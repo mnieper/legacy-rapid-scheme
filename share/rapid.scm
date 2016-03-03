@@ -15,6 +15,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;; XXX: Where do we add fall-through clauses for procedures when called with wrong number of args?
+
 ;;; Procedures and Definitions
 
 (define-syntax lambda
@@ -210,6 +212,16 @@
 (define (vector? obj)
   (%vector? obj))
 
+(define (vector . element*)
+  (list->vector element*))
+
+(define (list->vector element*)
+  ;; TODO
+  ;; Check if list is circular and count length
+  ;; %make-vector
+  ;; %vector-set!
+  )
+
 ;;; Exceptions
 
 (define current-exception-handler
@@ -220,24 +232,22 @@
      )))
 
 (define (with-exception-handler handler thunk)
-  (call-with-continuation
-   (lambda (k)
-     (parameterize
-	 ((current-exception-handler
-	   (lambda (condition)
-	     (handler condition)
-	     (
-
-	     ))
-	  
-
-	  )
-       (thunk)))
-  
-  )
+  (call-with-current-continuation
+   (lambda (return)
+     (raise     
+      (call-with-current-continuation
+       (lambda (reraise)     
+	 (parameterize
+	     ((current-exception-handler
+	       (lambda (condition)
+		 (handler condition)
+		 (reraise (%make-error-object "exception not caught" condition)))))
+	   (call-with-values thunk return))))))))
   
 
 ;; TODO (raise ...) ... look at some implementation of raise
+;; how to implement raise-continuable?
+;; by changing the current-exception-handler!
 
 
 (define (raise obj)

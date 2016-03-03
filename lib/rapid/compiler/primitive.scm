@@ -112,13 +112,30 @@
   (expand-into-sequence (cdr (syntax-datum syntax)) syntax))
 
 (define (set!-expander syntax)
-  (define form (syntax-datum syntax))
-  (unless (and (= (length form) 3)
-	       (identifier? (list-ref form 1)))
-    (compile-error "bad set! syntax"))
+  (define form
+    (let ((datum (syntax-datum syntax)))
+      (unless (and (= (length datum) 3)
+		   (identifier? (list-ref datum 1)))
+	(compile-error "bad set! syntax"))
+      datum))
+  (define location
+    (define identifier-syntax (list-ref datum 1))
+    (define identifier (syntax-datum identifier-syntax))
+    (let ((denotation (sc-lookup-denotation! form)))
+      (unless denotation
+	(compile-error (format "identifier ‘~a’ is not bound"
+			       (unclose-form identifier))
+		       identifier-syntax))
+      (when (procedure? denotation)
+	(compile-note (format "identifier ‘~a’ was bound here" (unclose-form identifier))
+		      (sc-lookup-syntax! identifier))
+	(compile-error (format "invalid use of syntax ‘~a’ as value"
+			       (unclose-form identifier))
+		       identifier-syntax))
+      denotation))
   (expand-into-expression
    (make-assignment
-    (...)
+    (make-location location identifier-syntax)
     (expand-expression (list-ref form 2))
     syntax)))
 
@@ -255,19 +272,49 @@
   (environment
    ;; Bindings
    ()
+
    ;; Syntactic environment
-   (begin begin-expander)
-   (define-values define-values-expander)
-   (case-lambda case-lambda-expander)
-   (set! set!-expander)
-   (if if-expander)
+
+   ;; Literal expressions
    (quote quote-expander)
-   (syntax-error syntax-error-expander)
-   (define-syntax define-syntax-expander)
+   ;; Procedures
+   (case-lambda case-lambda-expander)
+   ;; Conditionals
+   (if if-expander)
+   ;; Assignments
+   (set! set!-expander)
+   ;; Inclusion
+   ;; TODO
+   #;(include include-expander)
+   #;(include-ci incude-ci-expander)
+   ;; Sequencing
+   (begin begin-expander)
+   ;; Macros
    (syntax-rules syntax-rules-expander)
    (... ellipsis-expander)
    (_ underscore-expander)
+   (syntax-error syntax-error-expander)
+   ;; Variable definitions
+   (define-values define-values-expander)
+   ;; Syntax definitions
+   (define-syntax define-syntax-expander)
+   ;; Record-type definitions
+   ;; TODO
+   ;; Equivalence predicates
+   ;; TODO
+   #;(eq? (primitive operator-eq?))
+   ;; Numbers
+   #; (fixnum? (primitive operator-fixnum?))
+   (flonum? (primitive operator-flonum?))
+   (exact? (primitive-operator-exact?))
+   (nan? (primitive-operator-nan?))
+   ;; TODO
+
+   ;; Control features
    (call-with-current-continuation (primitive operator-call-with-current-continuation))
+   ;; TODO
+   #; (call-with-values (primitive operator-call-with-values))
+   
    (cons (primitive operator-cons))
    (car (primitive operator-car))
    (cdr (primitive operator-cdr))
