@@ -216,7 +216,7 @@
 	   `(,(formals->datum (clause-formals clause)) ,@(map loop (clause-body clause))))
 	 (procedure-clauses expression))))
      ;; Assignments
-     ((expression-assignment? expression)
+     ((assignment? expression)
       `(set! ,(lookup-identifier! (assignment-location expression))
 	     ,(loop (assignment-expression))))
      ;; Letrec* expressions

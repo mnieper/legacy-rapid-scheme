@@ -15,6 +15,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;; Fundamental binding construct
+
 (define-syntax letrec*-values
   (syntax-rules ()
     ((letrec*-values ((formals init) ...) body1 body2 ...)
@@ -25,6 +27,25 @@
 	 body1
 	 body2
 	 ...)))))
+
+;; Numbers
+
+(define (fixnum? obj)
+  (exact-integer? obj))
+
+(define (flonum? obj)
+  (and (real? obj) (inexact? obj)))
+
+(define (fx+ n1 n2)
+  (+ n1 n2))
+
+(define (fx< n1 n2)
+  (< n1 n2))
+
+(define (fxnegative? n)
+  (negative? n))
+
+;; Error objects
 
 (define (make-error-object message obj*)
   (guard

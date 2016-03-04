@@ -16,20 +16,42 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid primitive)
-  (export quote
-	  if
-          letrec*-values
+  (export letrec*-values
+	  quote
 	  case-lambda
-	  make-error-object
-	  call-with-current-continuation
-	  + apply
+	  if
+	  set!
+	  begin
+
+	  eq?
+
+	  fixnum?
+	  flonum?
+	  exact?
+	  nan?
+
+	  fx+
+	  fx<
+	  fxnegative?
+	  
 	  string?
+	  
+	  make-vector
+	  vector-ref
+	  vector-set!
+	  vector?
+	  
 	  cons
 	  pair?
 	  car
 	  cdr
 	  null?
-	  list->vector
+	  
+	  make-error-object
+	  call-with-current-continuation
+	  apply
+	  
+	  ;; XXX	  
 	  display newline string-append)
   (import (scheme base)
 	  (only (scheme write) display newline) ;; FIXME

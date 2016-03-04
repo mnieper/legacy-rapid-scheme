@@ -15,18 +15,49 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;; Equivalence predicates
+(define operator-eq? (make-operator 'eq?))
+
+;; Fixnums
+(define operator-fixnum? (make-operator 'fixnum?))
+(define operator-fxnegative? (make-operator 'fxnegative?))
+(define operator-fx< (make-operator 'fx<))
+(define operator-fx+ (make-operator 'fx+))
+
+;; Flonums
+(define operator-flonum? (make-operator 'flonum?))
+(define operator-nan? (make-operator 'nan?))
+
+;; Exact numbers
+(define operator-exact? (make-operator 'exact?))
+
+;; Pairs
 (define operator-cons (make-operator 'cons))
 (define operator-car (make-operator 'car))
 (define operator-cdr (make-operator 'cdr))
 (define operator-pair? (make-operator 'pair?))
 (define operator-null? (make-operator 'null?))
-(define operator-list->vector (make-operator 'list->vector))
-		      
+
+;; Strings
+(define operator-string? (make-operator 'string?))
+
+;; Vectors
+(define operator-make-vector (make-operator 'make-vector))
+(define operator-vector-ref (make-operator 'vector-ref))
+(define operator-vector-set! (make-operator 'vector-set!))
+(define operator-vector? (make-operator 'vector?))
+
+;; Control features
+(define operator-apply (make-operator 'apply))
+(define operator-call-with-current-continuation (make-operator 'call-with-current-continuation))
+
+
+
+;; XXX
+
 (define operator+
   (make-operator '+))
 
-(define operator-apply
-  (make-operator 'apply))
 
 (define operator-display
   (make-operator 'display))

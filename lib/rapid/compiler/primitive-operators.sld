@@ -16,10 +16,29 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid compiler primitive-operators)
-  (export operator-cons operator-pair? operator-car operator-cdr operator-null?
-	  operator-list->vector
-	  operator-apply operator+
-	  operator-display operator-newline operator-string-append) ;; TODO
+  (export
+   operator-eq?
+   operator-fixnum?
+   operator-fxnegative?
+   operator-fx<
+   operator-fx+
+   operator-flonum?
+   operator-nan?
+   operator-exact?
+   operator-cons
+   operator-pair?
+   operator-car
+   operator-cdr
+   operator-null?
+   operator-string?
+   operator-make-vector
+   operator-vector-ref
+   operator-vector-set!
+   operator-vector?
+   operator-apply
+   operator-call-with-current-continuation
+   operator+
+   operator-display operator-newline operator-string-append) ;; TODO
   (import (scheme base)
 	  (rapid compiler expressions))
   (include "primitive-operators.scm"))

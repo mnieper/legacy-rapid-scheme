@@ -75,6 +75,12 @@
 			   identifier)
 		   syntax)))
 
+(define (primitive operator)
+  (lambda (syntax)
+    (define form (syntax-datum syntax))
+    (expand-into-expression
+     (make-primitive-operation operator (expand-expression* (cdr form)) syntax))))
+
 ;;; Expanders
 
 (define (define-values-expander syntax)
@@ -119,9 +125,9 @@
 	(compile-error "bad set! syntax"))
       datum))
   (define location
-    (define identifier-syntax (list-ref datum 1))
-    (define identifier (syntax-datum identifier-syntax))
-    (let ((denotation (sc-lookup-denotation! form)))
+    (let* ((identifier-syntax (list-ref datum 1))
+	   (identifier (syntax-datum identifier-syntax))
+	   (denotation (sc-lookup-denotation! identifier)))
       (unless denotation
 	(compile-error (format "identifier ‘~a’ is not bound"
 			       (unclose-form identifier))
@@ -262,11 +268,7 @@
      (expand-syntax! (transformer syntax (get-syntactic-environment))))
    syntax))
 
-(define (primitive operator)
-  (lambda (syntax)
-    (define form (syntax-datum syntax))
-    (expand-into-expression
-     (make-primitive-operation operator (expand-expression* (cdr form)) syntax))))
+;;; Primitive environment of (rapid primitive)
 
 (define primitive-environment
   (environment
@@ -301,15 +303,24 @@
    ;; Record-type definitions
    ;; TODO
    ;; Equivalence predicates
-   ;; TODO
-   #;(eq? (primitive operator-eq?))
+   (eq? (primitive operator-eq?))
    ;; Numbers
-   #; (fixnum? (primitive operator-fixnum?))
+   (fixnum? (primitive operator-fixnum?))
    (flonum? (primitive operator-flonum?))
-   (exact? (primitive-operator-exact?))
-   (nan? (primitive-operator-nan?))
+   (exact? (primitive operator-exact?))
+   (nan? (primitive operator-nan?))
+   (fx+ (primitive operator-fx+))
+   (fx< (primitive operator-fx<))
+   (fxnegative? (primitive operator-fxnegative?))
    ;; TODO
-
+   ;; Strings
+   (string? (primitive operator-string?))
+   ;; TODO
+   ;; Vectors
+   (make-vector (primitive operator-make-vector))
+   (vector-ref (primitive operator-vector-ref))
+   (vector-set! (primitive operator-vector-set!))
+   (vector? (primitive operator-vector?))
    ;; Control features
    (call-with-current-continuation (primitive operator-call-with-current-continuation))
    ;; TODO
@@ -320,7 +331,7 @@
    (cdr (primitive operator-cdr))
    (pair? (primitive operator-pair?))
    (null? (primitive operator-null?))
-   (list->vector (primitive operator-list->vector))
+   (make-vector (primitive operator-make-vector))
    (+ (primitive operator+))
    (apply (primitive operator-apply))
    (display (primitive operator-display)) ;; FIXME: should go into (scheme base)
