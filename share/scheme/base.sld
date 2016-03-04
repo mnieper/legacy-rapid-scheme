@@ -16,12 +16,8 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (scheme base)
-  (import (rename (prefix (rapid primitive) %) (%syntax-error syntax-error)
-		  (%display display)
-		  (%newline newline)) ;; TODO
-	  (rapid))
+  ;; TODO: Add all identifiers here from the report
   (export define define-syntax define-values syntax-rules
 	  lambda
-	  quote
-	  + apply display newline syntax-error)
-  (include "base.scm"))
+	  quote)
+  (import (rapid)))

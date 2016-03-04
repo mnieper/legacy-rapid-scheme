@@ -84,6 +84,7 @@
 			compile-error compile-note transformer-syntax
 			syntax-datum derive-syntax
 			datum->syntax
+			syntax?
 			;; XXX
 			log syntax->datum unclose-form
 			;; END XXX
@@ -375,14 +376,15 @@
 			   `(append left (list (if (null? right)
 						   (derive-syntax '() syntax)
 						   right)))
+			   ;; Not repeated
 			   `(let*-values
 				(((head tail)
 				  (split-at left
 					    ,(- (length pattern-element*) 1)))
 				 ((tail) (append tail right)))
-			      (append head (list (if (null? right)
-						     (derive-syntax tail syntax)
-						     tail)))))
+			      (append head (list (if (syntax? tail)
+						     tail
+						     (derive-syntax tail syntax))))))
 		       `left)))
 		(match (make-vector ,variable-count)))
 	       (and
