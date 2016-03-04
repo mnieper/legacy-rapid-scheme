@@ -124,9 +124,9 @@
 		   (identifier? (list-ref datum 1)))
 	(compile-error "bad set! syntax"))
       datum))
+  (define identifier-syntax (list-ref form 1))
   (define location
-    (let* ((identifier-syntax (list-ref datum 1))
-	   (identifier (syntax-datum identifier-syntax))
+    (let* ((identifier (syntax-datum identifier-syntax))
 	   (denotation (sc-lookup-denotation! identifier)))
       (unless denotation
 	(compile-error (format "identifier ‘~a’ is not bound"
@@ -313,6 +313,12 @@
    (fx< (primitive operator-fx<))
    (fxnegative? (primitive operator-fxnegative?))
    ;; TODO
+   ;; Lists
+   (cons (primitive operator-cons))
+   (car (primitive operator-car))
+   (cdr (primitive operator-cdr))
+   (pair? (primitive operator-pair?))
+   (null? (primitive operator-null?))   
    ;; Strings
    (string? (primitive operator-string?))
    ;; TODO
@@ -323,17 +329,11 @@
    (vector? (primitive operator-vector?))
    ;; Control features
    (call-with-current-continuation (primitive operator-call-with-current-continuation))
+   (apply (primitive operator-apply))
    ;; TODO
    #; (call-with-values (primitive operator-call-with-values))
    
-   (cons (primitive operator-cons))
-   (car (primitive operator-car))
-   (cdr (primitive operator-cdr))
-   (pair? (primitive operator-pair?))
-   (null? (primitive operator-null?))
-   (make-vector (primitive operator-make-vector))
    (+ (primitive operator+))
-   (apply (primitive operator-apply))
    (display (primitive operator-display)) ;; FIXME: should go into (scheme base)
    (newline (primitive operator-newline)) ;; FIXME: -- "" --
    (string-append (primitive operator-string-append))

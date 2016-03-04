@@ -54,6 +54,7 @@
 	  ;; XXX	  
 	  display newline string-append)
   (import (scheme base)
+	  (scheme inexact)
 	  (only (scheme write) display newline) ;; FIXME
 	  (scheme case-lambda))
   (include "primitive.scm"))
