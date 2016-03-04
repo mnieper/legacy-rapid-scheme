@@ -15,17 +15,25 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-;; XXX: Where do we add fall-through clauses for procedures when called with wrong number of args?
-
 ;;; Procedures and Definitions
+
+(define-syntax case-lambda
+  (syntax-rules ()
+    ((case-lambda (formals body1 body2 ...))
+     (%case-lambda
+      (formals body1 body2 ...)
+      (args
+       (error "procedure called with the wrong number of arguments" args))))
+    ((case-lambda . _)
+     (syntax-error "bad case-lambda syntax"))))
 
 (define-syntax lambda
   (syntax-rules ()
     ((lambda formals body1 body2 ...)
      (case-lambda
-      (formals body1 body2)))
-    ((lambda . args)
-     (syntax-error "bad lambda form"))))
+      (formals body1 body2 ...)))
+    ((lambda . _)
+     (syntax-error "bad lambda syntax"))))
 
 (define-syntax define
   (syntax-rules ()
@@ -73,7 +81,38 @@
 	   clause1 clause2 ...)
      (if test
 	 (begin result1 result2 ...)
-	 (cond clause1 clause2 ...)))))
+	 (cond clause1 clause2 ...)))
+    ((cond . _)
+     (syntax-error "bad cond syntax"))))
+
+(define-syntax and
+  (syntax-rules ()
+    ((and) #t)
+    ((and test) test)
+    ((and test1 test2 ...)
+     (if test1 (and test2 ...) #f))))
+
+(define-syntax or
+  (syntax-rules ()
+    ((or) #f)
+    ((or test) test)
+    ((or test1 test2 ...)
+     (let ((x test1))
+       (if x x (or test2 ...))))))
+
+(define-syntax when
+  (syntax-rules ()
+    ((when test result1 result2 ...)
+     (if test
+	 (begin result1 result2 ... (if #f #f))))
+    ((when . _)
+     (syntax-error "bad when syntax"))))
+
+(define-syntax unless
+  (syntax-rules ()
+    ((unless test result1 result2 ...)
+     (if (not test)
+	 (begin result1 result2 ... (if #f #f))))))
 
 ;;; Binding constructs
 
@@ -90,7 +129,18 @@
     ((let . _)
      (syntax-error "bad let syntax"))))
 
-;; TODO: Implement letrec
+(define-syntax let*
+  (syntax-rules ()
+    ((let* () body1 body2 ...)
+     (let () body body2 ...))
+    ((let* ((name1 val1) (name2 val2) ...) body1 body2 ...)
+     (let ((name1 val1))
+       (let* ((name2 val2) ...)
+	 body1 body2 ...)))
+    ((let* . _)
+     (syntax-error "bad let* syntax"))))
+
+;; TODO: Implement letrec, letrec*
 
 ;;; Control features
 
@@ -120,7 +170,7 @@
   (cond
    ((%eq? here target)
     (if #f #f))
-   ((< (dynamic-point-depth here) (dynamic-point-depth target))
+   ((fx< (dynamic-point-depth here) (dynamic-point-depth target))
     (travel-to-point! here (dynamic-point-parent target))
     ((dynamic-point-in target)))
    (else
@@ -131,7 +181,7 @@
   (in)
   (let ((here (get-dynamic-point)))
     (set-dynamic-point!
-     (make-dynamic-point (+ (dynamic-point-depth here) 1)
+     (make-dynamic-point (fx+ (dynamic-point-depth here) 1)
 			 in
 			 out
 			 here))
@@ -201,7 +251,30 @@
       ((param value p old new) . args)
       rest
       body))))
-  
+
+;;; Lists
+
+(define (caar x) (car (car x)))
+(define (cadr x) (car (cdr x)))
+(define (cdar x) (cdr (car x)))
+(define (cddr x) (cdr (cdr x)))
+
+(define (%length obj)
+  (let loop ((hare element*) (tortoise element*) (count 0))
+    (if (pair? hare)
+	(let ((hare (cdr hare)))
+	  (if (pair? hare)
+	      (let ((hare (cdr hare))
+		    (tortoise (cdr tortoise)))
+		(and (not (eq? hare tortoise))
+		     (loop (hare tortoise (+ count 2)))))
+	      (and (null? hare) (+ count 1))))
+	(and (null? hare) count))))
+
+(define (length list)
+  (or (%length list)
+      (error "not a list" list)))
+
 ;;; Strings
 
 (define (string? obj)
@@ -209,50 +282,81 @@
 
 ;;; Vectors
 
+(define (assert-vector! vector)
+  (unless (vector? vector)
+    (error "not a vector" vector)))
+
+(define (assert-vector-index! k)
+  (unless (and (fixnum? k) (not (fxnegative? k)))
+    (error "invalid vector index" k)))
+
 (define (vector? obj)
   (%vector? obj))
+
+(define make-vector
+  (case-lambda
+   ((k)
+    (assert-vector-index! k)
+    (%make-vector k))
+   ((k fil)
+    (assert-vector-index! k)
+    (%make-vector k))))
+
+(define (vector-length vector)
+  (assert-vector! vector)
+  (%vector-length vector))
+    
+(define (vector-ref vector k)
+  (assert-vector! vector)
+  (assert-vector-index! k)
+  (%vector-ref vector k))
+
+(define (vector-set! vector k obj)
+  (assert-vector! vector)
+  (assert-vector-index! k)
+  (%vector-set! vector k obj))
 
 (define (vector . element*)
   (list->vector element*))
 
-(define (list->vector element*)
-  ;; TODO
-  ;; Check if list is circular and count length
-  ;; %make-vector
-  ;; %vector-set!
-  )
-
+(define (list->vector list)
+  (let ((k (length list)))
+    (let ((vector (%make-vector k)))
+      (do ((i 0 (+ i 1)) (list list (cdr list)))
+	  ((= i k) vector)
+	(%vector-set! vector k (car list))))))
+ 
 ;;; Exceptions
 
-(define current-exception-handler
+(define current-exception-handlers
   (make-parameter
-   (lambda (condition)
-     ;; FIXME: Show condition on the console and exit with #f
-     ;; display-error-object???
-     )))
+   (list
+    (lambda (condition)
+      ;; FIXME: Show condition on the console and exit with #f
+      ;; display-error-object???
+      (_exit #f)))))
 
 (define (with-exception-handler handler thunk)
-  (call-with-current-continuation
-   (lambda (return)
-     (raise     
-      (call-with-current-continuation
-       (lambda (reraise)     
-	 (parameterize
-	     ((current-exception-handler
-	       (lambda (condition)
-		 (handler condition)
-		 (reraise (%make-error-object "exception not caught" condition)))))
-	   (call-with-values thunk return))))))))
-  
+  (with-exception-handlers (cons handler (current-exception-handlers)) thunk))
 
-;; TODO (raise ...) ... look at some implementation of raise
-;; how to implement raise-continuable?
-;; by changing the current-exception-handler!
-
+(define (with-exception-handlers handlers thunk)
+  (parameterize ((current-exception-handlers handlers))
+    (thunk)))
 
 (define (raise obj)
-  ((current-exception-handler) obj)
-  (raise ",,)"))
+  (let ((handlers (current-exception-handlers)))
+    (with-exception-handlers
+     (cdr handlers)
+     (lambda ()
+       ((car handlers) obj)
+       (error "exception not caught" condition)))))
+
+(define (raise-continuable obj)
+  (let ((handlers (current-exception-handlers)))
+    (with-exception-handlers
+     (cdr handlers)
+     (lambda ()
+       ((car handlers) obj)))))
 
 (define (error message . obj*)
   (if (%string? message)
