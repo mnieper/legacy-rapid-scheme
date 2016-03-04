@@ -16,23 +16,43 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid)
-  (export define-syntax syntax-rules syntax-error ... _
-	  define define-values case-lambda lambda
-	  set! if cond => else
-	  let letrec
-	  eq?
-	  values dynamic-wind call-with-current-continuation
-	  make-parameter parameterize
-	  error
-	  cons pair? car cdr null? list append
-	  quote quasiquote unquote unquote-splicing)
+  (export
+   ;; Macros
+   define-syntax syntax-rules syntax-error ... _
+   ;; Literals
+   quote
+   ;; Procedures and Definitions
+   case-lambda lambda define define-values
+   ;; Assignment
+   set!
+   ;; Conditionals
+   if else => cond and or when unless
+   ;; Binding constructs
+   let let* letrec letrec* #;let-values #;let*-values
+   ;; Control features
+   values dynamic-wind call-with-current-continuation
+   ;; Parameter objects
+   make-parameter parameterize
+   ;; Equivalence predicates
+   eq?
+   ;; Lists
+   null? cons pair? car cdr list caar cadr cdar cddr
+   length
+   ;; Strings
+   string?
+   ;; Vectors
+   vector? make-vector vector-length vector-ref vector-set! vector list->vector
+   ;; Exceptions
+   with-exception-handler raise raise-continuable error
+   ;; Quasiquotation
+   unquote unquote-splicing quasiquote
+   )
   (import (rename (prefix (rapid primitive) %)
 		  (%_ _)
 		  (%... ...)
 		  (%syntax-rules syntax-rules)
 		  (%define-syntax define-syntax)
 		  (%define-values define-values)
-		  (%case-lambda case-lambda)
 		  (%quote quote)
 		  (%set! set!)
 		  (%if if)

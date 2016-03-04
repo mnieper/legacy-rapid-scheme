@@ -140,7 +140,25 @@
     ((let* . _)
      (syntax-error "bad let* syntax"))))
 
-;; TODO: Implement letrec, letrec*
+(define-syntax letrec
+  (syntax-rules ()
+    ((letrec ((variable init) ...) body1 body2 ...)
+     (letrec*-values
+      (((variable ...) (values init ...)))
+      body1 body2 ...))
+    ((letrec . _)
+     (syntax-error "bad letrec syntax"))))
+
+(define-syntax letrec*
+  (syntax-rules ()
+    ((letrec ((variable init) ...) body1 body2 ...)
+     (letrec*-values
+      (((variable) init) ...)
+      body1 body2 ...))
+    ((letrec . _)
+     (syntax-error "bad letrec* syntax"))))
+
+;; TODO: let-values; let*-values
 
 ;;; Control features
 
@@ -170,7 +188,7 @@
   (cond
    ((%eq? here target)
     (if #f #f))
-   ((fx< (dynamic-point-depth here) (dynamic-point-depth target))
+   ((%fx< (dynamic-point-depth here) (dynamic-point-depth target))
     (travel-to-point! here (dynamic-point-parent target))
     ((dynamic-point-in target)))
    (else
@@ -181,7 +199,7 @@
   (in)
   (let ((here (get-dynamic-point)))
     (set-dynamic-point!
-     (make-dynamic-point (fx+ (dynamic-point-depth here) 1)
+     (make-dynamic-point (%fx+ (dynamic-point-depth here) 1)
 			 in
 			 out
 			 here))
@@ -254,6 +272,28 @@
 
 ;;; Lists
 
+(define (null? obj)
+  (%null obj))
+
+(define (cons car cdr)
+  (%cons car cdr))
+
+(define (pair? obj)
+  (%pair? obj))
+
+(define (car obj)
+  (if (pair? obj)
+      (%car obj)
+      (error "not a pair" obj)))
+
+(define (cdr obj)
+  (if (pair? obj)
+      (%cdr obj)
+      (error "not a pair" obj)))
+
+(define (list list) list)
+
+
 (define (caar x) (car (car x)))
 (define (cadr x) (car (cdr x)))
 (define (cdar x) (cdr (car x)))
@@ -287,7 +327,7 @@
     (error "not a vector" vector)))
 
 (define (assert-vector-index! k)
-  (unless (and (fixnum? k) (not (fxnegative? k)))
+  (unless (and (%fixnum? k) (not (%fxnegative? k)))
     (error "invalid vector index" k)))
 
 (define (vector? obj)
@@ -362,29 +402,6 @@
   (if (%string? message)
       (raise (%make-error-object message obj*))
       (error "not a string" message)))
-
-;;; List procedures
-
-(define (null? obj)
-  (%null obj))
-
-(define (cons car cdr)
-  (%cons car cdr))
-
-(define (pair? obj)
-  (%pair? obj))
-
-(define (car obj)
-  (if (pair? obj)
-      (%car obj)
-      (error "not a pair" obj)))
-
-(define (cdr obj)
-  (if (pair? obj)
-      (%cdr obj)
-      (error "not a pair" obj)))
-
-(define (list list) list)
 
 (define (append list1 list2)
   ;; TODO: More than one argument
