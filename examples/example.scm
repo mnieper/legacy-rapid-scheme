@@ -1,6 +1,7 @@
-(import (scheme base)
-	(scheme write))
+(import (rapid primitive))
 
-(display (+ 1 2))
+(define-syntax x
+  (syntax-rules ()
+    ((x . _) _)))
 
-(newline)
+(x display "hi!\n")

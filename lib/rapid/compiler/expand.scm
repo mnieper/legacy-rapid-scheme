@@ -143,10 +143,10 @@
 	=> (lambda (denotation)
 	     (when (procedure? denotation)
 	       ;; TODO: We want such a note whenever an identifier is mentioned
-	       (compile-note (format "identifier ‘~a’ was bound here" form)
+	       (compile-note (format "identifier ‘~a’ was bound here" (unclose-form form))
 			     (sc-lookup-syntax! form))
 	       (compile-error (format "invalid use of syntax ‘~a’ as value"
-				      form)  ; synthetic identifier? will have unclose it
+				      (unclose-form form))
 			      syntax))
 	     (expand-into-expression (make-reference denotation syntax))))
        (else

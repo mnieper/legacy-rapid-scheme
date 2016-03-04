@@ -37,11 +37,11 @@
 
 (define-syntax define
   (syntax-rules ()
-    ((define variable expression)
-     (define-values (variable) expression))
     ((define (variable . formals) body1 body2 ...)
      (define-values variable
        (lambda formals body1 body2 ...)))
+    ((define variable expression)
+     (define-values (variable) expression))
     ((define . args)
      (syntax-error "bad define syntax"))))
 
@@ -243,7 +243,7 @@
 
 (define-syntax parameterize
   (syntax-rules ()
-    ((parameterize ((param value) ...) body1 body2)
+    ((parameterize ((param value) ...) body1 body2 ...)
      (parameterize-aux () ((param value) ...) (body1 body2 ...)))
     ((parameterize . args)
      (syntax-error "bad parameterize syntax"))))
@@ -292,7 +292,6 @@
       (error "not a pair" obj)))
 
 (define (list list) list)
-
 
 (define (caar x) (car (car x)))
 (define (cadr x) (car (cdr x)))
@@ -365,7 +364,7 @@
       (do ((i 0 (+ i 1)) (list list (cdr list)))
 	  ((= i k) vector)
 	(%vector-set! vector k (car list))))))
- 
+
 ;;; Exceptions
 
 (define current-exception-handlers

@@ -63,8 +63,8 @@
 	       (source-location-end-line source-location))
       (display (source-location-end-line source-location))
       (display "."))
-    (display (source-location-end-column source-location))  ;; TODO: don't show column if same as
-					; start
+    (display (source-location-end-column source-location))
+    ;; TODO: don't show column if same as start
     (display ": ")))
 
 (define (display-context syntax)
@@ -83,6 +83,9 @@
       ((warning) (display "warning: "))
       (else => (lambda (type) (error "invalid compile error type" type))))
     (display (compile-error-object-message compile-error-object))
+    #;(when syntax
+      (display ": ")
+      (display (syntax->datum syntax unclose-form)))
     (newline)
     (display-context syntax)
     (do ((notes (get-notes!) (cdr notes)))
