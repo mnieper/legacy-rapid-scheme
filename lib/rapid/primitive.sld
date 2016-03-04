@@ -33,6 +33,10 @@
 	  fx+
 	  fx<
 	  fxnegative?
+
+	  boolean?
+	  
+	  char?
 	  
 	  string?
 	  
@@ -40,6 +44,7 @@
 	  vector-ref
 	  vector-set!
 	  vector?
+	  vector-length
 	  
 	  cons
 	  pair?
@@ -50,11 +55,20 @@
 	  make-error-object
 	  call-with-current-continuation
 	  apply
+
+	  exit
+
+	  make-rtd
+	  rtd-constructor
+	  rtd-predicate
+	  rtd-accessor
+	  rtd-mutator
 	  
 	  ;; XXX	  
 	  display newline string-append)
   (import (scheme base)
 	  (scheme inexact)
+	  (scheme process-context)
 	  (only (scheme write) display newline) ;; FIXME
 	  (scheme case-lambda))
   (include "primitive.scm"))

@@ -121,8 +121,8 @@
   (define form
     (let ((datum (syntax-datum syntax)))
       (unless (and (= (length datum) 3)
-		   (identifier? (list-ref datum 1)))
-	(compile-error "bad set! syntax"))
+		   (identifier? (syntax-datum (list-ref datum 1))))
+	(compile-error "bad set! syntax" syntax))
       datum))
   (define identifier-syntax (list-ref form 1))
   (define location
@@ -141,7 +141,7 @@
       denotation))
   (expand-into-expression
    (make-assignment
-    (make-location location identifier-syntax)
+    location
     (expand-expression (list-ref form 2))
     syntax)))
 
@@ -268,6 +268,59 @@
      (expand-syntax! (transformer syntax (get-syntactic-environment))))
    syntax))
 
+; (define-record-type NAME CONSTRUCTOR PRED ...)
+(define (define-record-type-expander syntax)
+  (define field-name-set (make-table (make-eq-comparator)))
+  (define (assert-unique-field-name! field-name-syntax)
+    (assert-identifier! field-name-syntax)
+    (table-update!
+     field-name-set
+     (syntax-datum field-name-syntax)
+     (lambda (syntax) syntax)
+     (lambda () field-name-syntax)
+     (lambda (syntax)
+       (compile-note "previous appearance was here" syntax)
+       (compile-error "duplicate field name" field-name-syntax))))
+  (define form
+    (let ((datum (syntax-datum syntax)))
+      (unless (>= (length datum) 4)
+	(compile-error "bad define-record-type syntax" syntax))
+      form))
+  (define name-syntax
+    (let ((syntax (list-ref form 1)))
+      (assert-identifier! syntax)
+      syntax))
+  (define-values (constructor-name-syntax field-name-syntax*)
+    (let* ((syntax (list-ref form 2))
+	   (form (syntax-datum form)))
+      (unless (and (not (null? form) (list? form)))
+	(compile-error "bad contructor" syntax))
+      (for-each assert-identifier! form)
+      (for-each assert-unique-field-name! form)
+      (set! field-name-set (make-table (make-eq-comparator)))
+      (values (car form) (cdr form))))
+  (define pred-syntax
+    (let ((syntax (list-ref form 3)))
+      (assert-identifier! syntax)
+      syntax))
+  (define field*
+    (map-in-order
+     (lambda (field-syntax)
+       (let* ((form (syntax-datum field-syntax)))
+	 (unless (and (list? form) (<= 2 (length form) 3))
+	   (compile-error "bad field" syntax))
+	 (for-each assert-identifier! form)
+	 (assert-unique-field-name! (car form))
+	 form))
+     (list-tail form 4)))
+  (for-each
+   (lambda (field-name-syntax)
+     (unless (table-ref/default field-name-set (syntax-datum field-name-syntax))
+       (compile-error "not a field name" field-name-syntax)))
+   field-name-syntax*)
+  (expand-into-record-type-definition
+   name-syntax constructor-name-syntax field-name-syntax* pred-syntax field* syntax))
+
 ;;; Primitive environment of (rapid primitive)
 
 (define primitive-environment
@@ -286,7 +339,6 @@
    ;; Assignments
    (set! set!-expander)
    ;; Inclusion
-   ;; TODO
    #;(include include-expander)
    #;(include-ci incude-ci-expander)
    ;; Sequencing
@@ -301,7 +353,7 @@
    ;; Syntax definitions
    (define-syntax define-syntax-expander)
    ;; Record-type definitions
-   ;; TODO
+   (define-record-type define-record-type-expander)
    ;; Equivalence predicates
    (eq? (primitive operator-eq?))
    ;; Numbers
@@ -310,15 +362,20 @@
    (exact? (primitive operator-exact?))
    (nan? (primitive operator-nan?))
    (fx+ (primitive operator-fx+))
+   (fx= (primitive operator-fx=))
    (fx< (primitive operator-fx<))
    (fxnegative? (primitive operator-fxnegative?))
    ;; TODO
+   ;; Booleans
+   (boolean? (primitive operator-boolean?))   
    ;; Lists
    (cons (primitive operator-cons))
    (car (primitive operator-car))
    (cdr (primitive operator-cdr))
    (pair? (primitive operator-pair?))
-   (null? (primitive operator-null?))   
+   (null? (primitive operator-null?))
+   ;; Characters
+   (char? (primitive operator-char?))
    ;; Strings
    (string? (primitive operator-string?))
    ;; TODO
@@ -327,12 +384,19 @@
    (vector-ref (primitive operator-vector-ref))
    (vector-set! (primitive operator-vector-set!))
    (vector? (primitive operator-vector?))
+   (vector-length (primitive operator-vector-length))
    ;; Control features
    (call-with-current-continuation (primitive operator-call-with-current-continuation))
    (apply (primitive operator-apply))
+   (procedure? (primitive operator-procedure?))
    ;; TODO
    #; (call-with-values (primitive operator-call-with-values))
-   
+   ;; Exceptions
+   (make-error-object (primitive operator-make-error-object))
+   ;; Process context
+   (exit (primitive operator-exit))
+
+   ;; XXX
    (+ (primitive operator+))
    (display (primitive operator-display)) ;; FIXME: should go into (scheme base)
    (newline (primitive operator-newline)) ;; FIXME: -- "" --

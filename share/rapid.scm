@@ -19,9 +19,10 @@
 
 (define-syntax case-lambda
   (syntax-rules ()
-    ((case-lambda (formals body1 body2 ...))
+    ((case-lambda (formals body1 body2 ...) ...)
      (%case-lambda
       (formals body1 body2 ...)
+      ...
       (args
        (error "procedure called with the wrong number of arguments" args))))
     ((case-lambda . _)
@@ -45,6 +46,56 @@
     ((define . args)
      (syntax-error "bad define syntax"))))
 
+;;; Record-type definitions
+
+(define-syntax define-record-type
+  (syntax-rules ()
+    ((define-record-type name
+       (constructor-name . field-name*)
+       pred
+       (field-name accessor-name modifier-name ...) ...)
+     (define-record-type-aux name
+       (constructor-name . field-name*)
+       pred
+       ((field-name accessor-name modifier-name ...) ...)
+       ()))
+    ((define-record-type . _)
+     (syntax-error "bad define-record-type syntax"))))
+
+(define-syntax define-record-type-aux
+  (syntax-rules ()
+    ((define-record-type-aux name
+       (constructor-name . field-name*)
+       pred
+       ()
+       ((field-name accessor-name %accessor-name (mutator-name %mutator-name) ...) ...))
+     (begin
+       (%define-record-type
+	name
+	%constructor
+	%pred
+	(field-name %accessor-name %mutator-name ...) ...)
+       (define (constructor-name . field-name*)
+	 (%constructor-name . field-name*))
+       (define (pred obj)
+	 (%pred obj))
+       (begin
+	 (define (accessor-name obj)
+	   (unless (%pred obj)
+	     (error (format "not a ‘~a’ record" 'name) obj))
+	   (%accessor-name obj))
+	 (define (mutator-name obj value)
+	   (unless (%pred obj)
+	     (error (format "not a ‘~a’ record" 'name) obj))
+	   (%mutator-name obj value)) ...)
+       ...))
+    ((define-record-type-aux name constructor pred
+       ((field-name accessor-name mutator-name ...) . field*)
+       tmps)
+     (define-record-type-aux name constructor pred
+       field*
+       ((field-name accessor-name %accessor-name (mutator-name %mutator-name) ...) . tmps)))))
+       
 ;;; Conditionals
 
 (define-syntax else
@@ -114,6 +165,29 @@
      (if (not test)
 	 (begin result1 result2 ... (if #f #f))))))
 
+;;; Iteration
+
+(define-syntax do
+  (syntax-rules ()
+    ((do ((var init step ...) ...) (test expr ...) command ...)
+     (let loop ((var init) ...)
+       (cond
+	(test
+	 (if #f #f)
+	 expr ...)
+	(else
+	 command ...
+	 (loop (do-aux var step ...) ...)))))
+    ((do . _)
+     (syntax-error "bad do syntax"))))
+
+(define-syntax do-aux
+  (syntax-rules ()
+    ((do-aux x)
+     x)
+    ((do-aux x y)
+     y)))
+
 ;;; Binding constructs
 
 (define-syntax let
@@ -143,29 +217,76 @@
 (define-syntax letrec
   (syntax-rules ()
     ((letrec ((variable init) ...) body1 body2 ...)
-     (letrec*-values
-      (((variable ...) (values init ...)))
-      body1 body2 ...))
+     (let ()
+       (define-values (variable ...) (values init ...))
+       (let ()
+	 body1 body2 ...)))
     ((letrec . _)
      (syntax-error "bad letrec syntax"))))
 
 (define-syntax letrec*
   (syntax-rules ()
     ((letrec ((variable init) ...) body1 body2 ...)
-     (letrec*-values
-      (((variable) init) ...)
-      body1 body2 ...))
+     (let ()
+       (define-values (variable) init) ...
+       (let ()
+	 body1 body2 ...)))
     ((letrec . _)
      (syntax-error "bad letrec* syntax"))))
 
-;; TODO: let-values; let*-values
+(define-syntax let-values
+  (syntax-rules ()
+    ((let-values ((formals init) ...) body1 body2 ...)
+     (let-values-aux ((formals init) ...) () (body1 body2 ...)))
+    ((let-values . _)
+     (syntax-error "bad let-values syntax"))))
+  
+(define-syntax let-values-aux
+  (syntax-rules ()
+    ((let-values-aux () ((formals init tmp) ...) body)
+     (let ()
+       (define-values tmp init)
+       ...
+       (let ()
+	 (define-values formals (%apply values tmp))
+	 ...
+	 (let () . body))))
+    ((let-values-aux ((formals init) . bindings) tmps body)
+     (let-values-aux bindings ((formals init tmp) . tmps) body))))
 
+(define-syntax let*-values
+  (syntax-rules ()
+    ((let*-values () body1 body2 ...)
+     (let () body1 body2 ...))
+    ((let*-values ((formals init) . bindings) body1 body2 ...)
+     (let-values ((formals init))
+       (let*-values bindings body1 body2 ...)))
+    ((let*-values . _)
+     (syntax-error "bad let*-values syntax"))))
+  
 ;;; Control features
 
+(define (procedure? obj)
+  (%procedure? obj))
+
+(define (assert-procedure! obj)
+  (unless (%procedure? obj)
+    (error "not a procedure" obj)))
+
+(define (apply proc arg . arg*)
+  (assert-procedure! proc)
+  (%apply proc (let loop ((arg arg) (arg* arg*))
+		 (cond
+		  ((null? arg*)
+		   (assert-list! arg)
+		   arg)
+		  (else
+		   (cons arg (loop (car arg*) (cdr arg*))))))))
+  
 (define (values . things)
   (%call-with-current-continuation
    (lambda (cont)
-     (apply cont things))))
+     (%apply cont things))))
 
 (define (make-dynamic-point depth in out parent)
   (vector depth in out parent))
@@ -178,7 +299,8 @@
 (define (dynamic-point-parent point)
   (%vector-ref point 3))
 
-(define dynamic-point (make-dynamic-point 0 #f #f #f))
+(define root (make-dynamic-point 0 #f #f #f))
+(define dynamic-point root)
 (define (get-dynamic-point)
   dynamic-point)
 (define (set-dynamic-point! point)
@@ -219,6 +341,65 @@
     (set-dynamic-point! point)
     (apply cont res*)))
 
+(define exit
+  (case-lambda
+   (() (exit #t))
+   ((obj)
+    (with-exception-handler
+     (lambda (condition)
+       (%exit obj))
+     (lambda ()
+       (travel-to-point! (get-dynamic-point) root)
+       (%exit obj))))))
+
+(define (list*? list*)
+  (define (failure rest)
+    (error "not a (circular) list" (car list*)))
+  (let loop ((finite? #f) (list* list*))
+    (if (null? list*)
+	(and finite? #t)
+	(loop (or (%length (car list*) failure) finite?)
+	      (cdr list*)))))
+
+(define (assert-list*! list*)
+  (unless (list*? list*)
+    (error "at least one list has to be finite" list*)))
+
+(define (%map proc list)
+  (let loop ()
+    (if (%null? list)
+	'()
+	(cons (proc (car list))
+	      (loop (cdr list))))))
+
+(define (any pred list)
+  (let loop ((list list))
+    (if (%null? list)
+	#f
+	(or (pred (car list))
+	    (loop (cdr list))))))
+	
+(define (map proc . list*)
+  (assert-procedure! proc)
+  (assert-list*! list*)
+  (let loop ((list* list*))
+    (if (any null? list*)
+	'()
+	(cons
+	 (%apply proc (%map car list*)) 
+	 (loop (cdr list*))))))
+
+(define (for-each proc . list*)
+  (assert-procedure! proc)
+  (assert-list*! list*)
+  (let loop ((list* list*))
+    (cond
+     ((any null? list*)
+      (if #f #f))
+     (else
+      (%apply proc (%map car list*))
+      (loop (cdr list*))))))
+
 ;;; Parameter objects
 
 (define <param-set!> (vector #f))
@@ -234,9 +415,9 @@
       (cond
        ((null? args)
 	value)
-       ((eq? (car args) <param-set!>)
+       ((%eq? (car args) <param-set!>)
 	(set! value (cadr args)))
-       ((eq? (car args) <param-convert!>)
+       ((%eq? (car args) <param-convert>)
 	converter)
        (else
 	(error "bad parameter syntax")))))))
@@ -270,10 +451,34 @@
       rest
       body))))
 
+;;; Equivalence predicates
+(define (eq? obj1 obj2)
+  (%eq? obj1 obj2))
+
+;;; Booleans
+
+(define (boolean? obj)
+  (%boolean? obj))
+
+(define (assert-boolean! obj)
+  (unless (boolean? obj)
+    (error "not a boolean" obj)))
+
+(define (not obj)
+  (if obj #f #t))
+
+(define (boolean=? boolean*)
+  (for-each assert-boolean! boolean*)
+  (let loop ((boolean* boolean*))
+    (or (null? boolean*)
+	(null? (cdr boolean*))
+	(and (%eq? (car boolean*) (cdr boolean*))
+	     (loop (cdr boolean*))))))
+
 ;;; Lists
 
 (define (null? obj)
-  (%null obj))
+  (%null? obj))
 
 (define (cons car cdr)
   (%cons car cdr))
@@ -298,26 +503,72 @@
 (define (cdar x) (cdr (car x)))
 (define (cddr x) (cdr (cdr x)))
 
-(define (%length obj)
-  (let loop ((hare element*) (tortoise element*) (count 0))
-    (if (pair? hare)
-	(let ((hare (cdr hare)))
-	  (if (pair? hare)
-	      (let ((hare (cdr hare))
-		    (tortoise (cdr tortoise)))
-		(and (not (eq? hare tortoise))
-		     (loop (hare tortoise (+ count 2)))))
-	      (and (null? hare) (+ count 1))))
-	(and (null? hare) count))))
+(define %length
+  (case-lambda
+   ((obj)
+    (%length obj (lambda (rest) #f)))
+   ((obj failure)
+    (let loop ((hare obj) (tortoise obj) (count 0))
+      (if (pair? hare)
+	  (let ((hare (cdr hare)))
+	    (if (pair? hare)
+		(let ((hare (cdr hare))
+		      (tortoise (cdr tortoise)))
+		  (and (not (%eq? hare tortoise))
+		       (loop (hare tortoise (%fx+ count 2)))))
+		(and (or (null? hare)
+			 (begin (failure hare)
+				#f))
+		     (%fx+ count 1))))
+	  (and (or (null? hare)
+		   (begin (failure hare)
+			  #f))
+	       count))))))
 
 (define (length list)
   (or (%length list)
       (error "not a list" list)))
 
+(define (list? list)
+  (and (%length list) #t))
+
+(define (assert-list! obj)
+  (unless (list? obj)
+    (error "not a list")))
+
+;;; Characters
+
+(define (char? obj)
+  (%char? obj))
+
+(define (assert-char! obj)
+  (unless (char? obj)
+    (error "not a char" obj)))
+
+(define (char=? char*)
+  (for-each assert-char! char*)
+  (let loop ((char* char*))
+    (or (null? char*)
+	(null? (cdr char*))
+	(and (%eq? (car char*) (cdr char*))
+	     (loop (cdr char*))))))
+
 ;;; Strings
 
 (define (string? obj)
   (%string? obj))
+
+(define (assert-string! obj)
+  (unless (string? obj)
+    (error "not a string" obj)))
+
+;;; wchar_t? utf8 utf32
+(define string->list
+  (case-lambda
+   ((string)
+  start end
+  
+  )))
 
 ;;; Vectors
 
@@ -361,19 +612,20 @@
 (define (list->vector list)
   (let ((k (length list)))
     (let ((vector (%make-vector k)))
-      (do ((i 0 (+ i 1)) (list list (cdr list)))
-	  ((= i k) vector)
+      (do ((i 0 (%fx+ i 1)) (list list (cdr list)))
+	  ((%fx= i k) vector)
 	(%vector-set! vector k (car list))))))
 
 ;;; Exceptions
 
+(define (default-exception-handler condition)
+  (lambda (condition)
+    ;; FIXME: Show condition on the console and exit with #f
+    ;; display-error-object???
+    (%exit #f)))
+
 (define current-exception-handlers
-  (make-parameter
-   (list
-    (lambda (condition)
-      ;; FIXME: Show condition on the console and exit with #f
-      ;; display-error-object???
-      (_exit #f)))))
+  (make-parameter (list default-exception-handler)))
 
 (define (with-exception-handler handler thunk)
   (with-exception-handlers (cons handler (current-exception-handlers)) thunk))
@@ -388,7 +640,7 @@
      (cdr handlers)
      (lambda ()
        ((car handlers) obj)
-       (error "exception not caught" condition)))))
+       (error "exception not caught" obj)))))
 
 (define (raise-continuable obj)
   (let ((handlers (current-exception-handlers)))
@@ -446,3 +698,42 @@
      (list->vector (quasiquote-aux (element ...) . depth)))
     ((quasiquote-aux constant . depth)
      'constant)))
+
+;;; Formatting
+
+(define (format format-string . objects)
+  (let ((buffer (open-output-string)))
+    (let loop ((format-list (string->list format-string))
+	       (objects objects))
+      (cond
+       ((null? format-list) (get-output-string buffer))
+       ((char=? (car format-list) #\~)
+	(if (null? (cdr format-list))
+	    (error "format: incomplete escape sequence" format-string)
+	    (case (cadr format-list)
+	      ((#\a)
+	       (cond
+		((null? objects)
+		 (error "format: no value for escape sequence ‘~a’" format-string))
+		(else
+		 (display (car objects) buffer)
+		 (loop (cddr format-list) (cdr objects)))))
+	      ((#\s)
+	       (cond
+		((null? objects)
+		 (error "format: no value for escape sequence ‘~s’" format-string))
+		(else
+		 (write (car objects) buffer)
+		 (loop (cddr format-list) (cdr objects)))))
+	      ((#\%)
+	       (newline buffer)
+	       (loop (cddr format-list) objects))
+	      ((#\~)
+	       (write-char #\~ buffer)
+	       (loop (cddr format-list) objects))
+	      (else
+	       (error (format "format: unrecognized escape sequence ‘~~~a’"
+			      (cadr format-list)) format-string)))))
+       (else
+	(write-char (car format-list) buffer)
+	(loop (cdr format-list) objects))))))

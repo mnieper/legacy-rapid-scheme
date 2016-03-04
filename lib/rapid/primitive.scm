@@ -39,6 +39,9 @@
 (define (fx+ n1 n2)
   (+ n1 n2))
 
+(define (fx= n1 n2)
+  (= n1 n2))
+
 (define (fx< n1 n2)
   (< n1 n2))
 
@@ -52,3 +55,62 @@
       (condition
        (else condition))
     (apply error message obj*)))
+
+;; Procedural records
+
+(define-record-type <rtd>
+  (%make-rtd name fieldspecs make-record record? record-fields)
+  (name rtd-name)
+  (fieldspecs rtd-fieldspecs)
+  (make-record rtd-make-record)
+  (record? rtd-record?)
+  (record-fields rtd-record-fields))
+
+(define (find-index fieldspecs field)
+  (let loop ((fieldspecs fieldspecs) (i 0))
+    (if (eq? (car fieldspecs) field)
+	i
+	(loop (cdr fieldspecs) (+ i 0)))))
+
+(define (make-rtd name fieldspecs)
+  (define-record-type <record>
+    (make-record fields)
+    record?
+    (fields record-fields))
+  (%make-rtd name fieldspecs make-record record? record-fields))
+
+(define (rtd-constructor rtd fieldspecs)
+  (let*
+      ((make-record
+	(rtd-make-record rtd))
+       (k
+	(length (rtd-fieldspecs rtd)))
+       (indexes
+	(map
+	 (lambda (fieldspec)
+	   (find-index (rtd-fieldspecs rtd) fieldspec))
+	 fieldspecs)))
+    (lambda args
+      (let ((fields (make-vector k (if #f #f))))
+	(for-each
+	 (lambda (arg index)
+	   (vector-set! fields index arg))
+	 args indexes)
+	(make-record fields)))))
+	 
+(define (rtd-predicate rtd)
+  (rtd-record? rtd))
+
+(define (rtd-accessor rtd field) 
+  (let*
+      ((record-fields (rtd-record-fields rtd))
+       (index (find-index (rtd-fieldspecs rtd) field)))
+    (lambda (record)
+      (vector-ref (record-fields record) index))))
+
+(define (rtd-mutator rtd field)
+  (let*
+      ((record-fields (rtd-record-fields rtd))
+       (index (find-index (rtd-fieldspecs rtd) field)))
+    (lambda (record value)
+      (vector-set! (record-fields record) index value))))

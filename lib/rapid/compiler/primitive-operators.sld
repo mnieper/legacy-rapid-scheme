@@ -18,9 +18,11 @@
 (define-library (rapid compiler primitive-operators)
   (export
    operator-eq?
+   operator-boolean?
    operator-fixnum?
    operator-fxnegative?
    operator-fx<
+   operator-fx=
    operator-fx+
    operator-flonum?
    operator-nan?
@@ -30,13 +32,25 @@
    operator-car
    operator-cdr
    operator-null?
+   operator-char?
    operator-string?
    operator-make-vector
    operator-vector-ref
    operator-vector-set!
    operator-vector?
+   operator-vector-length
+   operator-procedure?
    operator-apply
    operator-call-with-current-continuation
+   operator-make-error-object
+   operator-exit
+   operator-make-rtd
+   operator-rtd-constructor
+   operator-rtd-predicate
+   operator-rtd-accessor
+   operator-rtd-mutator
+
+   ;; XXX
    operator+
    operator-display operator-newline operator-string-append) ;; TODO
   (import (scheme base)

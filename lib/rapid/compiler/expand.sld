@@ -24,9 +24,9 @@
 	  expand-into-expression
 	  expand-into-definition
 	  expand-into-syntax-definition
+	  expand-into-record-type-definition
 	  expand-into-sequence)
   (import (scheme base)    (scheme write) ;; XXX
-	  (chibi show) (chibi show pretty) ;; XXX
 	  
 	  (rapid lists)
 	  (rapid box)
@@ -35,5 +35,6 @@
 	  (rapid compiler syntax)
 	  (rapid compiler syntactic-closures)
 	  (rapid compiler syntactic-environments)
+	  (rapid compiler primitive-operators)
 	  (rapid compiler expressions))
   (include "expand.scm"))

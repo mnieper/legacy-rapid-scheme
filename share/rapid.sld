@@ -27,17 +27,25 @@
    set!
    ;; Conditionals
    if else => cond and or when unless
+   ;; Iteration
+   do
    ;; Binding constructs
-   let let* letrec letrec* #;let-values #;let*-values
+   let let* letrec letrec* let-values let*-values
    ;; Control features
    values dynamic-wind call-with-current-continuation
    ;; Parameter objects
    make-parameter parameterize
+   ;; Record-type definitions
+   define-record-type
    ;; Equivalence predicates
    eq?
+   ;; Booleans
+   boolean? not boolean=?
    ;; Lists
    null? cons pair? car cdr list caar cadr cdar cddr
    length
+   ;; Characters
+   char? char=?
    ;; Strings
    string?
    ;; Vectors
@@ -46,6 +54,10 @@
    with-exception-handler raise raise-continuable error
    ;; Quasiquotation
    unquote unquote-splicing quasiquote
+   ;; Process context
+   exit
+   ;; Formatting
+   format
    )
   (import (rename (prefix (rapid primitive) %)
 		  (%_ _)
@@ -56,5 +68,6 @@
 		  (%quote quote)
 		  (%set! set!)
 		  (%if if)
+		  (%begin begin)
 		  (%syntax-error syntax-error)))
   (include "rapid.scm"))

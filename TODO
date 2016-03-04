@@ -1,3 +1,5 @@
+* Idea: One optimizing pass rewrites immediate applications into letrec*-syntax
+
 * When the macro expander copies code verbatim, set the context
 
 * Simplify macro transformer compiler output. Don't need to pass vectors as signature of function

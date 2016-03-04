@@ -18,10 +18,14 @@
 ;; Equivalence predicates
 (define operator-eq? (make-operator 'eq?))
 
+;; Booleans
+(define operator-boolean? (make-operator 'boolean?))
+
 ;; Fixnums
 (define operator-fixnum? (make-operator 'fixnum?))
 (define operator-fxnegative? (make-operator 'fxnegative?))
 (define operator-fx< (make-operator 'fx<))
+(define operator-fx= (make-operator 'fx=))
 (define operator-fx+ (make-operator 'fx+))
 
 ;; Flonums
@@ -41,17 +45,33 @@
 ;; Strings
 (define operator-string? (make-operator 'string?))
 
+;; Characters
+(define operator-char? (make-operator 'char?))
+
 ;; Vectors
 (define operator-make-vector (make-operator 'make-vector))
 (define operator-vector-ref (make-operator 'vector-ref))
 (define operator-vector-set! (make-operator 'vector-set!))
 (define operator-vector? (make-operator 'vector?))
+(define operator-vector-length (make-operator 'vector-length))
 
 ;; Control features
+(define operator-procedure? (make-operator 'procedure?))
 (define operator-apply (make-operator 'apply))
 (define operator-call-with-current-continuation (make-operator 'call-with-current-continuation))
 
+;; Exceptions
+(define operator-make-error-object (make-operator 'make-error-object))
 
+;; Process context
+(define operator-exit (make-operator 'exit))
+
+;; Procedural records
+(define operator-make-rtd (make-operator 'make-rtd))
+(define operator-rtd-constructor (make-operator 'make-constructor))
+(define operator-rtd-predicate (make-operator 'rtd-predicate))
+(define operator-rtd-accessor (make-operator 'rtd-accessor))
+(define operator-rtd-mutator (make-operator 'rtd-mutator))
 
 ;; XXX
 
