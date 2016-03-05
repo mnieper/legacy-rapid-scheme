@@ -184,10 +184,58 @@
   (expand-into-expression
    (make-literal (syntax->datum (list-ref form 1) unclose-form) syntax)))
 
+;;; Macro transformers
+(define *transformer-environment*
+  (environment '(scheme base)
+	       '(rapid lists)
+	       '(rapid compiler transform)))
+
+(define-syntax eval-transformer
+  (syntax-rules ()
+    ((eval-transformer transformer identifier ...)
+     ((eval `(lambda (identifier ...)
+	       ,transformer)
+	    *transformer-environment*)
+      identifier ...))))
+
+(define (sc-transformer-expander syntax)
+  (define form
+    (let ((datum (syntax-datum syntax)))
+      (unless (= (length datum) 2)
+	(compile-error "bad er-macro-transformer spec" syntax))
+      datum))
+  ;; XXX: eval may raise... should be propagated to compile-error
+  ;; Do we need compile-error, compile-not or can we simply use error?
+  (eval-transformer (syntax->datum (cadr syntax) unclose-form)
+		    compile-error compile-note
+		    syntax-datum derive-syntax
+		    datum->syntax
+		    syntax?))
+
+;;; XXX New
+(define (define-syntax-expander syntax)
+  (define form
+    (let ((datum (syntax-datum syntax)))
+      (unless (= (length datum) 3)
+	(compile-error "bad define-syntax syntax" syntax))
+      datum))
+  (define keyword-syntax
+    (let ((syntax (list-ref form 1)))
+      (assert-identifier! syntax)
+      syntax))
+  (define transformer-syntax (list-ref form 2))
+  (define transformer (expand-transformer transformer-syntax)) ;; XXX should yield a proc
+  (expand-into-syntax-definition
+   keyword-syntax
+   (lambda (syntax)
+     (expand-syntax! (transformer syntax (get-syntactic-environment))))
+   syntax))
+
 (define syntax-rules-expander (make-auxiliary-syntax 'syntax-rules))
 (define ellipsis-expander (make-auxiliary-syntax '...))
 (define underscore-expander (make-auxiliary-syntax '_))
 
+;; REWRITE INTO SYNTAX-RULES-EXPANDER!
 (define (define-syntax-expander syntax)
   (define form
     (let ((datum (syntax-datum syntax)))

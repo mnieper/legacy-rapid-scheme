@@ -35,10 +35,7 @@
       (table-intern! renames
 		     identifier
 		     (lambda ()
-		       (make-syntactic-closure macro-environment '() identifier)))
-      ; XXX:
-      #;(log "?: " identifier (hash-by-identity (table-ref renames identifier)))
-      #;(table-ref renames identifier))
+		       (make-syntactic-closure macro-environment '() identifier))))
     (define (compare identifier1 identifier2)
       (identifier=? environment identifier1 environment identifier2))
     (transformer syntax rename compare)))

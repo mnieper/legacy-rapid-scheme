@@ -1,3 +1,6 @@
+* In our current implementation, errors in eval'd code won't propagate to the handlers of the
+  evaluating code, but call %exit #f... ---> eval sollte also gewrappt werden
+
 * Implement er-macro-transformer; in:
   (define-syntax ... (syntax-rules ... is syntax-rules expanded first? (e.g. literal?)
   With er-macro-transformer, we can do the handling of define-record-types in standard lib
