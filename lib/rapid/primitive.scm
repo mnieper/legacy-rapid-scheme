@@ -60,6 +60,7 @@
 
 (define-record-type <rtd>
   (%make-rtd name fieldspecs make-record record? record-fields)
+  rtd?
   (name rtd-name)
   (fieldspecs rtd-fieldspecs)
   (make-record rtd-make-record)
@@ -72,14 +73,14 @@
 	i
 	(loop (cdr fieldspecs) (+ i 0)))))
 
-(define (make-rtd name fieldspecs)
+(define (make-rtd name . fieldspecs) ;; XXX Not the SRFI 99-convention
   (define-record-type <record>
     (make-record fields)
     record?
     (fields record-fields))
   (%make-rtd name fieldspecs make-record record? record-fields))
 
-(define (rtd-constructor rtd fieldspecs)
+(define (rtd-constructor rtd . fieldspecs)
   (let*
       ((make-record
 	(rtd-make-record rtd))
@@ -97,7 +98,7 @@
 	   (vector-set! fields index arg))
 	 args indexes)
 	(make-record fields)))))
-	 
+
 (define (rtd-predicate rtd)
   (rtd-record? rtd))
 

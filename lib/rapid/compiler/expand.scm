@@ -107,7 +107,8 @@
        (pred-expression
 	(make-primitive-operation
 	 operator-rtd-predicate
-	 (make-reference name-location #f)
+	 (list
+	  (make-reference name-location #f))
 	 #f))
        (accessor-binding*
 	(map
@@ -146,11 +147,11 @@
       accessor-binding*
       (list
        (make-binding (make-formals (list pred-location) #f #f)
-		     (datum->syntax pred-expression) #f)
-       (make-binding (make-formals (list constructor-name-expression) #f #f)
-		     (datum->syntax constructor-name-expression) #f)
-       (make-binding (make-formals (list name-expression) #f #f)
-		     (datum->syntax pred-expression) #f))
+		     pred-expression #f)
+       (make-binding (make-formals (list constructor-name-location) #f #f)
+		     constructor-name-expression #f)
+       (make-binding (make-formals (list name-location) #f #f)
+		     name-expression #f))
       (%get-bindings)))))
   
 (define (expand-into-syntax-definition identifier-syntax expander syntax)
@@ -166,7 +167,7 @@
    ((eq? (current-context) 'expression)
     (when (null? syntax*)
       (compile-error "begin expression may not be empty" syntax))
-    (expand-into-expression (make-sequence syntax* syntax)))
+    (make-sequence (map-in-order expand-expression syntax*) syntax))
    (else
     (for-each expand-syntax! syntax*))))
   

@@ -41,6 +41,8 @@
    eq?
    ;; Booleans
    boolean? not boolean=?
+   ;; Symbols
+   symbol?
    ;; Lists
    null? cons pair? car cdr list caar cadr cdar cddr
    length
@@ -49,18 +51,34 @@
    ;; Strings
    string?
    string->list
+   list->string
    ;; Vectors
    vector? make-vector vector-length vector-ref vector-set! vector list->vector
+   ;; Control features
+   procedure?
+   map
+   for-each
+   string-for-each
    ;; Exceptions
    with-exception-handler raise raise-continuable error
+   ;; Output
+   display
+   newline
    ;; Quasiquotation
    unquote unquote-splicing quasiquote
    ;; Process context
    exit
    ;; Formatting
    format
+
+   ;; XXX
+   +
    )
   (import (rename (prefix (rapid primitive) %)
+
+		  ;; XXX
+		  (%+ +)
+		  
 		  (%_ _)
 		  (%... ...)
 		  (%syntax-rules syntax-rules)

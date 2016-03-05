@@ -32,9 +32,12 @@
    operator-car
    operator-cdr
    operator-null?
+   operator-symbol?
+   operator-symbol->string
    operator-char?
    operator-string?
    operator-string->list
+   operator-list->string
    operator-make-vector
    operator-vector-ref
    operator-vector-set!

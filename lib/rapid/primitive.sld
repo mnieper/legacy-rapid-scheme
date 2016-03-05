@@ -32,21 +32,26 @@
 
 	  fx+
 	  fx<
+	  fx=
 	  fxnegative?
 
 	  boolean?
+
+	  symbol?
+	  symbol->string
 	  
 	  char?
 	  
 	  string?
 	  string->list
+	  list->string
 	  
 	  make-vector
 	  vector-ref
 	  vector-set!
 	  vector?
 	  vector-length
-	  
+
 	  cons
 	  pair?
 	  car
@@ -54,6 +59,7 @@
 	  null?
 	  
 	  make-error-object
+	  procedure?
 	  call-with-current-continuation
 	  apply
 
@@ -65,11 +71,14 @@
 	  rtd-accessor
 	  rtd-mutator
 	  
-	  ;; XXX	  
-	  display newline string-append)
+	  ;; XXX
+	  display newline
+	  +
+	  string-append)
   (import (scheme base)
 	  (scheme inexact)
 	  (scheme process-context)
-	  (only (scheme write) display newline) ;; FIXME
-	  (scheme case-lambda))
+	  (scheme case-lambda)
+	  (scheme write) ;; XXX
+	  )
   (include "primitive.scm"))

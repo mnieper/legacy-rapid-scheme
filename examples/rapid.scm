@@ -1,4 +1,4 @@
-(import (scheme base))
+(import (rapid))
 
 #;(define-syntax macro
   (syntax-rules ()
@@ -12,4 +12,4 @@
 
 (display (f 3))
 
-(newline)
+;(newline)

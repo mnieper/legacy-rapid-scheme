@@ -34,9 +34,10 @@
 	  make-operator operator?
 	  expression->datum
 	  bindings)
-  (import (scheme base)
+  (import (scheme base)                    (scheme write) ;;;XXX
 	  (scheme case-lambda)
-	  (rapid comparators)
+	  (rapid comparators)               (rapid compiler syntax) ;;;XX
+	  (rapid compiler syntactic-closures)
 	  (rapid table))
   (include "expressions.scm"))
 

@@ -268,7 +268,6 @@
      (expand-syntax! (transformer syntax (get-syntactic-environment))))
    syntax))
 
-; (define-record-type NAME CONSTRUCTOR PRED ...)
 (define (define-record-type-expander syntax)
   (define field-name-set (make-table (make-eq-comparator)))
   (define (assert-unique-field-name! field-name-syntax)
@@ -366,6 +365,9 @@
    (fx< (primitive operator-fx<))
    (fxnegative? (primitive operator-fxnegative?))
    ;; TODO
+   ;; Symbols
+   (symbol? (primitive operator-symbol?))
+   (symbol->string (primitive operator-symbol->string))
    ;; Booleans
    (boolean? (primitive operator-boolean?))   
    ;; Lists
@@ -379,6 +381,7 @@
    ;; Strings
    (string? (primitive operator-string?))
    (string->list (primitive operator-string->list))
+   (list->string (primitive operator-list->string))
    ;; TODO
    ;; Vectors
    (make-vector (primitive operator-make-vector))

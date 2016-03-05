@@ -174,13 +174,15 @@
 
 (define (expression->datum expression)
   (define counter 0)
-  (define (gensym)
-    (define symbol (string->symbol (string-append "g_" (number->string counter))))
+  (define (gensym prefix)
+    (define symbol (string->symbol (string-append prefix "_" (number->string counter))))
     (set! counter (+ counter 1))
     symbol)
   (define identifier-table (make-table (make-eq-comparator)))
   (define (lookup-identifier! location)
-    (table-intern! identifier-table location gensym))
+    (define syntax (location-syntax location))
+    (define prefix (if syntax (symbol->string (syntax->datum syntax unclose-form)) "g_"))
+    (table-intern! identifier-table location (lambda () (gensym prefix))))
   (define (formals->datum formals)
     (let loop ((fixed-arguments (formals-fixed-arguments formals)))
       (if (null? fixed-arguments)
@@ -218,7 +220,7 @@
      ;; Assignments
      ((assignment? expression)
       `(set! ,(lookup-identifier! (assignment-location expression))
-	     ,(loop (assignment-expression))))
+	     ,(loop (assignment-expression expression))))
      ;; Letrec* expressions
      ((letrec*-expression? expression)
       `(letrec*-values ,

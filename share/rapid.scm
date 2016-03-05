@@ -39,7 +39,7 @@
 (define-syntax define
   (syntax-rules ()
     ((define (variable . formals) body1 body2 ...)
-     (define-values variable
+     (define-values (variable)
        (lambda formals body1 body2 ...)))
     ((define variable expression)
      (define-values (variable) expression))
@@ -164,6 +164,41 @@
     ((unless test result1 result2 ...)
      (if (not test)
 	 (begin result1 result2 ... (if #f #f))))))
+
+(define-syntax case
+  (syntax-rules (else =>)
+    ((case (key ...)
+       clauses ...)
+     (let ((atom-key (key ...)))
+       (case atom-key clauses ...)))
+    ((case key
+       (else => result))
+     (result key))
+    ((case key
+       (else result1 result2 ...))
+     (begin result1 result2 ...))
+    ((case key
+       ((atoms ...) result1 result2 ...))
+     (if (memv key '(atoms ...))
+	 (begin result1 result2 ...)))
+    ((case key
+       ((atoms ...) => result))
+     (if (memv key '(atoms ...))
+	 (result key)))
+    ((case key
+       ((atoms ...) => result)
+       clause clauses ...)
+     (if (memv key '(atoms ...))
+	 (result key)
+	 (case key clause clauses ...)))
+    ((case key
+       ((atoms ...) result1 result2 ...)
+       clause clauses ...)
+     (if (memv key '(atoms ...))
+	 (begin result1 result2 ...)
+	 (case key clause clauses ...)))
+    ((case . _)
+     (syntax-error "bad case syntax"))))
 
 ;;; Iteration
 
@@ -299,8 +334,6 @@
 (define (dynamic-point-parent point)
   (%vector-ref point 3))
 
-(define root (make-dynamic-point 0 #f #f #f))
-(define dynamic-point root)
 (define (get-dynamic-point)
   dynamic-point)
 (define (set-dynamic-point! point)
@@ -402,13 +435,10 @@
 
 ;;; Parameter objects
 
-(define <param-set!> (vector #f))
-(define <param-convert> (vector #f))
-
 (define make-parameter
   (case-lambda
    ((init)
-    (make-parameter (lambda (value) value)))
+    (make-parameter init (lambda (value) value)))
    ((init converter)
     (define value (converter init))
     (lambda args
@@ -455,6 +485,23 @@
 (define (eq? obj1 obj2)
   (%eq? obj1 obj2))
 
+;; FIXME: Number handling
+(define (eqv? obj1 obj2)
+  (%eq? obj1 obj2))
+
+;;; Symbols
+
+(define (symbol? obj)
+  (%symbol? obj))
+
+(define (assert-symbol! symbol)
+  (unless (symbol? symbol)
+    (error "not a symbol" symbol)))
+
+(define (symbol->string symbol)
+  (assert-symbol! symbol)
+  (%symbol->string symbol))
+
 ;;; Booleans
 
 (define (boolean? obj)
@@ -496,7 +543,7 @@
       (%cdr obj)
       (error "not a pair" obj)))
 
-(define (list list) list)
+(define (list . list) list)
 
 (define (caar x) (car (car x)))
 (define (cadr x) (car (cdr x)))
@@ -515,7 +562,7 @@
 		(let ((hare (cdr hare))
 		      (tortoise (cdr tortoise)))
 		  (and (not (%eq? hare tortoise))
-		       (loop (hare tortoise (%fx+ count 2)))))
+		       (loop hare tortoise (%fx+ count 2))))
 		(and (or (null? hare)
 			 (begin (failure hare)
 				#f))
@@ -535,6 +582,21 @@
 (define (assert-list! obj)
   (unless (list? obj)
     (error "not a list")))
+
+(define (reverse list)
+  (assert-list! list)
+  (let loop ((list list) (reversed '()))
+    (if (%null? list)
+	reversed
+	(loop (cdr list) (cons (car list) reversed)))))
+
+(define (memv obj list)
+  (assert-list! list)
+  (let loop ((list list))
+    (and (not (null? list))
+	 (if (eqv? (car list) obj)
+	     list
+	     (loop (cdr list))))))
 
 ;;; Characters
 
@@ -584,6 +646,11 @@
     (assert-string-index! start)
     (assert-string-index! end)
     (%string->list string start end))))
+
+(define (list->string list)
+  (assert-list! list)
+  (for-each assert-char! list)
+  (%list->string list))
 
 (define (string-for-each proc . string*)
   (assert-procedure! proc)
@@ -636,15 +703,15 @@
     (let ((vector (%make-vector k)))
       (do ((i 0 (%fx+ i 1)) (list list (cdr list)))
 	  ((%fx= i k) vector)
-	(%vector-set! vector k (car list))))))
+	(%vector-set! vector i (car list))))))
 
 ;;; Exceptions
 
 (define (default-exception-handler condition)
-  (lambda (condition)
+  (%display condition) (%display "\n")
     ;; FIXME: Show condition on the console and exit with #f
     ;; display-error-object???
-    (%exit #f)))
+  (%exit #f))
 
 (define current-exception-handlers
   (make-parameter (list default-exception-handler)))
@@ -659,9 +726,9 @@
 (define (raise obj)
   (let ((handlers (current-exception-handlers)))
     (with-exception-handlers
-     (cdr handlers)
+     (%cdr handlers)
      (lambda ()
-       ((car handlers) obj)
+       ((%car handlers) obj)
        (error "exception not caught" obj)))))
 
 (define (raise-continuable obj)
@@ -710,8 +777,6 @@
 (define (textual-port? obj)
   (or (input-port? obj) (output-port? obj)))
 
-;; write-char
-
 (define write-char
   (case-lambda
    ((char)
@@ -734,13 +799,11 @@
       (string-for-each write-char string)))))
 
 (define (open-output-string)
-  (define pieces '())
+  (define %char* '())
   (define (write-char char)
-    (assert-char! char)
-    (set! pieces
-	  (cons (string char) pieces)))
+    (set! %char* (cons char %char*)))
   (define (get-output-string)
-    (%apply string-append (reverse pieces)))
+    (list->string (reverse %char*)))
   (make-output-port write-char 'string-port get-output-string))
 
 (define (get-output-string port)
@@ -749,6 +812,10 @@
   ((output-port-aux port)))
 
 ;;; Output
+
+(define (write . args)
+  ;; FIXME
+  (error "not implemented"))
 
 (define display
   (case-lambda
@@ -763,10 +830,20 @@
      ((char? obj)
       (write-char obj port))
      ((symbol? obj)
-      (write-string (symbol->string obj)))
+      (write-string (%symbol->string obj)))
      (else
       ;; FIXME
       (write-string "<unspecified>"))))))
+
+(define newline
+  (case-lambda
+   (()
+    ;; FIXME
+    (error "not implemented"))
+   ((port)
+    (assert-output-port! port)
+    ;; XXX This is not host system independent
+    (write-char #\newline port))))
 
 ;;; Quasiquotation
 
@@ -845,3 +922,10 @@
 	(write-char (car format-list) buffer)
 	(loop (cdr format-list) objects))))))
 
+;;; Constants
+
+(define root (make-dynamic-point 0 #f #f #f))
+(define dynamic-point root)
+
+(define <param-set!> (vector #f))
+(define <param-convert> (vector #f))

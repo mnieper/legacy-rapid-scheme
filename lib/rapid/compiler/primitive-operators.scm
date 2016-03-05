@@ -42,9 +42,14 @@
 (define operator-pair? (make-operator 'pair?))
 (define operator-null? (make-operator 'null?))
 
+;; Symbols
+(define operator-symbol? (make-operator 'symbol?))
+(define operator-symbol->string (make-operator 'symbol->string))
+
 ;; Strings
 (define operator-string? (make-operator 'string?))
 (define operator-string->list (make-operator 'string->list))
+(define operator-list->string (make-operator 'list->string))
 
 ;; Characters
 (define operator-char? (make-operator 'char?))
@@ -69,7 +74,7 @@
 
 ;; Procedural records
 (define operator-make-rtd (make-operator 'make-rtd))
-(define operator-rtd-constructor (make-operator 'make-constructor))
+(define operator-rtd-constructor (make-operator 'rtd-constructor))
 (define operator-rtd-predicate (make-operator 'rtd-predicate))
 (define operator-rtd-accessor (make-operator 'rtd-accessor))
 (define operator-rtd-mutator (make-operator 'rtd-mutator))
