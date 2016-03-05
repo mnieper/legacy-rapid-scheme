@@ -34,6 +34,7 @@
    operator-null?
    operator-char?
    operator-string?
+   operator-string->list
    operator-make-vector
    operator-vector-ref
    operator-vector-set!

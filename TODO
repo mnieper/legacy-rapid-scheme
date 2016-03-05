@@ -1,3 +1,5 @@
+* Think of the primitive operations. Which interface is exposed?
+
 * Idea: One optimizing pass rewrites immediate applications into letrec*-syntax
 
 * When the macro expander copies code verbatim, set the context

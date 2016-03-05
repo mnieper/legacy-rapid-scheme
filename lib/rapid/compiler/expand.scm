@@ -82,7 +82,8 @@
        (mutator-location* (map-in-order (lambda (field)
 					  (if (= (length field) 3)
 					      (insert-location! (list-ref field 2))
-					      #f))))
+					      #f))
+					field*))
        (name-expression
 	(make-primitive-operation
 	 operator-make-rtd

@@ -48,6 +48,7 @@
    char? char=?
    ;; Strings
    string?
+   string->list
    ;; Vectors
    vector? make-vector vector-length vector-ref vector-set! vector list->vector
    ;; Exceptions

@@ -72,7 +72,7 @@
      (begin
        (%define-record-type
 	name
-	%constructor
+	(%constructor-name . field-name*)
 	%pred
 	(field-name %accessor-name %mutator-name ...) ...)
        (define (constructor-name . field-name*)
@@ -558,17 +558,39 @@
 (define (string? obj)
   (%string? obj))
 
+(define (string . char*)
+  (for-each assert-char! char*)
+  (%list->string char*))
+
 (define (assert-string! obj)
   (unless (string? obj)
     (error "not a string" obj)))
 
-;;; wchar_t? utf8 utf32
+(define (assert-string-index! k)
+  (unless (and (%fixnum? k) (not (%fxnegative? k)))
+    (error "invalid string index" k)))
+
 (define string->list
   (case-lambda
    ((string)
-  start end
-  
-  )))
+    (assert-string! string)
+    (%string->list string))
+   ((string start)
+    (assert-string! string)
+    (assert-string-index! start)
+    (%string->list string start))
+   ((string start end)
+    (assert-string! string)
+    (assert-string-index! start)
+    (assert-string-index! end)
+    (%string->list string start end))))
+
+(define (string-for-each proc . string*)
+  (assert-procedure! proc)
+  (%apply
+   for-each
+   proc
+   (map string->list string*)))
 
 ;;; Vectors
 
@@ -661,6 +683,91 @@
       list2
       (cons (car list1) (append (cdr list1) list2))))
 
+;;; Ports
+
+(define-record-type <eof-object>
+  (eof-object)
+  eof-object?)
+
+(define-record-type <input-port>
+  (make-input-port read-char peek-char char-ready?)
+  input-port?
+  (read-char port-read-char)
+  (peek-char port-peek-char)
+  (char-ready? port-char-ready?))
+
+(define-record-type <output-port>
+  (make-output-port write-char type aux)
+  output-port?
+  (write-char port-write-char)
+  (type output-port-type)
+  (aux output-port-aux))
+
+(define (assert-output-port! port)
+  (unless (output-port? port)
+    (error "not a textual output port" port)))
+
+(define (textual-port? obj)
+  (or (input-port? obj) (output-port? obj)))
+
+;; write-char
+
+(define write-char
+  (case-lambda
+   ((char)
+    ;; FIXME
+    (error "not implemented"))
+   ((char port)
+    (assert-char! char)
+    (assert-output-port! port)
+    ((port-write-char port) char))))
+
+(define write-string
+  (case-lambda
+   ((string)
+    ;; FIXME
+    (error "not implemented"))
+   ((string port)
+    (assert-string! string)
+    (assert-output-port! port)
+    (let ((write-char (port-write-char port)))
+      (string-for-each write-char string)))))
+
+(define (open-output-string)
+  (define pieces '())
+  (define (write-char char)
+    (assert-char! char)
+    (set! pieces
+	  (cons (string char) pieces)))
+  (define (get-output-string)
+    (%apply string-append (reverse pieces)))
+  (make-output-port write-char 'string-port get-output-string))
+
+(define (get-output-string port)
+  (unless (and (output-port? port) (eq? (output-port-type port) 'string-port))
+    (error "port was not created by ‘open-output-string’" port))
+  ((output-port-aux port)))
+
+;;; Output
+
+(define display
+  (case-lambda
+   ((obj)
+    ;; FIXME
+    (error "not implemented"))
+   ((obj port)
+    (assert-output-port! port)
+    (cond
+     ((string? obj)
+      (write-string obj port))
+     ((char? obj)
+      (write-char obj port))
+     ((symbol? obj)
+      (write-string (symbol->string obj)))
+     (else
+      ;; FIXME
+      (write-string "<unspecified>"))))))
+
 ;;; Quasiquotation
 
 (define-syntax unquote
@@ -737,3 +844,4 @@
        (else
 	(write-char (car format-list) buffer)
 	(loop (cdr format-list) objects))))))
+

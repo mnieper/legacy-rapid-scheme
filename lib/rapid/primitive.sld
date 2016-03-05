@@ -39,6 +39,7 @@
 	  char?
 	  
 	  string?
+	  string->list
 	  
 	  make-vector
 	  vector-ref

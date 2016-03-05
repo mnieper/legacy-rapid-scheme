@@ -285,15 +285,15 @@
     (let ((datum (syntax-datum syntax)))
       (unless (>= (length datum) 4)
 	(compile-error "bad define-record-type syntax" syntax))
-      form))
+      datum))
   (define name-syntax
     (let ((syntax (list-ref form 1)))
       (assert-identifier! syntax)
       syntax))
   (define-values (constructor-name-syntax field-name-syntax*)
     (let* ((syntax (list-ref form 2))
-	   (form (syntax-datum form)))
-      (unless (and (not (null? form) (list? form)))
+	   (form (syntax-datum syntax)))
+      (unless (and (not (null? form)) (list? form))
 	(compile-error "bad contructor" syntax))
       (for-each assert-identifier! form)
       (for-each assert-unique-field-name! form)
@@ -315,7 +315,7 @@
      (list-tail form 4)))
   (for-each
    (lambda (field-name-syntax)
-     (unless (table-ref/default field-name-set (syntax-datum field-name-syntax))
+     (unless (table-ref/default field-name-set (syntax-datum field-name-syntax) #f)
        (compile-error "not a field name" field-name-syntax)))
    field-name-syntax*)
   (expand-into-record-type-definition
@@ -378,6 +378,7 @@
    (char? (primitive operator-char?))
    ;; Strings
    (string? (primitive operator-string?))
+   (string->list (primitive operator-string->list))
    ;; TODO
    ;; Vectors
    (make-vector (primitive operator-make-vector))
