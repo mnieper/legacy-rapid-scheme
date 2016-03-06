@@ -198,7 +198,7 @@
 	    *transformer-environment*)
       identifier ...))))
 
-(define (sc-transformer-expander syntax)
+(define (er-macro-transformer-expander syntax)
   (define form
     (let ((datum (syntax-datum syntax)))
       (unless (= (length datum) 2)
@@ -207,15 +207,26 @@
   ;; XXX: eval may raise... should be propagated to compile-error
   ;; or internal error
   ;; Do we need compile-error, compile-not or can we simply use error?
-  (expand-into-transformer
-   (eval-transformer (syntax->datum (cadr syntax) unclose-form)
-		     compile-error compile-note
-		     syntax-datum derive-syntax
-		     datum->syntax
-		     syntax?)
-   syntax))
+  (define macro-environment (get-syntactic-environment))
+  (define er-macro-transformer
+    (eval-transformer (syntax->datum (cadr form) unclose-form)
+		      compile-error compile-note
+		      syntax-datum derive-syntax
+		      datum->syntax
+		      syntax?))
+  (define transformer
+   (lambda (syntax environment)
+     (define renames (make-table (make-eq-comparator)))
+     (define (rename identifier)
+       (table-intern! renames
+		      identifier
+		      (lambda ()
+			(make-syntactic-closure macro-environment '() identifier))))
+     (define (compare identifier1 identifier2)
+       (identifier=? environment identifier1 environment identifier2))
+     (er-macro-transformer syntax rename compare)))
+  (expand-into-transformer transformer syntax))
 
-;;; XXX
 (define (define-syntax-expander syntax)
   (define form
     (let ((datum (syntax-datum syntax)))
@@ -378,6 +389,7 @@
    ;; Sequencing
    (begin begin-expander)
    ;; Macros
+   (er-macro-transformer er-macro-transformer-expander)
    (syntax-rules syntax-rules-expander)
    (... ellipsis-expander)
    (_ underscore-expander)
