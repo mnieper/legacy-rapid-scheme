@@ -186,9 +186,9 @@
 
 ;;; Macro transformers
 (define *transformer-environment*
-  (environment '(scheme base)
-	       '(rapid lists)
-	       '(rapid compiler transform)))
+  (eval-environment '(scheme base)
+		    '(rapid lists)
+		    '(rapid compiler transform)))
 
 (define-syntax eval-transformer
   (syntax-rules ()
@@ -205,14 +205,17 @@
 	(compile-error "bad er-macro-transformer spec" syntax))
       datum))
   ;; XXX: eval may raise... should be propagated to compile-error
+  ;; or internal error
   ;; Do we need compile-error, compile-not or can we simply use error?
-  (eval-transformer (syntax->datum (cadr syntax) unclose-form)
-		    compile-error compile-note
-		    syntax-datum derive-syntax
-		    datum->syntax
-		    syntax?))
+  (expand-into-transformer
+   (eval-transformer (syntax->datum (cadr syntax) unclose-form)
+		     compile-error compile-note
+		     syntax-datum derive-syntax
+		     datum->syntax
+		     syntax?)
+   syntax))
 
-;;; XXX New
+;;; XXX
 (define (define-syntax-expander syntax)
   (define form
     (let ((datum (syntax-datum syntax)))
@@ -231,22 +234,10 @@
      (expand-syntax! (transformer syntax (get-syntactic-environment))))
    syntax))
 
-(define syntax-rules-expander (make-auxiliary-syntax 'syntax-rules))
 (define ellipsis-expander (make-auxiliary-syntax '...))
 (define underscore-expander (make-auxiliary-syntax '_))
 
-;; REWRITE INTO SYNTAX-RULES-EXPANDER!
-(define (define-syntax-expander syntax)
-  (define form
-    (let ((datum (syntax-datum syntax)))
-      (unless (= (length datum) 3)
-	(compile-error "bad define-syntax syntax" syntax))
-      datum))
-  (define keyword-syntax
-    (let ((syntax (list-ref form 1)))
-      (assert-identifier! syntax)
-      syntax))
-  (define transformer-syntax (list-ref form 2))
+(define (syntax-rules-expander transformer-syntax)
   (define-values (ellipsis-syntax literal-syntax* syntax-rule-syntax*)
     (let ((transformer (syntax-datum transformer-syntax)))
       (unless (and (not (null? transformer)) (list? transformer))
@@ -310,11 +301,7 @@
 				   syntax-rule-syntax*
 				   transformer-syntax
 				   macro-environment))
-  (expand-into-syntax-definition
-   keyword-syntax
-   (lambda (syntax)
-     (expand-syntax! (transformer syntax (get-syntactic-environment))))
-   syntax))
+  (expand-into-transformer transformer transformer-syntax))
 
 (define (define-record-type-expander syntax)
   (define field-name-set (make-table (make-eq-comparator)))

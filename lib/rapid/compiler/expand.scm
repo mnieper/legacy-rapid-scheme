@@ -38,7 +38,14 @@
        (vector-ref %binding 0)
        (expand-expression (vector-ref %binding 1))
        (vector-ref %binding 2))))
-  
+
+(define (expand-into-transformer transformer syntax)
+  ((%expand-into-transformer) transformer syntax))
+(define %expand-into-transformer
+  (make-parameter
+   (lambda (transformer syntax)
+     (compile-error "unexpected transformer spec" syntax))))  
+
 (define (expand-into-expression expression)
   ((%expand-into-expression) expression))
 (define %expand-into-expression (make-parameter #f))
@@ -198,6 +205,19 @@
        (map expand-%binding (get-bindings))
        (get-expressions)
        #f))))
+
+;; Expands a transformer
+(define (expand-transformer syntax)
+  (call-with-current-continuation
+   (lambda (return)
+     (parameterize ((current-context 'expression)
+		    (%expand-into-expression
+		     (lambda (expression)
+		       (compile-error "not a macro transformer" syntax)))
+		    (%expand-into-transformer
+		     (lambda (transformer syntax)
+		       (return transformer))))
+       (expand-syntax! syntax)))))
 
 ;; Expands an expression
 (define (expand-expression syntax)

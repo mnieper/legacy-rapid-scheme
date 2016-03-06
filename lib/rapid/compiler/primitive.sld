@@ -19,6 +19,7 @@
   (export primitive-environment)
   (import (scheme base)                  (scheme write) ;;; XXX
 	  (scheme write)
+	  (rename (scheme eval) (environment eval-environment))
 	  (rapid lists)
 	  (rapid table)
 	  (rapid sets)

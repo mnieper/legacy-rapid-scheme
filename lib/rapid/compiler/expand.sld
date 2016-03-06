@@ -18,10 +18,12 @@
 (define-library (rapid compiler expand)
   (export expand-top-level
 	  expand-body
+	  expand-transformer
 	  expand-expression
 	  expand-expression*
 	  expand-syntax!
 	  expand-into-expression
+	  expand-into-transformer
 	  expand-into-definition
 	  expand-into-syntax-definition
 	  expand-into-record-type-definition
