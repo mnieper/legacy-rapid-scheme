@@ -69,3 +69,9 @@
     (let ((value (failure)))
       (table-set-entries! table (cons (cons key value) entries))
       value))))
+
+(define (table-for-each proc table)
+  (map
+   (lambda (entry)
+     (proc (car entry) (cdr entry)))
+   (table-entries table)))
