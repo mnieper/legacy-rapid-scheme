@@ -86,10 +86,10 @@
 
 ;;; Syntactic bindings
 
-(define-record-type <binding>
+(define-record-type <syntactic-binding>
   (%make-binding syntax denotation scope reference-count)
   syntactic-binding?
-  (syntax binding-syntax)
+  (syntax syntactic-binding-syntax)
   (denotation binding-denotation)
   (scope binding-scope)
   (reference-count binding-reference-count binding-set-reference-count!))
@@ -104,7 +104,7 @@
   (binding-set-reference-count! binding (- (binding-reference-count binding) 1)))
 
 (define (binding-identifier binding)
-  (syntax-datum (binding-syntax binding)))
+  (syntax-datum (syntactic-binding-syntax binding)))
 
 (define (binding-reference! binding)
   (set-references! (cons binding (get-references)))
@@ -126,7 +126,7 @@
    ((%lookup-binding identifier)
     => (lambda (binding)
 	 (binding-reference! binding)
-	 (let ((new-binding (make-binding (binding-syntax binding)
+	 (let ((new-binding (make-binding (syntactic-binding-syntax binding)
 					  (binding-denotation binding))))
 	   (binding-reference! new-binding)
 	   new-binding)))
@@ -143,7 +143,7 @@
 
 (define (lookup-syntax! identifier)
   (cond
-   ((lookup-binding! identifier) => binding-syntax)
+   ((lookup-binding! identifier) => syntactic-binding-syntax)
    (else #f)))
 
 (define (lookup-denotation! identifier)
@@ -158,7 +158,7 @@
     => (lambda (binding)
 	 (unless (eq? (binding-denotation binding) denotation)
 	   (compile-note "initial binding was here"
-			 (binding-syntax binding))
+			 (syntactic-binding-syntax binding))
 	   (compile-error "identifier rebound with different denotation"
 			  identifier-syntax))))
    (else
@@ -204,7 +204,7 @@
   (map-for-each
    (lambda (identifier binding)
      (%insert-binding! (derive-syntax (binding-identifier binding)
-				      (binding-syntax binding))
+				      (syntactic-binding-syntax binding))
 		       (binding-denotation binding)))
    (with-syntactic-environment syntactic-environment (lambda () (get-bindings)))))
 

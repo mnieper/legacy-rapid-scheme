@@ -99,7 +99,6 @@
 
 ;;; Letrec* expressions
 
-;; XXX: Rename to letrec*-values-expression? Or binding-expression?
 (define (make-letrec*-expression bindings body syntax)
   (make-expression 'letrec*-expression (vector bindings body) syntax))
 (define (letrec*-expression? expression)
@@ -160,8 +159,15 @@
 
 (define make-formals
   (case-lambda
-   ((fixed-arguments syntax) (make-formals fixed-arguments #f syntax))
-   ((fixed-arguments rest-argument syntax) (%make-formals fixed-arguments rest-argument syntax))))
+   ((fixed-arguments syntax)
+    (make-formals fixed-arguments #f syntax))
+   ((fixed-arguments rest-argument syntax)
+    (%make-formals fixed-arguments rest-argument syntax))))
+
+(define (formals-locations formals)
+  (if (formals-rest-argument formals)
+      (cons (formals-rest-argument formals) (formals-fixed-arguments formals))
+      (formals-fixed-arguments formals)))
 
 ;;; Operators
 
@@ -175,13 +181,16 @@
 (define (expression->datum expression)
   (define counter 0)
   (define (gensym prefix)
-    (define symbol (string->symbol (string-append prefix "_" (number->string counter))))
+    (define symbol (string->symbol (string-append prefix
+						  "_"
+						  (number->string counter))))
     (set! counter (+ counter 1))
     symbol)
   (define identifier-table (make-table (make-eq-comparator)))
   (define (lookup-identifier! location)
     (define syntax (location-syntax location))
-    (define prefix (if syntax (symbol->string (syntax->datum syntax unclose-form)) "g_"))
+    (define prefix
+      (if syntax (symbol->string (syntax->datum syntax unclose-form)) "g_"))
     (table-intern! identifier-table location (lambda () (gensym prefix))))
   (define (formals->datum formals)
     (let loop ((fixed-arguments (formals-fixed-arguments formals)))
@@ -190,7 +199,8 @@
 	    (if rest-argument
 		(lookup-identifier! rest-argument)
 		'()))
-	  (cons (lookup-identifier! (car fixed-arguments)) (loop (cdr fixed-arguments))))))
+	  (cons (lookup-identifier! (car fixed-arguments))
+		(loop (cdr fixed-arguments))))))
   (let loop ((expression expression))
     (cond
        ;; References
@@ -215,7 +225,8 @@
       `(case-lambda ,@
 	(map
 	 (lambda (clause)
-	   `(,(formals->datum (clause-formals clause)) ,@(map loop (clause-body clause))))
+	   `(,(formals->datum (clause-formals clause))
+	     ,@(map loop (clause-body clause))))
 	 (procedure-clauses expression))))
      ;; Assignments
      ((assignment? expression)
@@ -226,7 +237,8 @@
       `(letrec*-values ,
 	(map
 	 (lambda (binding)
-	   `(,(formals->datum (binding-formals binding)) ,(loop (binding-expression binding))))
+	   `(,(formals->datum (binding-formals binding))
+	     ,(loop (binding-expression binding))))
 	 (letrec*-expression-bindings expression))
 	,@(map loop (letrec*-expression-body expression))))
      ;; Sequences
@@ -254,8 +266,104 @@
     ((bindings-aux (((x ...) expression) binding ...)
 		   (converted-binding ...))
      (bindings-aux (binding ...)
-		   (converted-binding ... ((make-formals `(,x ...) #f) expression))))
+		   (converted-binding ... ((make-formals `(,x ...) #f)
+					   expression))))
     ((bindings-aux (((x ... . y) expression) binding ...)
 		   (converted-binding ...))
      (bindings-aux (binding ...)
-		   (converted-binding ... ((make-formals `(,x ...) y #f) expression))))))
+		   (converted-binding ... ((make-formals `(,x ...) y #f)
+					   expression))))))
+
+;;; Mapping
+
+(define (expression-map transformer expression)
+  (cond
+   ((reference? expression) expression)
+   ((literal? expression) expression)
+   ((undefined? expression) expression)
+   ((procedure-call? expression)
+    (let* ((operator (transformer (procedure-call-operator expression)))
+	   (operands (map-in-order transformer (procedure-call-operands
+						expression))))
+      (make-procedure-call operator
+			   operands
+			   (expression-syntax expression))))
+   ((primitive-operation? expression)
+    (let* ((operands (map-in-order transformer
+				   (primitive-operation-operands expression))))
+      (make-primitive-operation (primitive-operation-operator expression)
+				operands
+				(expression-syntax expression))))
+   ((expression-procedure? expression)
+    (let* ((clauses
+	    (map-in-order
+	     (lambda (clause)
+	       (make-clause (clause-formals clause)
+			    (map-in-order transformer (clause-body clause))
+			    (clause-syntax clause)))
+	     (procedure-clauses expression))))
+      (make-procedure clauses (expression-syntax expression))))
+   ((assignment? expression)
+    (let* ((init (transformer (assignment-expression expression))))
+      (make-assignment (assignment-location expression)
+		       init
+		       (expression-syntax expression))))
+   ((letrec*-expression? expression)
+    (let* ((binding*
+	    (map-in-order
+	     (lambda (binding)
+	       (make-binding (binding-formals binding)
+			     (transformer (binding-expression binding))
+			     (binding-syntax binding)))
+	     (letrec*-expression-bindings expression)))
+	   (body (map-in-order transformer
+			       (letrec*-expression-body expression))))
+      (make-letrec*-expression binding* body (expression-syntax expression))))
+   ((sequence? expression)
+    (let* ((expression* (map-in-order transformer
+				      (sequence-expressions expression))))
+      (make-sequence expression* (expression-syntax expression))))
+   ((conditional? expression)
+    (let* ((test (transformer (conditional-test expression)))
+	   (consequent (transformer (conditional-consequent expression)))
+	   (alternate (transformer (conditional-alternate expression))))
+      (make-conditional test
+			consequent
+			alternate
+			(expression-syntax expression))))
+   (else
+    (error "unknown expression type" expression))))
+
+(define (expression-for-each visitor expression)
+  (begin
+    (cond
+     ((reference? expression))
+     ((literal? expression))
+     ((undefined? expression))
+     ((procedure-call? expression)
+      (visitor (procedure-call-operator expression))
+      (for-each visitor (procedure-call-operands expression)))
+     ((primitive-operation? expression)
+      (for-each visitor (primitive-operation-operands expression)))
+     ((expression-procedure? expression)
+      (for-each
+       (lambda (clause)
+	 (for-each visitor (clause-body clause)))
+       (procedure-clauses expression)))
+     ((assignment? expression)
+      (visitor (assignment-expression expression)))
+     ((letrec*-expression? expression)
+      (for-each
+       (lambda (binding)
+	 (visitor (binding-expression binding)))
+       (letrec*-expression-bindings expression))
+      (for-each visitor (letrec*-expression-body expression)))
+     ((sequence? expression)
+      (for-each visitor (sequence-expressions expression)))
+     ((conditional? expression)
+      (visitor (conditional-test expression))
+      (visitor (conditional-consequent expression))
+      (visitor (conditional-alternate expression)))
+     (else
+      (error "unknown expression type" expression))))
+  (if #f #f))

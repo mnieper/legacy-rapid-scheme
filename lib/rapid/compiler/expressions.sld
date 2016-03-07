@@ -16,28 +16,37 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid compiler expressions)
-  (export expression?
-	  make-reference reference?
-	  make-literal literal?
+  (export expression? expression-syntax
+	  make-reference reference? reference-location
+	  make-literal literal? literal-value
 	  make-undefined undefined?
 	  make-procedure-call procedure-call?
+	  procedure-call-operator procedure-call-operands
 	  make-primitive-operation primitive-operation?
-	  make-procedure expression-procedure?
-	  make-assignment assignment?
+	  primitive-operation-operator primitive-operation-operands
+	  make-procedure expression-procedure? procedure-clauses
+	  make-assignment assignment? assignment-location assignment-expression
 	  make-letrec*-expression letrec*-expression?
-	  make-sequence sequence?
+	  letrec*-expression-bindings letrec*-expression-body
+	  make-sequence sequence? sequence-expressions
 	  make-conditional conditional?
-	  make-location location?
-	  make-clause clause?
+	  conditional-test conditional-consequent conditional-alternate
+	  make-operator operator? operator-identifier
+	  make-location location? location-syntax
 	  make-binding binding?
+	  binding-formals binding-expression binding-syntax
 	  make-formals formals?
-	  make-operator operator?
+	  formals-fixed-arguments formals-rest-argument formals-syntax
+	  formals-locations
+	  make-clause clause? clause-formals clause-body clause-syntax
+	  expression-map expression-for-each
 	  expression->datum
 	  bindings)
   (import (scheme base)                    (scheme write) ;;;XXX
 	  (scheme case-lambda)
-	  (rapid comparators)               (rapid compiler syntax) ;;;XX
+	  (rapid lists)
+	  (rapid comparators)
 	  (rapid compiler syntactic-closures)
+	  (rapid compiler syntax)
 	  (rapid table))
   (include "expressions.scm"))
-

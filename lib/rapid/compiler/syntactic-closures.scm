@@ -106,5 +106,5 @@
 
 (define (sc-lookup-syntax! . arg*)
   (cond
-   ((apply sc-lookup-binding! arg*) => binding-syntax)
+   ((apply sc-lookup-binding! arg*) => syntactic-binding-syntax)
    (else #f)))

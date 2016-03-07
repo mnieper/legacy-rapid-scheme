@@ -1,9 +1,8 @@
 (import (rapid primitive))
 
-(define-syntax foo
-  (syntax-rules ()
-    ((foo (a . b))
-     (display "hi!\n"))))
+(define-values (f)
+  (case-lambda
+   ((x) (+ x x))))
 
-(foo (1 2 . 3))
+(display (f 1))
 (newline)
