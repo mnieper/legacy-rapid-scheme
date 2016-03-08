@@ -15,6 +15,9 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;;; TODO: Check whether number of values in continuation and set-values!
+;;; is always the correct one. 
+
 (define (cps-transform expression)
   (parameterize ((current-continuation (lambda (res) res))) ;; FIXME
     (%cps-transform expression)))
@@ -116,6 +119,7 @@
        (%cps-transform (assignment-expression expression))))))
 
 (define (cps-transform-multiple-assignment expression)
+  (define k (syntactic-continuation))
   (define formals (multiple-assignment-formals expression))
   (define new-formals
     (make-formals
@@ -123,22 +127,27 @@
      (and (formals-rest-argument formals)
 	  (make-location #f))
      #f))
-  (call-with-continuation
-   (lambda (k)
-     (parameterize
-	 ((current-continuation
-	   (make-procedure new-formals
-			   (append
-			    (map
-			     (lambda (argument new-argument)
-			       (make-assignment argument (make-reference new-argument #f) #f))
-			     (formals-arguments formals)
-			     (formals-arguments new-formals))
-			    ;; Handle optional rest argument
-			    ;; have to put k into the body... how?
-			    )
-			   #f)))
-       (%cps-transform (multiple-assignment-expression expression))))))
+  (parameterize
+      ((current-continuation
+	(make-procedure new-formals
+			(append
+			 (map
+			  (lambda (argument new-argument)
+			    (make-assignment argument (make-reference new-argument #f) #f))
+			  (formals-fixed-arguments formals)
+			  (formals-fixed-arguments new-formals))
+			 (if (formals-rest-argument formal)
+			     (list
+			      (make-assignment (formals-rest-argument formals)
+					       (make-reference
+						(formals-rest-argument new-formals)
+						#f)
+					       #f))
+			     '())
+			 (list
+			  (make-procedure-call k (list (make-undefined #f)))))
+			#f)))
+    (%cps-transform (multiple-assignment-expression expression))))
 
 (define (cps-transform-call/cc expression)
   (define operand (car (primitive-operation-operands expression)))
