@@ -103,8 +103,8 @@
 ;;;
 
 ;; TODO: Handle dummy vars!
-;; Are these those without any free-references? That is: without any dependencies!
-;; FIXME: dependencies do not work (output those)
+;; Are these those without any free-references? That is: without any dependencies
+;;     BEFORE adding dependencies due to ordering!
 (define (fix-letrec*-expression expression)
   (define bindings (letrec*-expression-bindings expression))
   (define proxy (make-location-proxy))

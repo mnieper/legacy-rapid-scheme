@@ -1,4 +1,4 @@
-* fixing-letrec does not work for the standard library rapid (vector_6 ...)
+* fixing-letrec does not work for the standard library rapid: loops forever
 
 * check for unreferenced bindings
 
