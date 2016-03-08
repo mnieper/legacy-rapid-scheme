@@ -55,6 +55,7 @@
       (expression-map %fix-letrec expression)))
    ((assignment? expression)
     (complex!)
+    (add-free-reference! (assignment-location expression))
     (expression-map %fix-letrec expression))
    ((letrec*-expression? expression)
     (fix-letrec*-expression expression))
@@ -64,17 +65,6 @@
     (error "unhandled expression type" expression))
    (else
     (expression-map %fix-letrec expression))))
-
-(define (make-binding-datum complex? free-references transformed-init)
-  (vector complex? free-references transformed-init (make-table (make-eq-comparator))))
-(define (binding-datum-complex? binding-datum)
-  (vector-ref binding-datum 0))
-(define (binding-datum-free-references binding-datum)
-  (vector-ref binding-datum 1))
-(define (binding-datum-transformed-init binding-datum)
-  (vector-ref binding-datum 2))
-(define (binding-datum-dependency-table binding-datum)
-  (vector-ref binding-datum 3))
 
 ;;; XXX
 ;; XXX: Remove me after debugging
@@ -102,6 +92,22 @@
 
 ;;;
 
+
+(define (make-binding-datum complex? free-references transformed-init)
+  (vector complex? free-references transformed-init (make-table (make-eq-comparator)) #f))
+(define (binding-datum-complex? binding-datum)
+  (vector-ref binding-datum 0))
+(define (binding-datum-free-references binding-datum)
+  (vector-ref binding-datum 1))
+(define (binding-datum-transformed-init binding-datum)
+  (vector-ref binding-datum 2))
+(define (binding-datum-dependency-table binding-datum)
+  (vector-ref binding-datum 3))
+(define (binding-datum-referenced? binding-datum)
+  (vector-ref binding-datum 4))
+(define (binding-datum-reference! binding-datum)
+  (vector-set! binding-datum 4 #f))
+
 ;; TODO: Handle dummy vars!
 ;; Are these those without any free-references? That is: without any dependencies
 ;;     BEFORE adding dependencies due to ordering!
@@ -124,6 +130,10 @@
     (table-ref/default (binding-datum-dependency-table (binding-datum binding1)) binding2 #f))
   (define (binding-free-references binding)
     (binding-datum-free-references (binding-datum binding)))
+  (define (binding-referenced? binding)
+    (binding-datum-referenced? (binding-datum binding)))
+  (define (binding-reference! binding)
+    (binding-datum-reference! (binding-datum binding)))
   (define (insert-location! location binding)
     (table-set! location-table location binding))
   (define (lookup-location location)
@@ -188,7 +198,8 @@
        (for-each
 	(lambda (location)
 	  (define location-binding (lookup-location location))
-	  (add-dependency! location-binding binding))
+	  (add-dependency! location-binding binding)
+	  (binding-reference! location-binding))
 	(binding-free-references binding))
        (when (binding-complex? binding)
 	 (when complex-binding
@@ -219,36 +230,45 @@
 		(cond
 		 ;; Single procedure binding
 		 ((lambda-binding? binding)
-		  (list
-		   (make-letrec-expression		    
+		  (if (binding-referenced? binding)		  
+		      (list
+		       (make-letrec-expression		    
+			(list
+			 (make-binding
+			  (binding-formals binding)
+			  (binding-transformed-init binding)
+			  (binding-syntax binding)))
+			(rest)
+			#f))
+		      (rest)))
+		 ;; Single simple binding
+		 ((not (binding-depends-on? binding binding))
+		  (cond
+		   ((binding-referenced? binding)
 		    (list
-		     (make-binding
-		      (binding-formals binding)
-		      (binding-transformed-init binding)
-		      (binding-syntax binding)))
-		    (rest)
-		    #f)))
-		;; Single simple binding
-		((not (binding-depends-on? binding binding))
-		 (list
-		  (make-let-values-expression
-		   (make-binding
-		    (binding-formals binding)
-		    (binding-transformed-init binding)
-		    (binding-syntax binding))
-		   (rest)
-		   #f)))
-		;; Single complex binding
-		(else
-		 (make-bindings
-		  binding
-		  (lambda ()
-		    (make-assignments binding rest))))))
+		     (make-let-values-expression
+		      (make-binding
+		       (binding-formals binding)
+		       (binding-transformed-init binding)
+		       (binding-syntax binding))
+		      (rest)
+		      #f)))
+		   ((binding-complex? binding)
+		    (cons (binding-transformed-init binding)
+			  (rest)))
+		   (else
+		    (rest))))
+		 ;; Single complex binding
+		 (else
+		  (make-bindings
+		   binding
+		   (lambda ()
+		     (make-assignments binding rest))))))
 	      ;; Multiple bindings
 	      (let loop ((binding* scc))
 		(if (null? binding*)
 		    (list
-		     (make-letrec-expression		    
+		     (make-letrec-expression
 		      (let loop ((binding* scc))
 			(if (null? binding*)
 			    '()
@@ -264,13 +284,19 @@
 		      (let loop ((binding* scc))
 			(if (null? binding*)
 			    (rest)
-			    (if (lambda-binding? (car binding*))
-				(loop (cdr binding*))
-				(make-assignments (car binding*)
-						  (lambda () (loop (cdr binding*)))))))
+			    (cond
+			     ((lambda-binding? (car binding*))
+			      (loop (cdr binding*)))
+			     ((binding-referenced? binding)
+			      (make-assignments (car binding*)
+						(lambda () (loop (cdr binding*)))))
+			     (else
+			      (cons
+			       (binding-transformed-init (car binding*))
+			       (loop (cdr binding*)))))))
 		      #f))
 		    (let ((binding (car binding*)))
-		      (if (lambda-binding? binding)
+		      (if (or (lambda-binding? binding) (not (binding-referenced? binding)))
 			  (loop (cdr binding*))
 			  (make-bindings (car binding*)
 					 (lambda () (loop (cdr binding*))))))))))))

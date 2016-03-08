@@ -1,5 +1,7 @@
 * fixing-letrec does not work for the standard library rapid: loops forever
 
+* Make ‘make-sequence’ and ‘make-letrec***-expression’ intelligent to reduce ‘begin’s.
+
 * check for unreferenced bindings
 
 * In our current implementation, errors in eval'd code won't propagate to the handlers of the
