@@ -17,7 +17,7 @@
 
 (define-library (rapid compiler fix-letrec)
   (export fix-letrec)
-  (import (scheme base)           (scheme write)  ;; XXX
+  (import (scheme base)           (scheme write)     ;; XXX 
 	  (rapid comparators)
 	  (rapid graphs)
 	  (rapid table)

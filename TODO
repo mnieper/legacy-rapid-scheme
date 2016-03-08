@@ -1,6 +1,7 @@
-* fixing-letrec does not work for the standard library rapid: loops forever
+* fixing-letrec: logging leads to infinte (?) loop
 
 * Make ‘make-sequence’ and ‘make-letrec***-expression’ intelligent to reduce ‘begin’s.
+    Likewise, binding constructs with no bindings
 
 * check for unreferenced bindings
 

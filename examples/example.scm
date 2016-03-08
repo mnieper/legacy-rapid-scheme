@@ -6,10 +6,8 @@
 ;(define-values (t) (f))
 ;t
 
-(define-values (y) (case-lambda (() 'z)))
-(define-values (x) (set! x 4))
+(define-values (f) y #;(case-lambda ((x) y)))
 
-(set! x 10)
-(set! x 11)
+(define-values (y) 10)
 
-(set! x 12)
+(f)

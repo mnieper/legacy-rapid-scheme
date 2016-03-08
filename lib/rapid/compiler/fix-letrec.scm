@@ -39,7 +39,7 @@
   (when proxy
     ((location-proxy-free-reference-adder proxy) location)))
 
-(define (%fix-letrec expression)    
+(define (%fix-letrec expression)
   (cond
    ((reference? expression)
     (add-free-reference! (reference-location expression))
@@ -106,11 +106,8 @@
 (define (binding-datum-referenced? binding-datum)
   (vector-ref binding-datum 4))
 (define (binding-datum-reference! binding-datum)
-  (vector-set! binding-datum 4 #f))
+  (vector-set! binding-datum 4 #t))
 
-;; TODO: Handle dummy vars!
-;; Are these those without any free-references? That is: without any dependencies
-;;     BEFORE adding dependencies due to ordering!
 (define (fix-letrec*-expression expression)
   (define bindings (letrec*-expression-bindings expression))
   (define proxy (make-location-proxy))
@@ -122,7 +119,6 @@
   (define (binding-complex? binding)
     (binding-datum-complex? (binding-datum binding)))
   (define (add-dependency! binding1 binding2)
-    (log binding1 "--->" binding2)
     (table-set! (binding-datum-dependency-table (binding-datum binding1)) binding2 #t))
   (define (binding-dependency-list binding)
     (table-keys (binding-datum-dependency-table (binding-datum binding))))
@@ -163,7 +159,7 @@
       (binding-transformed-init binding)
       (binding-syntax binding))
      (thunk)))
-    ;; Record locations for each binding
+  ;; Record locations for each binding
   (for-each
    (lambda (binding)
      (for-each
@@ -287,7 +283,7 @@
 			    (cond
 			     ((lambda-binding? (car binding*))
 			      (loop (cdr binding*)))
-			     ((binding-referenced? binding)
+			     ((binding-referenced? (car binding*))
 			      (make-assignments (car binding*)
 						(lambda () (loop (cdr binding*)))))
 			     (else
