@@ -131,6 +131,7 @@
 				 (expression-syntax expression))))))
        (%cps-transform (assignment-expression expression))))))
 
+;; SOMETHING DOES NOT WORK // SEE example.scm
 (define (cps-transform-multiple-assignment expression)
   (define k (syntactic-continuation))
   (define formals (multiple-assignment-formals expression))
