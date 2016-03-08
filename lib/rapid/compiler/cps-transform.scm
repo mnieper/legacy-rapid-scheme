@@ -116,9 +116,29 @@
        (%cps-transform (assignment-expression expression))))))
 
 (define (cps-transform-multiple-assignment expression)
-  ;; TODO
-
-  )
+  (define formals (multiple-assignment-formals expression))
+  (define new-formals
+    (make-formals
+     (map (lambda (argument) (make-location #f)) (formals-fixed-arguments formals))
+     (and (formals-rest-argument formals)
+	  (make-location #f))
+     #f))
+  (call-with-continuation
+   (lambda (k)
+     (parameterize
+	 ((current-continuation
+	   (make-procedure new-formals
+			   (append
+			    (map
+			     (lambda (argument new-argument)
+			       (make-assignment argument (make-reference new-argument #f) #f))
+			     (formals-arguments formals)
+			     (formals-arguments new-formals))
+			    ;; Handle optional rest argument
+			    ;; have to put k into the body... how?
+			    )
+			   #f)))
+       (%cps-transform (multiple-assignment-expression expression))))))
 
 (define (cps-transform-call/cc expression)
   (define operand (car (primitive-operation-operands expression)))
