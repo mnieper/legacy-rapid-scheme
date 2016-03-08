@@ -110,7 +110,7 @@
 
 ;;; Letrec* expressions
 
-(define (make-letrec*-expression bindings body syntax)
+(define (%make-letrec*-expression bindings body syntax)
   (make-expression 'letrec*-expression (vector bindings body) syntax))
 (define (letrec*-expression? expression)
   (eq? (expression-type expression) 'letrec*-expression))
@@ -118,10 +118,16 @@
   (vector-ref (expression-value expression) 0))
 (define (letrec*-expression-body expression)
   (vector-ref (expression-value expression) 1))
+(define (make-letrec*-expression bindings body syntax)
+  (cond
+   ((null? bindings)
+    (make-sequence body syntax))
+   (else
+    (%make-letrec*-expression bindings (flatten body) syntax))))
 
 ;;; Letrec expressions
 
-(define (make-letrec-expression bindings body syntax)
+(define (%make-letrec-expression bindings body syntax)
   (make-expression 'letrec-expression (vector bindings body) syntax))
 (define (letrec-expression? expression)
   (eq? (expression-type expression) 'letrec-expression))
@@ -129,10 +135,16 @@
   (vector-ref (expression-value expression) 0))
 (define (letrec-expression-body expression)
   (vector-ref (expression-value expression) 1))
+(define (make-letrec-expression bindings body syntax)
+  (cond
+   ((null? bindings)
+    (make-sequence body syntax))
+   (else
+    (%make-letrec-expression bindings (flatten body) syntax))))
 
 ;;; Let-values expression
 
-(define (make-let-values-expression binding body syntax)
+(define (%make-let-values-expression binding body syntax)
   (make-expression 'let-values-expression (vector binding body) syntax))
 (define (let-values-expression? expression)
   (eq? (expression-type expression) 'let-values-expression))
@@ -140,15 +152,22 @@
   (vector-ref (expression-value expression) 0))
 (define (let-values-expression-body expression)
   (vector-ref (expression-value expression) 1))
+(define (make-let-values-expression binding body syntax)
+  (%make-let-values-expression binding (flatten body) syntax))
 
 ;;; Sequencing
 
-(define (make-sequence expressions syntax)
+(define (%make-sequence expressions syntax)
   (make-expression 'sequence expressions syntax))
 (define (sequence? expression)
   (eq? (expression-type expression) 'sequence))
 (define (sequence-expressions expression)
   (expression-value expression))
+(define (make-sequence expressions syntax)
+  (define expression* (flatten expressions))
+  (if (= (length expression*) 1)
+      (car expression*)
+      (%make-sequence expression* syntax)))
 
 ;;; Conditionals
 
@@ -214,6 +233,17 @@
   (make-operator identifier) ;; TODO: add compiling instructions, etc.
   operator?
   (identifier operator-identifier))
+
+;;; Utility functions
+
+(define (flatten expression*)
+  (apply append (map
+		 (lambda (expression)
+		   (if (sequence? expression)
+		       (sequence-expressions expression)
+		       (list expression)))
+		 expression*)))
+   
 
 ;;; Expression datums
 
