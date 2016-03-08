@@ -72,14 +72,14 @@
     (cps-transform-assignment expression))
    ((multiple-assignment? expression)
     (cps-transform-multiple-assignment expression))
-
-   ;; ...
-   ;; TODO
-   ;;
-   ;; letrec, let-values, sequence, conditional
-   ;;
-   ;; ...
-   
+   ((letrec-expression? expression)
+    (cps-transform-letrec-expression expression))
+   ((let-values-expression? expression)
+    (cps-transform-let-values-expression expression))
+   ((sequence? expression)
+    (cps-transform-sequence expression))
+   ((conditional? expression)
+    (cps-transform-conditional expression))
    ;; The general recursive binding construct should have already been
    ;; eliminated by a previous fix-letrec pass.
    ((letrec*-expression? expression)
@@ -185,6 +185,51 @@
 		     (formals-syntax formals))
 		    a*
 		    (clause-syntax clause))))))
+
+(define (cps-transform-sequence expression)
+  (define k (syntactic-continuation))
+  (make-sequence
+   (parameterize ((current-continuation k))
+     (cps-transform-body (sequence-expressions expression)))
+   (expression-syntax expression)))
+
+(define (cps-transform-conditional expression)
+  (define k (syntactic-continuation))
+  (parameterize
+      ((current-continuation
+	(lambda (a)
+	  (parameterize ((current-continuation k))
+	    (make-conditional a
+			      (%cps-transform (conditional-consequent expression))
+			      (%cps-transform (conditional-alternate expression))
+			      (expression-syntax expression))))))
+    (%cps-transform (conditional-test expression))))
+
+(define (cps-transform-letrec-expression expression)
+  (define k (syntactic-continuation))
+  (parameterize
+      ((current-continuation
+	(lambda (b*)
+	  (make-letrec-expression
+	   b*
+	   (parameterize ((current-continuation k))
+	     (cps-transform-body (letrec-expression-body expression)))
+	   (expression-syntax expression)))))
+    (cps-transform* cps-transform-letrec-binding (letrec-expression-bindings expression))))
+
+(define (cps-transform-letrec-binding binding)
+  (call-with-continuation
+   (lambda (k)
+     (parameterize
+	 ((current-continuation
+	   (lambda (t)
+	     (k (make-binding (binding-formals binding) t (binding-syntax binding))))))
+       (cps-transform-procedure (binding-expression binding))))))
+  
+(define (cps-transform-let-values-expression expression)
+  ;; TODO: We want to remove the dependencies on values!
+  ;; can rewrite in lambda applications!
+  )
 
 (define (cps-transform-body body)
   (define k (syntactic-continuation))
