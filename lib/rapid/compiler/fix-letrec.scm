@@ -66,33 +66,6 @@
    (else
     (expression-map %fix-letrec expression))))
 
-;;; XXX
-;; XXX: Remove me after debugging
-(define (log . args)
-  (for-each
-   (lambda (arg)
-     (if (binding? arg)
-	 (log-binding arg)
-	 (display arg (current-error-port)))
-     (display " " (current-error-port))
-     #t)
-   args)
-  (newline (current-error-port))
-  #t)
-
-
-(define (log-binding binding)
-  (define location
-   (car (formals-fixed-arguments (binding-formals binding))))
-  (if (location-syntax location)
-      (display (syntax-datum (location-syntax location))
-	       (current-error-port))
-      (display location (current-error-port))))
-  
-
-;;;
-
-
 (define (make-binding-datum complex? free-references transformed-init)
   (vector complex? free-references transformed-init (make-table (make-eq-comparator)) #f))
 (define (binding-datum-complex? binding-datum)
@@ -170,7 +143,7 @@
 	(set-location-proxy! location proxy))
       (formals-locations (binding-formals binding))))
    bindings)
-  ;; Transforms inits and record free references and complexity
+  ;; Transform inits and record free references and complexity
   (for-each
    (lambda (binding)
      (define complex #f)
@@ -189,6 +162,10 @@
 	binding
 	(make-binding-datum complex? (table-keys free-references) transformed-init))))
    bindings)
+  (location-proxy-set-free-reference-adder!
+   proxy
+   (lambda (location)
+     (binding-reference! (lookup-location location))))
   ;; Record dependencies
   (let ((complex-binding #f))
     (for-each
@@ -204,7 +181,9 @@
 	   (add-dependency! complex-binding binding))
 	 (set! complex-binding binding)))
      bindings))
-  (let* ((sccs
+  (let* ((transformed-body
+	  (map-in-order %fix-letrec (letrec*-expression-body expression)))
+	 (sccs
 	  ;; Build dependency graph
 	  (graph-scc
 	   (map
@@ -218,8 +197,8 @@
        (define (rest) (loop (cdr sccs)))
        (if
 	(null? sccs)
-	;; Transform the body
-	(map-in-order %fix-letrec (letrec*-expression-body expression))
+	;; Finally the body
+	transformed-body
 	;; Transform next scc of bindings
 	(let ((scc (car sccs)))
 	  (if (= (length scc) 1)
@@ -243,7 +222,6 @@
 		 ((not (binding-depends-on? binding binding))
 		  (cond
 		   ((binding-referenced? binding)
-		    ;; somehow, value_174 is not being referenced
 		    (list
 		     (make-let-values-expression
 		      (make-binding
