@@ -1,9 +1,4 @@
-* fixing-letrec: logging leads to infinte (?) loop
-
-* Make ‘make-sequence’ and ‘make-letrec***-expression’ intelligent to reduce ‘begin’s.
-    Likewise, binding constructs with no bindings
-
-* check for unreferenced bindings
+* After cps-conversion, we should be able to fill make-error-object with life
 
 * In our current implementation, errors in eval'd code won't propagate to the handlers of the
   evaluating code, but call %exit #f... ---> eval sollte also gewrappt werden

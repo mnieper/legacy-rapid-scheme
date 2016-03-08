@@ -47,6 +47,8 @@
    operator-apply
    operator-call-with-current-continuation
    operator-make-error-object
+   operator-current-output-port
+   operator-write-char
    operator-exit
    operator-make-rtd
    operator-rtd-constructor

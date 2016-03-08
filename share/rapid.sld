@@ -62,6 +62,9 @@
    ;; Exceptions
    with-exception-handler raise raise-continuable error
    ;; Output
+   current-output-port
+   write-char
+   write-string
    display
    newline
    ;; Quasiquotation

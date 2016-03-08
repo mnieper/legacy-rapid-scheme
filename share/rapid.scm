@@ -399,7 +399,7 @@
     (error "at least one list has to be finite" list*)))
 
 (define (%map proc list)
-  (let loop ()
+  (let loop ((list list))
     (if (%null? list)
 	'()
 	(cons (proc (car list))
@@ -420,7 +420,7 @@
 	'()
 	(cons
 	 (%apply proc (%map car list*)) 
-	 (loop (cdr list*))))))
+	 (loop (%map cdr list*))))))
 
 (define (for-each proc . list*)
   (assert-procedure! proc)
@@ -431,7 +431,7 @@
       (if #f #f))
      (else
       (%apply proc (%map car list*))
-      (loop (cdr list*))))))
+      (loop (%map cdr list*))))))
 
 ;;; Parameter objects
 
@@ -770,6 +770,11 @@
   (type output-port-type)
   (aux output-port-aux))
 
+(define (make-system-output-port %output-port)
+  (define (write-char char)
+    (%write-char char %output-port))
+  (make-output-port write-char 'system-port #f))
+
 (define (assert-output-port! port)
   (unless (output-port? port)
     (error "not a textual output port" port)))
@@ -780,8 +785,7 @@
 (define write-char
   (case-lambda
    ((char)
-    ;; FIXME
-    (error "not implemented"))
+    (write-char char (current-output-port)))
    ((char port)
     (assert-char! char)
     (assert-output-port! port)
@@ -790,8 +794,7 @@
 (define write-string
   (case-lambda
    ((string)
-    ;; FIXME
-    (error "not implemented"))
+    (write-string string (current-output-port))) 
    ((string port)
     (assert-string! string)
     (assert-output-port! port)
@@ -820,8 +823,7 @@
 (define display
   (case-lambda
    ((obj)
-    ;; FIXME
-    (error "not implemented"))
+    (display obj (current-output-port)))
    ((obj port)
     (assert-output-port! port)
     (cond
@@ -830,6 +832,7 @@
      ((char? obj)
       (write-char obj port))
      ((symbol? obj)
+      ;; FIXME: How to display |...|-symbols?
       (write-string (%symbol->string obj)))
      (else
       ;; FIXME
@@ -838,11 +841,10 @@
 (define newline
   (case-lambda
    (()
-    ;; FIXME
-    (error "not implemented"))
+    (newline (current-output-port)))
    ((port)
     (assert-output-port! port)
-    ;; XXX This is not host system independent
+    ;; FIXME: The line ending depends on the host system
     (write-char #\newline port))))
 
 ;;; Quasiquotation
@@ -929,3 +931,5 @@
 
 (define <param-set!> (vector #f))
 (define <param-convert> (vector #f))
+
+(define current-output-port (make-parameter (make-system-output-port (%current-output-port))))

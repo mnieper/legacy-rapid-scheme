@@ -72,6 +72,10 @@
 ;; Process context
 (define operator-exit (make-operator 'exit))
 
+;; Input and output
+(define operator-current-output-port (make-operator 'current-output-port))
+(define operator-write-char (make-operator 'write-char))
+
 ;; Procedural records
 (define operator-make-rtd (make-operator 'make-rtd))
 (define operator-rtd-constructor (make-operator 'rtd-constructor))

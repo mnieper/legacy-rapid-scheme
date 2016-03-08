@@ -89,7 +89,7 @@
   (let loop ((fieldspecs fieldspecs) (i 0))
     (if (eq? (car fieldspecs) field)
 	i
-	(loop (cdr fieldspecs) (+ i 0)))))
+	(loop (cdr fieldspecs) (+ i 1)))))
 
 (define (make-rtd name . fieldspecs) ;; XXX Not the SRFI 99-convention
   (define-record-type <record>

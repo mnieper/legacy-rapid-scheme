@@ -444,6 +444,9 @@
    #; (call-with-values (primitive operator-call-with-values))
    ;; Exceptions
    (make-error-object (primitive operator-make-error-object))
+   ;; Input and output
+   (current-output-port (primitive operator-current-output-port))
+   (write-char (primitive operator-write-char))
    ;; Process context
    (exit (primitive operator-exit))
 

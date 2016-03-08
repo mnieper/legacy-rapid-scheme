@@ -66,6 +66,9 @@
 	  call-with-current-continuation
 	  apply
 
+	  current-output-port
+	  write-char
+	  
 	  exit
 
 	  make-rtd
