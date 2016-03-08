@@ -17,12 +17,13 @@
 
 (define (compile filename)
   (guard-compile
-   (define read-syntax (read-file filename #f #f))
-   (define program (generator->list read-syntax))
-   (define expression (expand-program program))
-   (define fixed-letrec (fix-letrec expression))
-   (define output (expression->datum expression))
-   (write '(import (rapid primitive)))
-   (newline)
-   (write output)
-   (newline)))
+   (let*
+       ((read-syntax (read-file filename #f #f))
+	(program (generator->list read-syntax))
+	(expression (expand-program program))
+	(expression (fix-letrec expression))
+	(output (expression->datum expression)))
+     (write '(import (rapid primitive)))
+     (newline)
+     (write output)
+     (newline))))

@@ -75,3 +75,7 @@
    (lambda (entry)
      (proc (car entry) (cdr entry)))
    (table-entries table)))
+
+(define (table-keys table)
+  (map car (table-entries table)))
+     

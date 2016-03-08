@@ -16,16 +16,14 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define current-location-proxy-table (make-parameter #f))
-(define current-free-references-table (make-parameter #f))
+(define current-complex! (make-parameter (lambda () #f)))
 (define (set-location-proxy! location location-proxy)
   (table-set! (current-location-proxy-table) location location-proxy))
+(define (complex!) ((current-complex!)))
 
 (define (fix-letrec expression)
   (parameterize ((current-location-proxy-table
-		  (make-table (make-eq-comparator)))
-		 (current-free-references-table
 		  (make-table (make-eq-comparator))))
-    ;; add current-complex!
     (%fix-letrec expression)))
 
 (define (make-location-proxy) (%make-location-proxy #f))
@@ -41,48 +39,121 @@
   (when proxy
     ((location-proxy-free-reference-adder proxy) location)))
 
-(define (find-free-references! expression)
-  (let loop ((expression expression))
-    (cond
-     ((letrec*-expression? expression)
-     ((reference? expression)
-      (add-free-reference! (reference-location expression)))
-     (else
-      (expression-for-each loop expression)))))
-
 (define (%fix-letrec expression)    
   (cond
-   ((reference? expression? expression)
-    (add-free-reference! (reference-location expression)))
+   ((reference? expression)
+    (add-free-reference! (reference-location expression))
+    expression)
    ((procedure-call? expression)
     (complex!)
     (expression-map %fix-letrec expression))
    ((primitive-operation? expression)
     (complex!)
     (expression-map %fix-letrec expression))
-   ((expression-procedure?
-     (parameterize ((current-complex! (lambda () #f)))
-       (expression-map %fix-letrec expression))))
-   ((assignment?
-     (complex!)
-     (expression-map %fix-letrec expression)))   
+   ((expression-procedure? expression)
+    (parameterize ((current-complex! (lambda () #f)))
+      (expression-map %fix-letrec expression)))
+   ((assignment? expression)
+    (complex!)
+    (expression-map %fix-letrec expression))
    ((letrec*-expression? expression)
     (fix-letrec*-expression expression))
+   ((or (let-values-expression? expression)
+	(letrec-expression? expression)
+	(multiple-assignment? expression))
+    (error "unhandled expression type" expression))
    (else
     (expression-map %fix-letrec expression))))
 
-(define (make-binding-datum binding complex? free-references transformed-init dependent-datums)
-  (vector binding complex? free-references transformed-init (make-table (make-eq-comparator))))
+(define (make-binding-datum complex? free-references transformed-init)
+  (vector complex? free-references transformed-init (make-table (make-eq-comparator))))
+(define (binding-datum-complex? binding-datum)
+  (vector-ref binding-datum 0))
+(define (binding-datum-free-references binding-datum)
+  (vector-ref binding-datum 1))
+(define (binding-datum-transformed-init binding-datum)
+  (vector-ref binding-datum 2))
+(define (binding-datum-dependency-table binding-datum)
+  (vector-ref binding-datum 3))
 
+;;; XXX
+;; XXX: Remove me after debugging
+(define (log . args)
+  (for-each
+   (lambda (arg)
+     (if (binding? arg)
+	 (log-binding arg)
+	 (display arg (current-error-port)))
+     (display " " (current-error-port))
+     #t)
+   args)
+  (newline (current-error-port))
+  #t)
+
+
+(define (log-binding binding)
+  (define location
+   (car (formals-fixed-arguments (binding-formals binding))))
+  (if (location-syntax location)
+      (display (syntax-datum (location-syntax location))
+	       (current-error-port))
+      (display location (current-error-port))))
+  
+
+;;;
+
+;; TODO: Handle dummy vars!
+;; Are these those without any free-references? That is: without any dependencies!
+;; FIXME: dependencies do not work (output those)
 (define (fix-letrec*-expression expression)
   (define bindings (letrec*-expression-bindings expression))
   (define proxy (make-location-proxy))
+  (define location-table (make-table (make-eq-comparator)))
   (define binding-datum-table (make-table (make-eq-comparator)))
-  (define location-table (make-table-eq-comparator))
+  (define (binding-datum binding) (table-ref binding-datum-table binding))
+  (define (binding-transformed-init binding)
+    (binding-datum-transformed-init (binding-datum binding)))
+  (define (binding-complex? binding)
+    (binding-datum-complex? (binding-datum binding)))
+  (define (add-dependency! binding1 binding2)
+    (log binding1 "--->" binding2)
+    (table-set! (binding-datum-dependency-table (binding-datum binding1)) binding2 #t))
+  (define (binding-dependency-list binding)
+    (table-keys (binding-datum-dependency-table (binding-datum binding))))
+  (define (binding-depends-on? binding1 binding2)
+    (table-ref/default (binding-datum-dependency-table (binding-datum binding1)) binding2 #f))
+  (define (binding-free-references binding)
+    (binding-datum-free-references (binding-datum binding)))
   (define (insert-location! location binding)
     (table-set! location-table location binding))
   (define (lookup-location location)
     (table-ref location-table location))
+  (define (lambda-binding? binding)
+    (and
+     (expression-procedure? (binding-transformed-init binding))
+     (or (formals-location (binding-formals binding))
+	 (compile-error "not enough values" (expression-syntax binding)))
+     #t))
+  (define (make-bindings binding thunk)
+    (let loop ((locations (formals-locations (binding-formals binding))))
+      (if (null? locations)
+	  (thunk)
+	  (list
+	   (make-let-values-expression
+	    (make-binding
+	     (make-formals (list (car locations)) #f)
+	     (make-undefined #f)
+	     #f)
+	    (loop (cdr locations))
+	    #f)))))
+  (define (make-assignments binding thunk)
+    (cons
+     (make-multiple-assignment
+      (binding-formals binding)
+      (binding-transformed-init binding)
+      (expression-syntax binding))
+     (thunk)))
+    ;; Record locations for each binding
   (for-each
    (lambda (binding)
      (for-each
@@ -90,7 +161,8 @@
 	(insert-location! location binding)
 	(set-location-proxy! location proxy))
       (formals-locations (binding-formals binding))))
-   (letrec*-expression-bindings expression))
+   bindings)
+  ;; Transforms inits and record free references and complexity
   (for-each
    (lambda (binding)
      (define complex #f)
@@ -99,6 +171,7 @@
        (table-set! free-references location #t))
      (define (complex!)
        (set! complex #t))
+     ;; FIXME: Use parameterize
      (location-proxy-set-free-reference-adder! proxy add-free-reference!)
      (let ((transformed-init
 	    (parameterize ((current-complex! complex!))
@@ -106,8 +179,9 @@
        (table-set!
 	binding-datum-table
 	binding
-	(make-binding-datum binding complex? free-references transformed-init))))
-   (letrec*-expression-bindings expression))
+	(make-binding-datum complex? (table-keys free-references) transformed-init))))
+   bindings)
+  ;; Record dependencies
   (let ((complex-binding #f))
     (for-each
      (lambda (binding)
@@ -120,47 +194,84 @@
 	 (when complex-binding
 	   (add-dependency! complex-binding binding))
 	 (set! complex-binding binding)))
-     (letrec*-expression-bindings expression)))
-  (let*
-      ((sccs
-	(graph-scc
-	 (map
-	  (lambda (binding)
-	    (cons binding (binding-dependency-list binding)))
-	  bindings)
-	 (make-eq-comparator))))
-    (let loop ((sccs sccs) (syntax (expression-syntax syntax)))
-      (define (rest) (loop (cdr sccs) #f))
-      (if
-       (null? sccs)
-       ;; Transform the body
-       (map-in-order %fix-letrec (letrec*-expression-body expression))
-       (let ((scc (car sccs)))
-	 (if (= (length scc) 1)
-	     (let ((binding (car scc)))
-	       (cond
-		;; Single procedure binding
-		((expression-procedure? (binding-transformed-init binding))
-		 (unless (formals-simple? (binding-formals binding))
-		   (compile-error "not enough values" (expression-syntax binding)))
-		 (make-letrec-expression
+     bindings))
+  (let* ((sccs
+	  ;; Build dependency graph
+	  (graph-scc
+	   (map
+	    (lambda (binding)
+	      (cons binding (binding-dependency-list binding)))
+	    bindings)
+	   (make-eq-comparator))))
+    ;; Construct transformed expression
+    (make-sequence
+     (let loop ((sccs sccs))
+       (define (rest) (loop (cdr sccs)))
+       (if
+	(null? sccs)
+	;; Transform the body
+	(map-in-order %fix-letrec (letrec*-expression-body expression))
+	;; Transform next scc of bindings
+	(let ((scc (car sccs)))
+	  (if (= (length scc) 1)
+	      ;; Single bindings
+	      (let ((binding (car scc)))
+		(cond
+		 ;; Single procedure binding
+		 ((lambda-binding? binding)
 		  (list
+		   (make-letrec-expression		    
+		    (list
+		     (make-binding
+		      (binding-formals binding)
+		      (binding-transformed-init binding)
+		      (binding-syntax binding)))
+		    (rest)
+		    #f)))
+		;; Single simple binding
+		((not (binding-depends-on? binding binding))
+		 (list
+		  (make-let-values-expression
 		   (make-binding
 		    (binding-formals binding)
 		    (binding-transformed-init binding)
-		    (expression-syntax binding)))
-		  (rest)
-		  syntax))
-		;; Single simple binding
-		((not (binding-depends-on? binding binding))
-		 (make-let-expression
-		  (make-binding
-		   (binding-formals binding)
-		   (binding-transformed-init binding)
-		   (expression-syntax binding))
-		  (rest)
-		  syntax))
+		    (binding-syntax binding))
+		   (rest)
+		   #f)))
 		;; Single complex binding
-		(else 'handle-with-assignment)))
-	     ('multiple-bindings)))
-       sccs))))
+		(else
+		 (make-bindings
+		  binding
+		  (lambda ()
+		    (make-assignments binding rest))))))
+	      ;; Multiple bindings
+	      (let loop ((binding* scc))
+		(if (null? binding*)
+		    (list
+		     (make-letrec-expression		    
+		      (let loop ((binding* scc))
+			(if (null? binding*)
+			    '()
+			    (let ((binding (car binding*)))
+			      (if (lambda-binding? binding)
+				  (cons
+				   (make-binding
+				    (binding-formals binding)
+				    (binding-transformed-init binding)
+				    (binding-syntax binding))
+				   (loop (cdr binding*)))
+				  (loop (cdr binding*))))))
+		      (let loop ((binding* scc))
+			(if (null? loop)
+			    (rest)
+			    (if (lambda-binding? (car binding*))
+				(loop (cdr binding*))
+				(make-assignments (car binding*)
+						  (lambda () (loop (cdr binding*)))))))
+		      #f))
+		    (let ((binding (car binding*)))
+		      (if (lambda-binding? binding)
+			  (loop (cdr binding*))
+			  (make-bindings (car binding*)
+					 (lambda () (loop (cdr binding*))))))))))))
+     (expression-syntax expression))))

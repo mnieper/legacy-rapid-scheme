@@ -97,6 +97,17 @@
 (define (assignment-expression assignment)
   (vector-ref (expression-value assignment) 1))
 
+;;; Multiple assignments
+
+(define (make-multiple-assignment formals expression syntax)
+  (make-expression 'multiple-assignment (vector formals expression) syntax))
+(define (multiple-assignment? expression)
+  (eq? (expression-type expression) 'multiple-assignment))
+(define (multiple-assignment-formals assignment)
+  (vector-ref (expression-value assignment) 0))
+(define (multiple-assignment-expression assignment)
+  (vector-ref (expression-value assignment) 1))
+
 ;;; Letrec* expressions
 
 (define (make-letrec*-expression bindings body syntax)
@@ -106,6 +117,28 @@
 (define (letrec*-expression-bindings expression)
   (vector-ref (expression-value expression) 0))
 (define (letrec*-expression-body expression)
+  (vector-ref (expression-value expression) 1))
+
+;;; Letrec expressions
+
+(define (make-letrec-expression bindings body syntax)
+  (make-expression 'letrec-expression (vector bindings body) syntax))
+(define (letrec-expression? expression)
+  (eq? (expression-type expression) 'letrec-expression))
+(define (letrec-expression-bindings expression)
+  (vector-ref (expression-value expression) 0))
+(define (letrec-expression-body expression)
+  (vector-ref (expression-value expression) 1))
+
+;;; Let-values expression
+
+(define (make-let-values-expression binding body syntax)
+  (make-expression 'let-values-expression (vector binding body) syntax))
+(define (let-values-expression? expression)
+  (eq? (expression-type expression) 'let-values-expression))
+(define (let-values-expression-binding expression)
+  (vector-ref (expression-value expression) 0))
+(define (let-values-expression-body expression)
   (vector-ref (expression-value expression) 1))
 
 ;;; Sequencing
@@ -168,6 +201,12 @@
   (if (formals-rest-argument formals)
       (cons (formals-rest-argument formals) (formals-fixed-arguments formals))
       (formals-fixed-arguments formals)))
+
+(define (formals-location formals)
+  (if (and (= (length (formals-fixed-arguments formals)) 1)
+	   (not (formals-rest-argument formals)))
+      (car (formals-fixed-arguments formals))
+      #f))
 
 ;;; Operators
 
@@ -232,15 +271,35 @@
      ((assignment? expression)
       `(set! ,(lookup-identifier! (assignment-location expression))
 	     ,(loop (assignment-expression expression))))
+     ;; Multiple assignments
+     ((multiple-assignment? expression)
+      `(set-values! ,(formals->datum (multiple-assignment-formals expression))
+		    ,(loop (multiple-assignment-expression expression))))
      ;; Letrec* expressions
      ((letrec*-expression? expression)
-      `(letrec*-values ,
-	(map
-	 (lambda (binding)
-	   `(,(formals->datum (binding-formals binding))
-	     ,(loop (binding-expression binding))))
-	 (letrec*-expression-bindings expression))
+      `(letrec*-values
+	,(map
+	  (lambda (binding)
+	    `(,(formals->datum (binding-formals binding))
+	      ,(loop (binding-expression binding))))
+	  (letrec*-expression-bindings expression))
 	,@(map loop (letrec*-expression-body expression))))
+     ;; Letrec expression
+     ((letrec-expression? expression)
+      `(letrec
+	   ,(map
+	     (lambda (binding)
+	       `(,(car (formals->datum (binding-formals binding)))
+		 ,(loop (binding-expression binding))))
+	     (letrec-expression-bindings expression))
+	 ,@(map loop (letrec-expression-body expression))))
+     ;; Let-values expression
+     ((let-values-expression? expression)
+      `(let-values
+	   (,(let ((binding (let-values-expression-binding expression)))
+	       `(,(formals->datum (binding-formals binding))
+		 ,(loop (binding-expression binding)))))
+	 ,@(map loop (letrec-expression-body expression))))
      ;; Sequences
      ((sequence? expression)
       `(begin ,@(map loop (sequence-expressions expression))))

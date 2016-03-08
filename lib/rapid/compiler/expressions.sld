@@ -26,8 +26,14 @@
 	  primitive-operation-operator primitive-operation-operands
 	  make-procedure expression-procedure? procedure-clauses
 	  make-assignment assignment? assignment-location assignment-expression
+	  make-multiple-assignment multiple-assignment?
+	  multiple-assignment-formals multiple-assignment-expression
 	  make-letrec*-expression letrec*-expression?
 	  letrec*-expression-bindings letrec*-expression-body
+	  make-letrec-expression letrec-expression?
+	  letrec-expression-bindings letrec-expression-body
+	  make-let-values-expression let-values-expression?
+	  let-values-expression-binding let-values-expression-body
 	  make-sequence sequence? sequence-expressions
 	  make-conditional conditional?
 	  conditional-test conditional-consequent conditional-alternate
@@ -37,7 +43,7 @@
 	  binding-formals binding-expression binding-syntax
 	  make-formals formals?
 	  formals-fixed-arguments formals-rest-argument formals-syntax
-	  formals-locations
+	  formals-locations formals-location
 	  make-clause clause? clause-formals clause-body clause-syntax
 	  expression-map expression-for-each
 	  expression->datum

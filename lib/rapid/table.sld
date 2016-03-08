@@ -3,7 +3,8 @@
 	  table-set!
 	  table-update!
 	  table-intern!
-	  table-for-each)
+	  table-for-each
+	  table-keys)
   (import (scheme base)
 	  (scheme case-lambda)
 	  (rapid comparators))

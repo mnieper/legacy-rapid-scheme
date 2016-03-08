@@ -17,10 +17,13 @@
 
 (define-library (rapid primitive)
   (export letrec*-values
+	  letrec
+	  let-values
 	  quote
 	  case-lambda
 	  if
 	  set!
+	  set-values!
 	  begin
 
 	  eq?

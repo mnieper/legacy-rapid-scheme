@@ -1,8 +1,7 @@
 (import (rapid primitive))
 
-(define-values (f)
-  (case-lambda
-   ((x) (+ x x))))
-
-(display (f 1))
-(newline)
+(define-values (x) (car (case-lambda (() y))))
+(define-values (f) (case-lambda (() (cons x y))))
+(define-values (y) (car (case-lambda (() x))))
+(define-values (t) (f))
+t
