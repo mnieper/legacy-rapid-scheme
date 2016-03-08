@@ -19,16 +19,29 @@
 ;;; is always the correct one. 
 
 (define (cps-transform expression)
-  (parameterize ((current-continuation (lambda (res) res))) ;; FIXME
+  (parameterize
+      ((current-continuation (lambda (a) a)))
     (%cps-transform expression)))
+
+	
+  #;(let ((c (make-location #f)))
+    (make-procedure
+     (list
+      (make-clause
+       (make-formals (list c) #f)
+       (list
+	(parameterize ((current-continuation (make-reference c #f)))
+	  (%cps-transform expression)))
+       #f))
+     #f))
 
 (define current-continuation (make-parameter #f))
 
 (define (call-continuation . expression*)
   (define k (current-continuation))
-  (if (proc? k)
+  (if (procedure? k)
       (apply k expression*)
-      (make-procedure-call k expressions* #f)))
+      (make-procedure-call k expression* #f)))
 
 (define (call-with-continuation proc)
   (let-values ((a* (call-with-current-continuation proc)))
@@ -36,7 +49,7 @@
 
 (define (syntactic-continuation)
   (define k (current-continuation))
-  (if (proc? k)
+  (if (procedure? k)
       (let ((c (make-location #f)))
 	(let-values ((body (k (make-reference c #f))))
 	  (make-continuation-procedure (list c) body)))
@@ -92,7 +105,7 @@
   (parameterize
       ((current-continuation
 	(lambda (t*)
-	  (make-procedure-call (car t*) (cons k (cdr t*)) (expression-syntax syntax)))))   
+	  (make-procedure-call (car t*) (cons k (cdr t*)) (expression-syntax expression)))))   
     (cps-transform-term* (cons (procedure-call-operator expression)
 			       (procedure-call-operands expression)))))
 
@@ -129,24 +142,28 @@
      #f))
   (parameterize
       ((current-continuation
-	(make-procedure new-formals
-			(append
-			 (map
-			  (lambda (argument new-argument)
-			    (make-assignment argument (make-reference new-argument #f) #f))
-			  (formals-fixed-arguments formals)
-			  (formals-fixed-arguments new-formals))
-			 (if (formals-rest-argument formal)
-			     (list
-			      (make-assignment (formals-rest-argument formals)
-					       (make-reference
-						(formals-rest-argument new-formals)
-						#f)
-					       #f))
-			     '())
-			 (list
-			  (make-procedure-call k (list (make-undefined #f)))))
-			#f)))
+	(make-procedure
+	 (list
+	  (make-clause
+	   new-formals
+	   (append
+	    (map
+	     (lambda (argument new-argument)
+	       (make-assignment argument (make-reference new-argument #f) #f))
+	     (formals-fixed-arguments formals)
+	     (formals-fixed-arguments new-formals))
+	    (if (formals-rest-argument formals)
+		(list
+		 (make-assignment (formals-rest-argument formals)
+				  (make-reference
+				   (formals-rest-argument new-formals)
+				   #f)
+				  #f))
+		'())
+	    (list
+	     (make-procedure-call k (list (make-undefined #f)))))
+	   #f))
+	 #f)))
     (%cps-transform (multiple-assignment-expression expression))))
 
 (define (cps-transform-call/cc expression)
@@ -157,7 +174,7 @@
 		 ((current-continuation
 		   (lambda (a)
 		     (make-procedure-call a
-					  (list (make-reference c) (make-reference c))
+					  (list (make-reference c #f) (make-reference c #f))
 					  (expression-syntax expression)))))
 	       (%cps-transform expression))))
      (make-continuation-procedure (list c) (list t)))))
@@ -177,8 +194,8 @@
    (let ((c (make-location #f)))
      (let ((a*
 	    (parameterize
-		((current-continuation (make-reference c)))
-	      (transform-body (clause-body clause)))))
+		((current-continuation (make-reference c #f)))
+	      (cps-transform-body (clause-body clause)))))
        (make-clause (make-formals
 		     (cons c (formals-fixed-arguments formals))
 		     (formals-rest-argument formals)
@@ -227,9 +244,19 @@
        (cps-transform-procedure (binding-expression binding))))))
   
 (define (cps-transform-let-values-expression expression)
-  ;; TODO: We want to remove the dependencies on values!
-  ;; can rewrite in lambda applications!
-  )
+  (define k (syntactic-continuation))
+  (define binding (let-values-expression-binding expression))
+  (parameterize
+      ((current-continuation
+	(make-procedure
+	 (list
+	  (make-clause
+	   (binding-formals binding)
+	   (parameterize ((current-continuation k))
+	     (cps-transform-body (let-values-expression-body expression)))
+	   (expression-syntax expression)))
+	 #f)))
+    (%cps-transform (binding-expression binding))))
 
 (define (cps-transform-body body)
   (define k (syntactic-continuation))
@@ -254,7 +281,7 @@
   (let cps-transform* ((x* x*))
     (call-with-continuation
      (lambda (k)
-       (if (null? e*)
+       (if (null? x*)
 	   (k '())
 	   (parameterize
 	       ((current-continuation
@@ -263,8 +290,8 @@
 		       ((current-continuation
 			 (lambda (a*)
 			   (k (cons a a*)))))		  
-		     (cps-transform* (cdr e*))))))				       
-	     (transformer (car e*))))))))
+		     (cps-transform* (cdr x*))))))				       
+	     (transformer (car x*))))))))
   
 
 (define (cps-transform-term* e*)

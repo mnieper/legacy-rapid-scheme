@@ -26,5 +26,5 @@
 	  (rapid compiler read)
 	  (rapid compiler programs)
 	  (rapid compiler fix-letrec)
-	  #;(rapid compiler cps-transform))
+	  (rapid compiler cps-transform))
   (include "compile.scm"))

@@ -22,7 +22,7 @@
 	(program (generator->list read-syntax))
 	(expression (expand-program program))
 	(expression (fix-letrec expression))
-	#;(expression (cps-transform expression))
+	(expression (cps-transform expression))
 	(output (expression->datum expression)))
      (write '(import (rapid primitive)))
      (newline)
