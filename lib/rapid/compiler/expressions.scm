@@ -99,7 +99,7 @@
 
 ;;; Multiple assignments
 
-(define (make-multiple-assignment formals expression syntax)
+(define (%make-multiple-assignment formals expression syntax)
   (make-expression 'multiple-assignment (vector formals expression) syntax))
 (define (multiple-assignment? expression)
   (eq? (expression-type expression) 'multiple-assignment))
@@ -107,6 +107,11 @@
   (vector-ref (expression-value assignment) 0))
 (define (multiple-assignment-expression assignment)
   (vector-ref (expression-value assignment) 1))
+(define (make-multiple-assignment formals expression syntax)
+  (define location (formals-location formals))
+  (if location
+      (make-assignment location expression syntax)
+      (%make-multiple-assignment formals expression syntax)))
 
 ;;; Letrec* expressions
 
@@ -397,6 +402,11 @@
       (make-assignment (assignment-location expression)
 		       init
 		       (expression-syntax expression))))
+   ((multiple-assignment? expression)
+    (let* ((init (transformer (multiple-assignment-expression expression))))
+      (make-multiple-assignment (multiple-assignment-formals expression)
+				init
+				(expression-syntax expression))))
    ((letrec*-expression? expression)
     (let* ((binding*
 	    (map-in-order
@@ -408,6 +418,26 @@
 	   (body (map-in-order transformer
 			       (letrec*-expression-body expression))))
       (make-letrec*-expression binding* body (expression-syntax expression))))
+   ((letrec-expression? expression)
+    (let* ((binding*
+	    (map-in-order
+	     (lambda (binding)
+	       (make-binding (binding-formals binding)
+			     (transformer (binding-expression binding))
+			     (binding-syntax binding)))
+	     (letrec-expression-bindings expression)))
+	   (body (map-in-order transformer
+			       (letrec-expression-body expression))))
+      (make-letrec-expression binding* body (expression-syntax expression))))
+   ((let-values-expression? expression)
+    (let* ((binding
+	    (let ((binding (let-values-expression-binding expression)))
+	      (make-binding (binding-formals binding)
+			    (transformer (binding-expression binding))
+			    (binding-syntax binding))))
+	   (body (map-in-order transformer
+			       (let-values-expression-body expression))))
+      (make-let-values-expression binding body (expression-syntax expression))))
    ((sequence? expression)
     (let* ((expression* (map-in-order transformer
 				      (sequence-expressions expression))))
@@ -441,12 +471,14 @@
        (procedure-clauses expression)))
      ((assignment? expression)
       (visitor (assignment-expression expression)))
+     ;; FIXME: Add multiple-assignment
      ((letrec*-expression? expression)
       (for-each
        (lambda (binding)
 	 (visitor (binding-expression binding)))
        (letrec*-expression-bindings expression))
       (for-each visitor (letrec*-expression-body expression)))
+     ;; FIXME: Add letrec-expression, let-values-expression
      ((sequence? expression)
       (for-each visitor (sequence-expressions expression)))
      ((conditional? expression)

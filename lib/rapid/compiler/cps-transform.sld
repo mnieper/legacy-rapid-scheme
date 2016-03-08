@@ -15,16 +15,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-library (rapid compiler compile)
-  (export compile)
+(define-library (rapid compiler cps-transform)
+  (export cps-transform)
   (import (scheme base)
-	  (scheme write)
-	  (rapid generators)
-	  (rapid compiler error)
-	  (rapid compiler syntax)
-	  (rapid compiler expressions)
-	  (rapid compiler read)
-	  (rapid compiler programs)
-	  (rapid compiler fix-letrec)
-	  #;(rapid compiler cps-transform))
-  (include "compile.scm"))
+	  (rapid compiler expressions))
+  (include "cps-transform.scm"))
