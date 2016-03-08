@@ -151,7 +151,7 @@
      (make-multiple-assignment
       (binding-formals binding)
       (binding-transformed-init binding)
-      (expression-syntax binding))
+      (binding-syntax binding))
      (thunk)))
     ;; Record locations for each binding
   (for-each
@@ -262,7 +262,7 @@
 				   (loop (cdr binding*)))
 				  (loop (cdr binding*))))))
 		      (let loop ((binding* scc))
-			(if (null? loop)
+			(if (null? binding*)
 			    (rest)
 			    (if (lambda-binding? (car binding*))
 				(loop (cdr binding*))
