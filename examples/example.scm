@@ -6,8 +6,11 @@
 ;(define-values (t) (f))
 ;t
 
-(define-values (f) y #;(case-lambda ((x) y)))
+(define-values (u v) (car))
 
-(define-values (y) 10)
+(define-values (a) (u v))
+(define-values (f)
+  (case-lambda
+   (args a)))
 
-(f)
+(f 1)

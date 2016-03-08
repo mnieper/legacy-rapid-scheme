@@ -108,6 +108,8 @@
 (define (binding-datum-reference! binding-datum)
   (vector-set! binding-datum 4 #t))
 
+
+;; Problem: body may reference variable!!!
 (define (fix-letrec*-expression expression)
   (define bindings (letrec*-expression-bindings expression))
   (define proxy (make-location-proxy))
@@ -226,7 +228,7 @@
 		(cond
 		 ;; Single procedure binding
 		 ((lambda-binding? binding)
-		  (if (binding-referenced? binding)		  
+		  (if (binding-referenced? binding)
 		      (list
 		       (make-letrec-expression		    
 			(list
@@ -241,6 +243,7 @@
 		 ((not (binding-depends-on? binding binding))
 		  (cond
 		   ((binding-referenced? binding)
+		    ;; somehow, value_174 is not being referenced
 		    (list
 		     (make-let-values-expression
 		      (make-binding
