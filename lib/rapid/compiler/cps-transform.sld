@@ -17,6 +17,6 @@
 
 (define-library (rapid compiler cps-transform)
   (export cps-transform)
-  (import (scheme base)
+  (import (scheme base)   (scheme write) ;; XXX
 	  (rapid compiler expressions))
   (include "cps-transform.scm"))

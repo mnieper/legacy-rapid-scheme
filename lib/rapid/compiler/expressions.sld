@@ -16,7 +16,7 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-library (rapid compiler expressions)
-  (export expression? expression-syntax
+  (export expression? expression-syntax                   
 	  make-reference reference? reference-location
 	  make-literal literal? literal-value
 	  make-undefined undefined?

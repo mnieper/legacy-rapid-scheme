@@ -41,6 +41,13 @@
   (eq? (expression-type expression) 'literal))
 (define (literal-value expression)
   (expression-value expression))
+(define (self-evaluating? value)
+  (or (number? value)
+      (string? value)
+      (char? value)
+      (vector? value)
+      (bytevector? value)
+      (boolean? value)))
 
 ;;; Undefined values
 
@@ -264,7 +271,7 @@
   (define (lookup-identifier! location)
     (define syntax (location-syntax location))
     (define prefix
-      (if syntax (symbol->string (syntax->datum syntax unclose-form)) "g_"))
+      (if syntax (symbol->string (syntax->datum syntax unclose-form)) "g"))
     (table-intern! identifier-table location (lambda () (gensym prefix))))
   (define (formals->datum formals)
     (let loop ((fixed-arguments (formals-fixed-arguments formals)))
@@ -282,7 +289,10 @@
       (lookup-identifier! (reference-location expression)))
      ;; Literals
      ((literal? expression)
-      `(quote ,(literal-value expression)))
+      (let ((value (literal-value expression)))
+	(if (self-evaluating? value)
+	    value
+	    `(quote ,value))))
      ;; Undefined values
      ((undefined? expression)
       `(if #f #f))
