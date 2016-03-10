@@ -1,3 +1,13 @@
+* Move the "error" procedure to (rapid primitive).
+
+* Add a "set-exception-handler!" to (rapid primitive).
+
+* Remove "make-error-object" from (rapid primitive).
+
+* Remove all checks (like number of args for procs, etc.) to the backends
+
+* Implement letrec-checker (using Dybvig...)
+
 * After cps-conversion, we should be able to fill make-error-object with life
 
 * In our current implementation, errors in eval'd code won't propagate to the handlers of the
