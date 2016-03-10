@@ -18,10 +18,14 @@
 ;;; TODO: Check whether number of values in continuation and set-values!
 ;;; is always the correct one. 
 
-;;; TODO: Write/improve convenience functions (like make-continuation-procedure)
+;; TODO: Write: wcm ccm
+;; TODO: Add flags, marks argument to procedures generated/used in (rapid primitive)
+;; TODO: Use syntactic and procedural flags and marks
+;; Flags can be checked and materialized
+;; Marks can be materialized (how?) <- if used multiple times (how often?)
 
 (define (cps-transform expression)
-  (transform expression (lambda (a) a)))
+  (transform expression (lambda (a) a) (make-literal #f #f) (make-literal '() #f)))
 
 #;(let ((c (make-location #f)))
     (make-procedure
@@ -33,6 +37,267 @@
 	  (%cps-transform expression)))
        #f))
      #f))
+
+(define (transform expression k flag marks)
+  (cond
+   ((atomic? expression)
+    ((continuation-procedure k) expression))
+   ((procedure-call? expression)
+    (transform-procedure-call expression k))
+   ((primitive-operation? expression)
+    (case (operator-identifier (primitive-operation-operator expression))
+      ((call-with-current-continuation)
+       (transform-call/cc expression k))
+      ((apply)
+       (transform-apply expression k))
+      (else
+       (transform-primitive-operation expression k))))
+   ((expression-procedure? expression)
+    (transform-procedure expression k))
+   ((assignment? expression)
+    (transform-assignment expression k))
+   ((multiple-assignment? expression)
+    (transform-multiple-assignment expression k))
+   ((letrec-expression? expression)
+    (transform-letrec-expression expression k))
+   ((let-values-expression? expression)
+    (transform-let-values-expression expression k))
+   ((sequence? expression)
+    (transform-sequence expression k))
+   ((conditional? expression)
+    (transform-conditional expression k))
+   (else
+    (error "unhandled expression type" expression))))
+
+(define (transform-procedure-call expression k flag marks)
+  (transform* (cons (procedure-call-operator expression)
+		    (procedure-call-operands expression))
+	      (lambda (t*)
+		(make-procedure-call (car t*)
+				     (append (list (continuation-expression k)
+						   flag
+						   marks)
+					     (cdr t*))
+				     (expression-syntax epression)))
+	      (make-literal #f #f) marks))
+
+(define (transform-apply expression k flag marks)
+  (define operands (primitive-operation-operands expression))
+  (transform* operands
+	      (lambda (a*)
+		(make-primitive-operation
+		 (primitive-operation-operator expression)
+		 (append
+		  (list (car a*) (continuation-expression k) flag marks)
+		  (cdr a*))
+		 (expression-syntax expression)))
+	      (make-literal #f #f) marks))
+
+(define (transform-primitive-operation expression k flag marks)
+  (transform* (primitive-operation-operands expression)
+	      (lambda (t*)
+		((continuation-procedure k)
+		 (make-primitive-operation (primitive-operation-operator expression)
+					   t*
+					   (expression-syntax expression))))
+	      (make-literal #f #f) marks))
+
+(define (transform-assignment expression k flag marks)
+  (transform (assignment-expression expression)
+	     (lambda (t)
+	       ((continuation-procedure k)
+		(make-assignment (assignment-location expression)
+				 t
+				 (expression-syntax expression))))
+	     (make-literal #f #f) marks))
+
+(define (transform-multiple-assignment expression k flag marks)
+  (define formals (multiple-assignment-formals expression))
+  (define new-formals
+    (make-formals
+     (map (lambda (argument) (make-location #f)) (formals-fixed-arguments formals))
+     (and (formals-rest-argument formals)
+	  (make-location #f))
+     #f))
+  (transform (multiple-assignment-expression expression)
+	     (%generate-procedure
+	      (make-clause
+	       new-formals
+	       (append
+		(map
+		 (lambda (argument new-argument)
+		   (make-assignment argument (make-reference new-argument #f) #f))
+		 (formals-fixed-arguments formals)
+		 (formals-fixed-arguments new-formals))
+		(if (formals-rest-argument formals)
+		    (list
+		     (make-assignment (formals-rest-argument formals)
+				      (make-reference
+				       (formals-rest-argument new-formals)
+				       #f)
+				      #f))
+		    '()))
+		(list
+		 (make-procedure-call (continuation-expression k)
+				      (list (make-undefined #f))
+				      #f))))
+	     (make-literal #f #f) marks))
+
+#;(define (transform-call/cc expression k)
+  (define operand (car (primitive-operation-operands expression)))
+  (let ((c (make-location #f)))
+    ((continuation-procedure k)
+     (make-continuation-procedure (list c)
+				  (list (transform operand
+						   (lambda (a)
+						     (make-procedure-call
+						      a
+						      (list (make-reference c #f)
+							    (make-reference c #f))
+						      (expression-syntax expression)))))))))
+
+;; TODO: Check whether the following is too complicated
+;; and whether we can use the above!
+
+(define (transform-call/cc expression k flag marks)
+  (transform (car (primitive-operation-operands expression))
+	     (lambda (a)	       
+	       (let ((c (make-location #f)))
+		 (make-procedure-call
+		  (generate-procedure
+		   (list c)
+		   #f
+		   (list
+		    (make-procedure-call a
+					 (list (make-reference c #f)
+					       (let ((%c (make-location #f))
+						     (%f (make-location #f))
+						     (%m* (make-location #f))
+						     (x* (make-location #f)))
+						 (generate-procedure
+						  (list %c %f %m*) x*
+						  (list
+						   (make-primitive-operation
+						    operator-apply
+						    (list
+						     (make-reference c #f)
+						     (make-reference x* #f))
+						    #f)))))
+					 (expression-syntax expression))))
+		  (list (continuation-expression k))
+		  #f)))
+	     flag marks))
+
+(define (transform-procedure expression k flag marks)
+  (do-transform* transform-procedure-clause
+		 (procedure-clauses expression)
+		 (lambda (c*)
+		   ((continuation-procedure k)
+		    (make-procedure c* (expression-syntax expression))))
+		 flag marks))
+
+(define (transform-procedure-clause clause k flag marks)
+  (define formals (clause-formals clause))
+  (let ((c (make-location #f)) (f (make-location #f)) (m* (make-location #f)))
+    ((continuation-procedure k)
+     (make-clause (make-formals
+		   (append (list c f m*) (formals-fixed-arguments formals))
+		   (formals-rest-argument formals)
+		   (formals-syntax formals))
+		  (transform-body (clause-body clause)
+				  (make-reference c #f)
+				  (make-reference f #f)
+				  (make-reference m* #f))
+		  (clause-syntax clause)))))
+
+(define (transform-sequence expression k flag marks)
+  (make-sequence
+   (transform-body (sequence-expressions expression) k flag marks)
+   (expression-syntax expression)))
+
+(define (transform-conditional expression k flag marks)
+  (let ((c (make-location #f)))
+    (make-procedure-call
+     (generate-procedure
+      (list c)
+      #f
+      (list
+       (transform (conditional-test expression)
+		  (lambda (a)
+		    (make-conditional a				 
+				      (transform (conditional-consequent expression)
+						 (make-reference c #f)
+						 flag marks)
+				      (transform (conditional-alternate expression)
+						 (make-reference c #f)
+						 flag marks)
+				      (expression-syntax expression)))
+		  (make-literal #f #f) marks)))
+     (list (continuation-expression k))
+     #f)))
+
+(define (transform-letrec-expression expression k flag marks)
+  (do-transform* transform-letrec-binding
+		 (letrec-expression-bindings expression)
+		 (lambda (b*)
+		   (make-letrec-expression
+		    b*
+		    (transform-body (letrec-expression-body expression) k flag marks)
+		    (expression-syntax expression)))
+		 (make-literal #f #f) marks))
+
+(define (transform-letrec-binding binding k flag marks)
+  (transform-procedure (binding-expression binding)
+		       (lambda (t)
+			 ((continuation-procedure k)
+			  (make-binding (binding-formals binding)
+					t
+					(binding-syntax binding))))
+		       flag marks))
+  
+(define (transform-let-values-expression expression k flag marks)
+  (define binding (let-values-expression-binding expression))
+  (transform (binding-expression binding)
+	     (%generate-procedure
+	      (make-clause
+	       (binding-formals binding)
+	       (transform-body (let-values-expression-body expression) k flag marks)
+	       (expression-syntax expression)))
+	     (make-literal #f #f) marks))
+
+(define (transform-body body k flag marks)
+  (let-values
+      ((body
+	(let loop ((body body))
+	  (let ((e (car body)) (e* (cdr body)))
+	    (transform e
+		       (if (null? e*)
+			   k
+			   (lambda (a)
+			     (let-values ((a* (loop e*)))
+			       (if (atomic? a)
+				   (apply values a*)
+				   (apply values a a*)))))
+		       (if (null? e*)
+			   flag
+			   (make-literal #f #f))
+		       marks)))))
+    body))
+
+(define (do-transform* transformer x* k flag marks)
+  (let do-transform* ((x* x*) (k k))
+    (if (null? x*)
+	((continuation-procedure k) '())
+	(transformer (car x*)
+		     (lambda (a)
+		       (do-transform* (cdr x*)
+				      (lambda (a*)
+					((continuation-procedure k)
+					 (cons a a*)))))
+		     flag marks))))
+
+(define (transform* e* k flag marks)
+  (do-transform* transform e* k flag marks))
 
 (define (generate-procedure fixed-parameters rest-parameter body)
   (%generate-procedure
@@ -64,239 +329,3 @@
   (or (reference? expression)
       (literal? expression)
       (undefined? expression)))
-  
-(define (transform expression k)
-  (cond
-   ((atomic? expression)
-    ((continuation-procedure k) expression))
-   ((procedure-call? expression)
-    (transform-procedure-call expression k))
-   ((primitive-operation? expression)
-    (case (operator-identifier (primitive-operation-operator expression))
-      ((call-with-current-continuation)
-       (transform-call/cc expression k))
-      ((apply)
-       (transform-apply expression k))
-      (else
-       (transform-primitive-operation expression k))))
-   ((expression-procedure? expression)
-    (transform-procedure expression k))
-   ((assignment? expression)
-    (transform-assignment expression k))
-   ((multiple-assignment? expression)
-    (transform-multiple-assignment expression k))
-   ((letrec-expression? expression)
-    (transform-letrec-expression expression k))
-   ((let-values-expression? expression)
-    (transform-let-values-expression expression k))
-   ((sequence? expression)
-    (transform-sequence expression k))
-   ((conditional? expression)
-    (transform-conditional expression k))
-   (else
-    (error "unhandled expression type" expression))))
-
-(define (transform-procedure-call expression k)
-  (transform* (cons (procedure-call-operator expression)
-		    (procedure-call-operands expression))
-	      (lambda (t*)
-		(make-procedure-call (car t*)
-				     (cons (continuation-expression k)
-					   (cdr t*))
-				     (expression-syntax expression)))))
-
-(define (transform-apply expression k)
-  (define operands (primitive-operation-operands expression))
-  (transform* operands
-	      (lambda (a*)
-		(make-primitive-operation
-		 (primitive-operation-operator expression)
-		 (append
-		  (list (car a*) (continuation-expression k))
-		  (cdr a*))
-		 (expression-syntax expression)))))
-
-(define (transform-primitive-operation expression k)
-  (transform* (primitive-operation-operands expression)
-	      (lambda (t*)
-		((continuation-procedure k)
-		 (make-primitive-operation (primitive-operation-operator expression)
-					   t*
-					   (expression-syntax expression))))))
-
-(define (transform-assignment expression k)
-  (transform (assignment-expression expression)
-	     (lambda (t)
-	       ((continuation-procedure k)
-		(make-assignment (assignment-location expression)
-				 t
-				 (expression-syntax expression))))))
-
-(define (transform-multiple-assignment expression k)
-  (define formals (multiple-assignment-formals expression))
-  (define new-formals
-    (make-formals
-     (map (lambda (argument) (make-location #f)) (formals-fixed-arguments formals))
-     (and (formals-rest-argument formals)
-	  (make-location #f))
-     #f))
-  (transform (multiple-assignment-expression expression)
-	     (%generate-procedure
-	      (make-clause
-	       new-formals
-	       (append
-		(map
-		 (lambda (argument new-argument)
-		   (make-assignment argument (make-reference new-argument #f) #f))
-		 (formals-fixed-arguments formals)
-		 (formals-fixed-arguments new-formals))
-		(if (formals-rest-argument formals)
-		    (list
-		     (make-assignment (formals-rest-argument formals)
-				      (make-reference
-				       (formals-rest-argument new-formals)
-				       #f)
-				      #f))
-		    '()))
-		(list
-		 (make-procedure-call (continuation-expression k)
-				      (list (make-undefined #f))
-				      #f))))))
-
-#;(define (transform-call/cc expression k)
-  (define operand (car (primitive-operation-operands expression)))
-  (let ((c (make-location #f)))
-    ((continuation-procedure k)
-     (make-continuation-procedure (list c)
-				  (list (transform operand
-						   (lambda (a)
-						     (make-procedure-call
-						      a
-						      (list (make-reference c #f)
-							    (make-reference c #f))
-						      (expression-syntax expression)))))))))
-
-;; TODO: Check whether the following is too complicated
-;; and whether we can use the above!
-
-(define (transform-call/cc expression k)
-  (transform (car (primitive-operation-operands expression))
-	     (lambda (a)	       
-	       (let ((c (make-location #f)))
-		 (make-procedure-call
-		  (generate-procedure
-		   (list c)
-		   #f
-		   (list
-		    (make-procedure-call a
-					 (list (make-reference c #f)
-					       (let ((_ (make-location #f))
-						     (x* (make-location #f)))
-						 (generate-procedure
-						  (list _) x*
-						  (list
-						   (make-primitive-operation
-						    operator-apply
-						    (list
-						     (make-reference c #f)
-						     (make-reference x* #f))
-						    #f)))))
-					 (expression-syntax expression))))
-		  (list (continuation-expression k))
-		  #f)))))
-
-(define (transform-procedure expression k)
-  (do-transform* transform-procedure-clause
-		 (procedure-clauses expression)
-		 (lambda (c*)
-		   ((continuation-procedure k)
-		    (make-procedure c* (expression-syntax expression))))))
-
-(define (transform-procedure-clause clause k)
-  (define formals (clause-formals clause))
-  (let ((c (make-location #f)))
-    ((continuation-procedure k)
-     (make-clause (make-formals
-		   (cons c (formals-fixed-arguments formals))
-		   (formals-rest-argument formals)
-		   (formals-syntax formals))
-		  (transform-body (clause-body clause) (make-reference c #f))
-		  (clause-syntax clause)))))
-
-(define (transform-sequence expression k)
-  (make-sequence
-   (transform-body (sequence-expressions expression) k)
-   (expression-syntax expression)))
-
-(define (transform-conditional expression k)
-  (let ((c (make-location #f)))
-    (make-procedure-call
-     (generate-procedure
-      (list c)
-      #f
-      (list
-       (transform (conditional-test expression)
-		  (lambda (a)
-		    (make-conditional a				 
-				      (transform (conditional-consequent expression)
-						 (make-reference c #f))
-				      (transform (conditional-alternate expression)
-						 (make-reference c #f))
-				      (expression-syntax expression))))))
-     (list (continuation-expression k))
-     #f)))
-
-(define (transform-letrec-expression expression k)
-  (do-transform* transform-letrec-binding
-		 (letrec-expression-bindings expression)
-		 (lambda (b*)
-		   (make-letrec-expression
-		    b*
-		    (transform-body (letrec-expression-body expression) k)
-		    (expression-syntax expression)))))
-
-(define (transform-letrec-binding binding k)
-  (transform-procedure (binding-expression binding)
-		       (lambda (t)
-			 ((continuation-procedure k)
-			  (make-binding (binding-formals binding)
-					t
-					(binding-syntax binding))))))
-  
-(define (transform-let-values-expression expression k)
-  (define binding (let-values-expression-binding expression))
-  (transform (binding-expression binding)
-	     (%generate-procedure
-	      (make-clause
-	       (binding-formals binding)
-	       (transform-body (let-values-expression-body expression) k)
-	       (expression-syntax expression)))))
-
-(define (transform-body body k)
-  (let-values
-      ((body
-	(let loop ((body body))
-	  (let ((e (car body)) (e* (cdr body)))
-	    (transform e
-		       (if (null? e*)
-			   k
-			   (lambda (a)
-			     (let-values ((a* (loop e*)))
-			       (if (atomic? a)
-				   (apply values a*)
-				   (apply values a a*))))))))))
-    body))
-
-(define (do-transform* transformer x* k)
-  (let do-transform* ((x* x*) (k k))
-    (if (null? x*)
-	((continuation-procedure k) '())
-	(transformer (car x*)
-		     (lambda (a)
-		       (do-transform* (cdr x*)
-				      (lambda (a*)
-					((continuation-procedure k)
-					 (cons a a*)))))))))
-
-(define (transform* e* k)
-  (do-transform* transform e* k))
