@@ -67,7 +67,8 @@
 (define operator-call-with-current-continuation (make-operator 'call-with-current-continuation))
 
 ;; Exceptions
-(define operator-make-error-object (make-operator 'make-error-object))
+(define operator-error (make-operator 'error))
+(define operator-set-exception-handler! (make-operator 'set-exception-handler!))
 
 ;; Process context
 (define operator-exit (make-operator 'exit))

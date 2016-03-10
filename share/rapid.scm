@@ -738,10 +738,10 @@
      (lambda ()
        ((car handlers) obj)))))
 
-(define (error message . obj*)
-  (if (%string? message)
-      (raise (%make-error-object message obj*))
-      (error "not a string" message)))
+(%set-exception-handler! raise)
+
+(define (error message . irritant*)
+  (%error message irritant*))
 
 (define (append list1 list2)
   ;; TODO: More than one argument

@@ -61,7 +61,8 @@
 	  cdr
 	  null?
 	  
-	  make-error-object
+	  error
+	  set-exception-handler!
 	  procedure?
 	  call-with-current-continuation
 	  apply
@@ -81,7 +82,7 @@
 	  display newline
 	  +
 	  string-append)
-  (import (scheme base)
+  (import (rename (scheme base) (error scheme-error))
 	  (scheme inexact)
 	  (scheme process-context)
 	  (scheme case-lambda)

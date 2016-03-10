@@ -66,13 +66,27 @@
 (define (fxnegative? n)
   (negative? n))
 
-;; Error objects
+;; Errors
+
+(define exception-handler #f)
+
+(define (set-exception-handler! new-handler)
+  (set! exception-handler new-handler))
+
+;; Note that the signature is different from scheme-object
+(define (error message irritant*)
+  ;; TODO: Don't rely on the primordial scheme error object
+  (let ((error-object (make-error-object message irritant*)))
+    (let ((cont (lambda arg* (apply scheme-error message irritant*))))
+      (when exception-handler
+	(exception-handler cont error-object))
+      (cont))))
 
 (define (make-error-object message obj*)
   (guard
       (condition
        (else condition))
-    (apply error message obj*)))
+    (apply scheme-error message obj*)))
 
 ;; Procedural records
 
