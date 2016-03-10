@@ -17,17 +17,6 @@
 
 ;;; Procedures and Definitions
 
-(define-syntax case-lambda
-  (syntax-rules ()
-    ((case-lambda (formals body1 body2 ...) ...)
-     (%case-lambda
-      (formals body1 body2 ...)
-      ...
-      (args
-       (error "procedure called with the wrong number of arguments" args))))
-    ((case-lambda . _)
-     (syntax-error "bad case-lambda syntax"))))
-
 (define-syntax lambda
   (syntax-rules ()
     ((lambda formals body1 body2 ...)

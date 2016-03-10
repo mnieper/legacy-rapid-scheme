@@ -157,10 +157,11 @@
 				       (formals-rest-argument new-formals)
 				       #f)
 				      #f))
-		    '())
+		    '()))
 		(list
 		 (make-procedure-call (continuation-expression k)
-				      (list (make-undefined #f)))))))))
+				      (list (make-undefined #f))
+				      #f))))))
 
 #;(define (transform-call/cc expression k)
   (define operand (car (primitive-operation-operands expression)))

@@ -91,5 +91,6 @@
 		  (%set! set!)
 		  (%if if)
 		  (%begin begin)
+		  (%case-lambda case-lambda)
 		  (%syntax-error syntax-error)))
   (include "rapid.scm"))
