@@ -34,13 +34,19 @@
        #f))
      #f))
 
-(define (make-continuation-procedure arguments body)
-  (make-procedure
-   (list
-    (make-clause (make-formals arguments #f) body #f)
-    ;; TODO: Fall-through for if continuation is called with the wrong number of values
-    )
-   #f))
+(define (generate-procedure fixed-parameters rest-parameter body)
+  (%generate-procedure
+   (make-clause (make-formals fixed-parameters rest-parameter #f) body #f)))
+
+(define (%generate-procedure clause)
+  (let ((f (make-location #f)))
+    (make-letrec-expression
+     (list
+      (make-binding (make-formals (list f) #f)  
+		    (make-procedure (list clause) #f)
+		    #f))
+     (list (make-reference f #f))
+     #f)))
 
 (define (continuation-procedure k)
   (if (procedure? k)
@@ -51,7 +57,7 @@
   (if (procedure? k)
       (let ((c (make-location #f)))
 	(let-values ((body (k (make-reference c #f))))
-	  (make-continuation-procedure (list c) body)))
+	  (generate-procedure (list c) #f body)))
       k))
 
 (define (atomic? expression)
@@ -135,29 +141,26 @@
 	  (make-location #f))
      #f))
   (transform (multiple-assignment-expression expression)
-	     (make-procedure
-	      (list	       
-	       (make-clause
-		new-formals
-		(append
-		 (map
-		  (lambda (argument new-argument)
-		    (make-assignment argument (make-reference new-argument #f) #f))
-		  (formals-fixed-arguments formals)
-		  (formals-fixed-arguments new-formals))
-		 (if (formals-rest-argument formals)
-		     (list
-		      (make-assignment (formals-rest-argument formals)
-				       (make-reference
-					(formals-rest-argument new-formals)
-					#f)
-				       #f))
-		     '())
-		 (list
-		  (make-procedure-call (continuation-expression k)
-				       (list (make-undefined #f)))))
-		#f))
-	      #f)))
+	     (%generate-procedure
+	      (make-clause
+	       new-formals
+	       (append
+		(map
+		 (lambda (argument new-argument)
+		   (make-assignment argument (make-reference new-argument #f) #f))
+		 (formals-fixed-arguments formals)
+		 (formals-fixed-arguments new-formals))
+		(if (formals-rest-argument formals)
+		    (list
+		     (make-assignment (formals-rest-argument formals)
+				      (make-reference
+				       (formals-rest-argument new-formals)
+				       #f)
+				      #f))
+		    '())
+		(list
+		 (make-procedure-call (continuation-expression k)
+				      (list (make-undefined #f)))))))))
 
 #;(define (transform-call/cc expression k)
   (define operand (car (primitive-operation-operands expression)))
@@ -180,26 +183,23 @@
 	     (lambda (a)	       
 	       (let ((c (make-location #f)))
 		 (make-procedure-call
-		  (make-continuation-procedure
+		  (generate-procedure
 		   (list c)
+		   #f
 		   (list
 		    (make-procedure-call a
 					 (list (make-reference c #f)
 					       (let ((_ (make-location #f))
 						     (x* (make-location #f)))
-						 (make-procedure
+						 (generate-procedure
+						  (list _) x*
 						  (list
-						   (make-clause
-						    (make-formals (list _) x* #f)
+						   (make-primitive-operation
+						    operator-apply
 						    (list
-						     (make-primitive-operation
-						      operator-apply
-						      (list
-						       (make-reference c #f)
-						       (make-reference x* #f))
-						      #f))
-						    #f))
-						  #f)))
+						     (make-reference c #f)
+						     (make-reference x* #f))
+						    #f)))))
 					 (expression-syntax expression))))
 		  (list (continuation-expression k))
 		  #f)))))
@@ -230,8 +230,9 @@
 (define (transform-conditional expression k)
   (let ((c (make-location #f)))
     (make-procedure-call
-     (make-continuation-procedure
+     (generate-procedure
       (list c)
+      #f
       (list
        (transform (conditional-test expression)
 		  (lambda (a)
@@ -264,13 +265,11 @@
 (define (transform-let-values-expression expression k)
   (define binding (let-values-expression-binding expression))
   (transform (binding-expression binding)
-	     (make-procedure
-	      (list
-	       (make-clause
-		(binding-formals binding)
-		(transform-body (let-values-expression-body expression) k)
-		(expression-syntax expression)))
-	      #f)))
+	     (%generate-procedure
+	      (make-clause
+	       (binding-formals binding)
+	       (transform-body (let-values-expression-body expression) k)
+	       (expression-syntax expression)))))
 
 (define (transform-body body k)
   (let-values

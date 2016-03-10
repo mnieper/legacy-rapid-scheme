@@ -1,6 +1,6 @@
 #!/bin/sh
 
-SCHEME=chibi-scheme
+SCHEME="chibi-scheme"
 BASEDIR=$(dirname $0)/..
 
 $SCHEME -I$BASEDIR/lib $BASEDIR/bin/rapid-compiler.scm $*

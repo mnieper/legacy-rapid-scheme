@@ -25,6 +25,7 @@
 	  (rapid compiler expressions)
 	  (rapid compiler read)
 	  (rapid compiler programs)
+	  (rapid compiler lambda-lift)
 	  (rapid compiler fix-letrec)
 	  (rapid compiler cps-transform))
   (include "compile.scm"))

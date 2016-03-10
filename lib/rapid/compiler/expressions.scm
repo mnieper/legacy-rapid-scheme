@@ -122,7 +122,7 @@
 
 ;;; Letrec* expressions
 
-(define (%make-letrec*-expression bindings body syntax)
+(define (make-letrec*-expression bindings body syntax)
   (make-expression 'letrec*-expression (vector bindings body) syntax))
 (define (letrec*-expression? expression)
   (eq? (expression-type expression) 'letrec*-expression))
@@ -130,12 +130,6 @@
   (vector-ref (expression-value expression) 0))
 (define (letrec*-expression-body expression)
   (vector-ref (expression-value expression) 1))
-(define (make-letrec*-expression bindings body syntax)
-  (cond
-   ((null? bindings)
-    (make-sequence body syntax))
-   (else
-    (%make-letrec*-expression bindings (flatten body) syntax))))
 
 ;;; Letrec expressions
 

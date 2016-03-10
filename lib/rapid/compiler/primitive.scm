@@ -173,7 +173,9 @@
        (with-scope
 	(lambda ()
 	  (define parameters (expand-parameters! (car form)))
-	  (make-clause parameters (list (expand-body (cdr form) clause-syntax)) clause-syntax))))
+	  (make-clause parameters
+		       (list (expand-body (cdr form) clause-syntax))
+		       clause-syntax))))
      (cdr form))
     syntax)))
 

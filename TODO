@@ -3,7 +3,8 @@
 * In our current implementation, errors in eval'd code won't propagate to the handlers of the
   evaluating code, but call %exit #f... ---> eval sollte also gewrappt werden
 
-* Make applications checked
+* Make applications checked (can we do this in rapids standard library?)
+  Do we have to transform all applications? The question how to signal an exception remains!
 
 * Do record types work if the field names are identifier=? but not eq?
 

@@ -15,17 +15,11 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define (compile filename)
-  (guard-compile
-   (let*
-       ((read-syntax (read-file filename #f #f))
-	(program (generator->list read-syntax))
-	(expression (expand-program program))
-	(expression (lambda-lift expression))
-	(expression (fix-letrec expression))
-	(expression (cps-transform expression))
-	(output (expression->datum expression)))
-     (write '(import (rapid primitive)))
-     (newline)
-     (write output)
-     (newline))))
+(define-library (rapid compiler lambda-lift)
+  (export lambda-lift)
+  (import (scheme base)                (scheme write)
+	  (scheme case-lambda)
+	  (rapid comparators)
+	  (rapid table)
+	  (rapid compiler expressions))
+  (include "lambda-lift.scm"))
