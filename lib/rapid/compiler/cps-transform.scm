@@ -18,6 +18,8 @@
 ;;; TODO: Check whether number of values in continuation and set-values!
 ;;; is always the correct one. 
 
+;;; TODO: Write/improve convenience functions (like make-continuation-procedure)
+
 (define (cps-transform expression)
   (transform expression (lambda (a) a)))
 
@@ -173,7 +175,6 @@
 ;; TODO: Check whether the following is too complicated
 ;; and whether we can use the above!
 
-;; XXX list_34!
 (define (transform-call/cc expression k)
   (transform (car (primitive-operation-operands expression))
 	     (lambda (a)	       
@@ -185,16 +186,20 @@
 		    (make-procedure-call a
 					 (list (make-reference c #f)
 					       (let ((_ (make-location #f))
-						     (x (make-location #f)))
-						 (make-continuation-procedure
-						  ;; FIXME: x should be a rest argument
-						  ;; The procedure call a apply.
-						  (list _ x)
+						     (x* (make-location #f)))
+						 (make-procedure
 						  (list
-						   (make-procedure-call
-						    (make-reference c #f)
-						    (list (make-reference x #f))
-						    #f)))))
+						   (make-clause
+						    (make-formals (list _) x* #f)
+						    (list
+						     (make-primitive-operation
+						      operator-apply
+						      (list
+						       (make-reference c #f)
+						       (make-reference x* #f))
+						      #f))
+						    #f))
+						  #f)))
 					 (expression-syntax expression))))
 		  (list (continuation-expression k))
 		  #f)))))
@@ -223,12 +228,21 @@
    (expression-syntax expression)))
 
 (define (transform-conditional expression k)
-  (transform (conditional-test expression)
-	     (lambda (a)
-	       (make-conditional a				 
-				 (transform (conditional-consequent expression) k)
-				 (transform (conditional-alternate expression) k)
-				 (expression-syntax expression)))))
+  (let ((c (make-location #f)))
+    (make-procedure-call
+     (make-continuation-procedure
+      (list c)
+      (list
+       (transform (conditional-test expression)
+		  (lambda (a)
+		    (make-conditional a				 
+				      (transform (conditional-consequent expression)
+						 (make-reference c #f))
+				      (transform (conditional-alternate expression)
+						 (make-reference c #f))
+				      (expression-syntax expression))))))
+     (list (continuation-expression k))
+     #f)))
 
 (define (transform-letrec-expression expression k)
   (do-transform* transform-letrec-binding

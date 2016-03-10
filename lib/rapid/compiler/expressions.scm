@@ -241,6 +241,7 @@
 
 ;;; Operators
 
+;; XXX The operator does not carry syntax
 (define-record-type <operator>
   (make-operator identifier) ;; TODO: add compiling instructions, etc.
   operator?
