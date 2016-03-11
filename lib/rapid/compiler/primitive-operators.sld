@@ -32,6 +32,8 @@
    operator-pair?
    operator-car
    operator-cdr
+   operator-set-car!
+   operator-set-cdr!
    operator-null?
    operator-symbol?
    operator-symbol->string

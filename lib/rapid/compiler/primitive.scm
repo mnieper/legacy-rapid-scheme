@@ -424,6 +424,8 @@
    (cons (primitive operator-cons))
    (car (primitive operator-car))
    (cdr (primitive operator-cdr))
+   (set-car! (primitive operator-set-car!))
+   (set-cdr! (primitive operator-set-cdr!))
    (pair? (primitive operator-pair?))
    (null? (primitive operator-null?))
    ;; Characters

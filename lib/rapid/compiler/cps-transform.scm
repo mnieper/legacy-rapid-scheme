@@ -24,11 +24,12 @@
 
 ;; TODO: we could turn flag into a procedure... (flag) --> returns value
 ;; (make-tail-context #f) ...   (flag mark marks) ==> will generate code...
+;; set-car! statt cons ... cdr ==> auch in primitive...
 
 (define (cps-transform expression)
   (transform expression
 	     (lambda (a) a)
-	     (make-literal #f #f)
+	     #f
 	     (lambda ()
 	       (make-literal '() #f))))
 
@@ -86,11 +87,11 @@
 	      (lambda (t*)
 		(make-procedure-call (car t*)
 				     (append (list (continuation-expression k)
-						   flag
+						   (flag-expression flag)
 						   (marks))
 					     (cdr t*))
 				     (expression-syntax expression)))
-	      (make-literal #f #f) marks))
+	      #f marks))
 
 (define (transform-ccm expression k flag marks)
   ((continuation-procedure k)
@@ -114,26 +115,12 @@
 		   #f
 		   (list (transform result
 				    k
-				    (make-literal #t #t)
+				    #t
 				    (lambda () (make-reference m* #f)))))
 		  (list
-		   (make-conditional
-		    flag
-		    (make-primitive-operation
-		     operator-cons
-		     (list m
-			   (make-primitive-operation
-			    operator-cdr
-			    (list (marks))
-			    #f))
-		     #f)
-		    (make-primitive-operation
-		     operator-cons
-		     (list m (marks))
-		     #f)
-		    #f))
+		   (flag-marks flag m marks))
 		  (expression-syntax expression))))
-	     (make-literal #f #f) marks))
+	     #f marks))
 
 (define (transform-apply expression k flag marks)
   (define operands (primitive-operation-operands expression))
@@ -142,20 +129,20 @@
 		(make-primitive-operation
 		 (primitive-operation-operator expression)
 		 (append
-		  (list (car a*) (continuation-expression k) flag (marks))
+		  (list (car a*) (continuation-expression k) (flag-expression flag) (marks))
 		  (cdr a*))
 		 (expression-syntax expression)))
-	      (make-literal #f #f) marks))
+	      #f marks))
 
 (define (transform-error expression k flag marks)
   (transform* (primitive-operation-operands expression)
 	      (lambda (t*)
 		((continuation-procedure k)
 		 (make-primitive-operation (primitive-operation-operator expression)
-					   (append (list flag (marks))
+					   (append (list (flag-expression flag) (marks))
 						   t*)
 					   (expression-syntax expression))))
-	      (make-literal #f #f) marks))
+	      #f marks))
   
 
 (define (transform-primitive-operation expression k flag marks)
@@ -165,7 +152,7 @@
 		 (make-primitive-operation (primitive-operation-operator expression)
 					   t*
 					   (expression-syntax expression))))
-	      (make-literal #f #f) marks))
+	      #f marks))
 
 (define (transform-assignment expression k flag marks)
   (transform (assignment-expression expression)
@@ -174,7 +161,7 @@
 		(make-assignment (assignment-location expression)
 				 t
 				 (expression-syntax expression))))
-	     (make-literal #f #f) marks))
+	     #f marks))
 
 (define (transform-multiple-assignment expression k flag marks)
   (define formals (multiple-assignment-formals expression))
@@ -206,7 +193,7 @@
 		 (make-procedure-call (continuation-expression k)
 				      (list (make-undefined #f))
 				      #f))))
-	     (make-literal #f #f) marks))
+	     #f marks))
 
 #;(define (transform-call/cc expression k)
   (define operand (car (primitive-operation-operands expression)))
@@ -235,7 +222,7 @@
 		   (list
 		    (make-procedure-call a
 					 (list (make-reference c #f)
-					       flag
+					       (flag-expression flag)
 					       (marks)
 					       (let ((%c (make-location #f))
 						     (%f (make-location #f))
@@ -253,7 +240,7 @@
 					 (expression-syntax expression))))
 		  (list (continuation-expression k))
 		  #f)))
-	     (make-literal #f #f) marks))
+	     #f marks))
 
 (define (transform-procedure expression k flag marks)
   (do-transform* transform-procedure-clause
@@ -299,7 +286,7 @@
 						 (make-reference c #f)
 						 flag marks)
 				      (expression-syntax expression)))
-		  (make-literal #f #f) marks)))
+		  #f marks)))
      (list (continuation-expression k))
      #f)))
 
@@ -311,7 +298,7 @@
 		    b*
 		    (transform-body (letrec-expression-body expression) k flag marks)
 		    (expression-syntax expression)))
-		 (make-literal #f #f) marks))
+		 #f marks))
 
 (define (transform-letrec-binding binding k flag marks)
   (transform-procedure (binding-expression binding)
@@ -330,7 +317,7 @@
 	       (binding-formals binding)
 	       (transform-body (let-values-expression-body expression) k flag marks)
 	       (expression-syntax expression)))
-	     (make-literal #f #f) marks))
+	     #f marks))
 
 (define (transform-body body k flag marks)
   (let-values
@@ -347,7 +334,7 @@
 				   (apply values a a*)))))
 		       (if (null? e*)
 			   flag
-			   (make-literal #f #f))
+			   #f)
 		       marks)))))
     body))
 
@@ -392,6 +379,26 @@
 	  (generate-procedure (list c) #f body)))
       k))
 
+(define (flag-expression flag)
+  (if (expression? flag)
+      flag
+      (make-literal flag #f)))
+
+(define (flag-marks flag mark marks)
+  (define consequent
+    (make-primitive-operation operator-cons
+			      (list mark (make-primitive-operation operator-cdr
+								   (list (marks))
+								   #f))
+			      #f))
+  (define alternate
+    (make-primitive-operation operator-cons
+			      (list mark (marks))
+			      #f))
+  (if (expression? flag)
+      (make-conditional flag consequent alternate #f)
+      (if flag consequent alternate)))
+	 
 (define (atomic? expression)
   (or (reference? expression)
       (literal? expression)

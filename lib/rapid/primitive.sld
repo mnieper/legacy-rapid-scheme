@@ -60,6 +60,8 @@
 	  pair?
 	  car
 	  cdr
+	  set-car!
+	  set-cdr!
 	  null?
 	  
 	  error

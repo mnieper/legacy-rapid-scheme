@@ -40,6 +40,8 @@
 (define operator-cons (make-operator 'cons))
 (define operator-car (make-operator 'car))
 (define operator-cdr (make-operator 'cdr))
+(define operator-set-car! (make-operator 'set-car!))
+(define operator-set-cdr! (make-operator 'set-cdr!))
 (define operator-pair? (make-operator 'pair?))
 (define operator-null? (make-operator 'null?))
 
