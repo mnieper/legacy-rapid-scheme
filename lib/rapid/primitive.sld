@@ -75,6 +75,8 @@
 	  
 	  exit
 
+	  make-syntax
+	  
 	  make-rtd
 	  rtd-constructor
 	  rtd-predicate

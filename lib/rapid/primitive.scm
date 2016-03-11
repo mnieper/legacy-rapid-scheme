@@ -69,6 +69,19 @@
 (define (fxnegative? n)
   (negative? n))
 
+;;; Syntax objects
+
+;; XXX: This should probably not be called syntax
+(define-record-type <syntax>
+  (make-syntax source start-line start-column end-line end-column context)
+  syntax?
+  (source syntax-source)
+  (start-line syntax-start-line)
+  (start-column syntax-start-column)
+  (end-line syntax-end-line)
+  (end-column syntax-end-column)
+  (context syntax-context))
+
 ;; Errors
 
 (define exception-handler #f)

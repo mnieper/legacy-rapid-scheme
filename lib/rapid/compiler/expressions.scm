@@ -277,6 +277,23 @@
 		'()))
 	  (cons (lookup-identifier! (car fixed-arguments))
 		(loop (cdr fixed-arguments))))))
+  (define syntax-table (make-table (make-eq-comparator)))
+  (define (intern-syntax! syntax)
+    (table-intern! syntax-table
+		   syntax
+		   (lambda ()
+		     (define context
+		       (if (syntax-context syntax)
+			   (intern-syntax! (syntax-context syntax))
+			   #f))
+		     (define source-location (syntax-source-location syntax))
+		     `(make-syntax
+		       ,(and source-location (source-location-source source-location))
+		       ,(and source-location (source-location-start-line source-location))
+		       ,(and source-location (source-location-start-column source-location))
+		       ,(and source-location (source-location-end-line source-location))
+		       ,(and source-location (source-location-end-column source-location))
+		       ,context))))
   (let loop ((expression expression))
     (cond
        ;; References
@@ -285,9 +302,13 @@
      ;; Literals
      ((literal? expression)
       (let ((value (literal-value expression)))
-	(if (self-evaluating? value)
-	    value
-	    `(quote ,value))))
+	(cond
+	 ((self-evaluating? value)
+	  value)
+	 ((syntax? value)
+	  (intern-syntax! value))
+	 (else
+	  `(quote ,value)))))
      ;; Undefined values
      ((undefined? expression)
       `(if #f #f))
@@ -458,6 +479,7 @@
    (else
     (error "unknown expression type" expression))))
 
+;; XXX: Is expression-for-each anywhere used?
 (define (expression-for-each visitor expression)
   (begin
     (cond

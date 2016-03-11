@@ -8,7 +8,7 @@
 	  (display (ccm))
 	  (newline)
 	  0)
-	(wcm n (fx+ n (sum (fx- n 1))))))))
+	(fx+ n (sum (fx- n 1)))))))
 
 (define-values (sum2)
   (case-lambda
@@ -18,7 +18,7 @@
 	  (display (ccm))
 	  (newline)
 	  a)
-	(wcm n (sum2 (fx- n 1) (fx+ n a)))))))
+	(sum2 (fx- n 1) (fx+ n a))))))
 
 (display
  (sum 10))

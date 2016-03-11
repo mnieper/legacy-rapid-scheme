@@ -76,25 +76,28 @@
     (error "unhandled expression type" expression))))
 
 (define (transform-procedure-call expression k flag marks)
+  (define syntax (expression-syntax expression))
   (transform* (cons (procedure-call-operator expression)
 		    (procedure-call-operands expression))
 	      (lambda (t*)
-		(make-procedure-call (car t*)
-				     (append (list (continuation-expression k)
-						   (flag-expression flag)
-						   (marks))
-					     (cdr t*))
-				     (expression-syntax expression)))
+		(define (call flag marks)
+		  (make-procedure-call (car t*)
+				       (append (list (continuation-expression k)
+						     (flag-expression flag)
+						     (marks))
+					       (cdr t*))
+				       syntax))
+		(if syntax
+		    (call #t (lambda () (flag-marks flag (make-literal syntax #f) marks)))
+		    ;; FIXME ^^^  (lambda () ... marks) can explode.
+		    ;; Use as in transform-wcm (factor out).
+		    ;; The syntax literal should be lifted
+		    (call marks)))
 	      #f marks))
 
 (define (transform-ccm expression k flag marks)
   ((continuation-procedure k)
    (marks)))
-
- ;; Problem: where to put the syntax?
- ;; (make-procedure-call (continuation-expression k)
- ;;		       (list (marks))
- ;;		       (expression-syntax expression)))
 
 (define (transform-wcm expression k flag marks)
   (define operands (primitive-operation-operands expression))

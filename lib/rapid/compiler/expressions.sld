@@ -54,5 +54,6 @@
 	  (rapid comparators)
 	  (rapid compiler syntactic-closures)
 	  (rapid compiler syntax)
+	  (rapid compiler read)
 	  (rapid table))
   (include "expressions.scm"))
