@@ -18,13 +18,7 @@
 ;;; TODO: Check whether number of values in continuation and set-values!
 ;;; is always the correct one. 
 
-;; Flags can be checked and materialized
-;; Marks can be materialized (how?) <- if used multiple times (how often?)
 ;; XXX: Check: Does this output non-letrec'ed case-lambda's?
-
-;; TODO: we could turn flag into a procedure... (flag) --> returns value
-;; (make-tail-context #f) ...   (flag mark marks) ==> will generate code...
-;; set-car! statt cons ... cdr ==> auch in primitive...
 
 (define (cps-transform expression)
   (transform expression
@@ -386,11 +380,13 @@
 
 (define (flag-marks flag mark marks)
   (define consequent
-    (make-primitive-operation operator-cons
-			      (list mark (make-primitive-operation operator-cdr
-								   (list (marks))
-								   #f))
-			      #f))
+    (make-sequence
+     (list
+      (make-primitive-operation operator-set-car!
+				(list (marks) mark)
+				#f)
+      (marks))
+     #f))
   (define alternate
     (make-primitive-operation operator-cons
 			      (list mark (marks))
