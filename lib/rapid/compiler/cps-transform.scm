@@ -18,11 +18,12 @@
 ;;; TODO: Check whether number of values in continuation and set-values!
 ;;; is always the correct one. 
 
-;; Write a bit of test code (like a sum function)
-;; TODO: Use syntactic and procedural flags and marks
 ;; Flags can be checked and materialized
 ;; Marks can be materialized (how?) <- if used multiple times (how often?)
 ;; XXX: Check: Does this output non-letrec'ed case-lambda's?
+
+;; TODO: we could turn flag into a procedure... (flag) --> returns value
+;; (make-tail-context #f) ...   (flag mark marks) ==> will generate code...
 
 (define (cps-transform expression)
   (transform expression
