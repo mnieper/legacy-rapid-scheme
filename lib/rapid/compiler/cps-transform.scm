@@ -101,7 +101,7 @@
   (define mark (car operands))
   (define result (cadr operands))
   (transform mark
-	     (lambda (m)    ;; m may explode
+	     (lambda (m)
 	       (let ((m* (make-location #f)))
 		 (make-procedure-call
 		  (generate-procedure
@@ -379,21 +379,31 @@
       (make-literal flag #f)))
 
 (define (flag-marks flag mark marks)
-  (define consequent
+  (define (consequent mark)
     (make-sequence
      (list
       (make-primitive-operation operator-set-car!
-				(list (marks) mark)
+				(list (marks) (mark))
 				#f)
       (marks))
      #f))
-  (define alternate
+  (define (alternate mark)
     (make-primitive-operation operator-cons
-			      (list mark (marks))
+			      (list (mark) (marks))
 			      #f))
   (if (expression? flag)
-      (make-conditional flag consequent alternate #f)
-      (if flag consequent alternate)))
+      (let* ((m (make-location #f)))
+	(define (reference) (make-reference m #f))	
+	(make-procedure-call
+	 (generate-procedure
+	  (list m)
+	  #f
+	  (list	  
+	   (make-conditional flag (consequent reference) (alternate reference) #f)))
+	 (list mark)
+	 #f))
+      (let ((mark (lambda () mark)))
+	(if flag (consequent mark) (alternate mark)))))
 	 
 (define (atomic? expression)
   (or (reference? expression)
