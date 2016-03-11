@@ -74,12 +74,13 @@
   (set! exception-handler new-handler))
 
 ;; Note that the signature is different from scheme-object
-(define (error message irritant*)
+(define (error flag marks message irritant*)
   ;; TODO: Don't rely on the primordial scheme error object
+  ;; Use the continuation marks provided above
   (let ((error-object (make-error-object message irritant*)))
     (let ((cont (lambda arg* (apply scheme-error message irritant*))))
       (when exception-handler
-	(exception-handler cont error-object))
+	(exception-handler cont flag marks error-object))
       (cont))))
 
 (define (make-error-object message obj*)
@@ -123,7 +124,7 @@
 	 (lambda (fieldspec)
 	   (find-index (rtd-fieldspecs rtd) fieldspec))
 	 fieldspecs)))
-    (lambda (cont . args)
+    (lambda (cont flag marks . args)
       (let ((fields (make-vector k (if #f #f))))
 	(for-each
 	 (lambda (arg index)
@@ -133,19 +134,19 @@
 
 (define (rtd-predicate rtd)
   (let ((pred (rtd-record? rtd)))
-    (lambda (cont obj)
+    (lambda (cont flag marks obj)
       (cont (pred obj)))))
 
 (define (rtd-accessor rtd field) 
   (let*
       ((record-fields (rtd-record-fields rtd))
        (index (find-index (rtd-fieldspecs rtd) field)))
-    (lambda (cont record)
+    (lambda (cont flag marks record)
       (cont (vector-ref (record-fields record) index)))))
 
 (define (rtd-mutator rtd field)
   (let*
       ((record-fields (rtd-record-fields rtd))
        (index (find-index (rtd-fieldspecs rtd) field)))
-    (lambda (cont record value)
+    (lambda (cont flag marks record value)
       (cont (vector-set! (record-fields record) index value)))))

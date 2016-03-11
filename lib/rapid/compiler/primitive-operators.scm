@@ -84,6 +84,10 @@
 (define operator-rtd-accessor (make-operator 'rtd-accessor))
 (define operator-rtd-mutator (make-operator 'rtd-mutator))
 
+;; Continuation marks
+(define operator-ccm (make-operator 'ccm))
+(define operator-wcm (make-operator 'wcm))
+
 ;; XXX
 
 (define operator+

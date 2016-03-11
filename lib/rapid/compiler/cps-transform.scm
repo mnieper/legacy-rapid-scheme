@@ -18,8 +18,7 @@
 ;;; TODO: Check whether number of values in continuation and set-values!
 ;;; is always the correct one. 
 
-;; TODO: Write: wcm ccm
-;; TODO: Add flags, marks argument to procedures generated/used in (rapid primitive)
+;; Write a bit of test code (like a sum function)
 ;; TODO: Use syntactic and procedural flags and marks
 ;; Flags can be checked and materialized
 ;; Marks can be materialized (how?) <- if used multiple times (how often?)
@@ -43,29 +42,35 @@
    ((atomic? expression)
     ((continuation-procedure k) expression))
    ((procedure-call? expression)
-    (transform-procedure-call expression k))
+    (transform-procedure-call expression k flag marks))
    ((primitive-operation? expression)
     (case (operator-identifier (primitive-operation-operator expression))
       ((call-with-current-continuation)
-       (transform-call/cc expression k))
+       (transform-call/cc expression k flag marks))
+      ((wcm)
+       (transform-wcm expression k flag marks))
+      ((ccm)
+       transform-ccm expression k flag marks)
       ((apply)
-       (transform-apply expression k))
+       (transform-apply expression k flag marks))
+      ((error)
+       (transform-error expression k flag marks))
       (else
-       (transform-primitive-operation expression k))))
+       (transform-primitive-operation expression k flag marks))))
    ((expression-procedure? expression)
-    (transform-procedure expression k))
+    (transform-procedure expression k flag marks))
    ((assignment? expression)
-    (transform-assignment expression k))
+    (transform-assignment expression k flag marks))
    ((multiple-assignment? expression)
-    (transform-multiple-assignment expression k))
+    (transform-multiple-assignment expression k flag marks))
    ((letrec-expression? expression)
-    (transform-letrec-expression expression k))
+    (transform-letrec-expression expression k flag marks))
    ((let-values-expression? expression)
-    (transform-let-values-expression expression k))
+    (transform-let-values-expression expression k flag marks))
    ((sequence? expression)
-    (transform-sequence expression k))
+    (transform-sequence expression k flag marks))
    ((conditional? expression)
-    (transform-conditional expression k))
+    (transform-conditional expression k flag marks))
    (else
     (error "unhandled expression type" expression))))
 
@@ -78,8 +83,44 @@
 						   flag
 						   marks)
 					     (cdr t*))
-				     (expression-syntax epression)))
+				     (expression-syntax expression)))
 	      (make-literal #f #f) marks))
+
+(define (transform-ccm expression k flag marks)
+  (make-procedure-call (continuation-expression k)
+		       (list marks)
+		       (expression-syntax expression)))
+
+(define (transform-wcm expression k flag marks)
+  (define operands (primitive-operation-operands expression))
+  (define mark (car operands))
+  (define result (cadr operands))
+  (transform mark
+	     (lambda (m)
+	       (let ((m* (make-location #f)))
+		 (make-procedure-call
+		  (generate-procedure
+		   (list m*)
+		   #f
+		   (list (transform result k (make-literal #t #t) m*)))
+		  (list		  
+		   (make-conditional
+		    flag
+		    (make-primitive-operation
+		     operator-cons
+		     (list m
+			   (make-primitive-operation
+			    operator-cdr
+			    (list marks)
+			    #f))
+		     #f)
+		    (make-primitive-operation
+		     operator-cons
+		     (list m marks)
+		     #f)
+		    #f))
+		  (expression-syntax expression))))
+	     (make-literal #f #f) marks))
 
 (define (transform-apply expression k flag marks)
   (define operands (primitive-operation-operands expression))
@@ -92,6 +133,17 @@
 		  (cdr a*))
 		 (expression-syntax expression)))
 	      (make-literal #f #f) marks))
+
+(define (transform-error expression k flag marks)
+  (transform* (primitive-operation-operands expression)
+	      (lambda (t*)
+		((continuation-procedure k)
+		 (make-primitive-operation (primitive-operation-operator expression)
+					   (append (list flag marks)
+						   t*)
+					   (expression-syntax expression))))
+	      (make-literal #f #f) marks))
+  
 
 (define (transform-primitive-operation expression k flag marks)
   (transform* (primitive-operation-operands expression)
@@ -170,6 +222,8 @@
 		   (list
 		    (make-procedure-call a
 					 (list (make-reference c #f)
+					       flag
+					       marks
 					       (let ((%c (make-location #f))
 						     (%f (make-location #f))
 						     (%m* (make-location #f))
@@ -186,7 +240,7 @@
 					 (expression-syntax expression))))
 		  (list (continuation-expression k))
 		  #f)))
-	     flag marks))
+	     (make-literal #f #f) marks))
 
 (define (transform-procedure expression k flag marks)
   (do-transform* transform-procedure-clause

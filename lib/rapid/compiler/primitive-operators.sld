@@ -56,7 +56,9 @@
    operator-rtd-predicate
    operator-rtd-accessor
    operator-rtd-mutator
-
+   operator-ccm
+   operator-wcm
+   
    ;; XXX
    operator+
    operator-display operator-newline operator-string-append) ;; TODO

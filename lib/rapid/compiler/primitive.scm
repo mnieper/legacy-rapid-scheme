@@ -452,7 +452,10 @@
    (write-char (primitive operator-write-char))
    ;; Process context
    (exit (primitive operator-exit))
-
+   ;; Continuation marks
+   (ccm (primitive operator-ccm))
+   (wcm (primitive operator-wcm))
+   
    ;; XXX
    (+ (primitive operator+))
    (display (primitive operator-display)) ;; FIXME: should go into (scheme base)
