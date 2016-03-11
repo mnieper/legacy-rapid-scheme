@@ -410,6 +410,7 @@
    (exact? (primitive operator-exact?))
    (nan? (primitive operator-nan?))
    (fx+ (primitive operator-fx+))
+   (fx- (primitive operator-fx-))
    (fx= (primitive operator-fx=))
    (fx< (primitive operator-fx<))
    (fxnegative? (primitive operator-fxnegative?))

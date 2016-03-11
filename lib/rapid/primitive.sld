@@ -34,6 +34,7 @@
 	  nan?
 
 	  fx+
+	  fx-
 	  fx<
 	  fx=
 	  fxnegative?

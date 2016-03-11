@@ -27,6 +27,7 @@
 (define operator-fx< (make-operator 'fx<))
 (define operator-fx= (make-operator 'fx=))
 (define operator-fx+ (make-operator 'fx+))
+(define operator-fx- (make-operator 'fx-))
 
 ;; Flonums
 (define operator-flonum? (make-operator 'flonum?))

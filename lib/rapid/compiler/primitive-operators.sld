@@ -24,6 +24,7 @@
    operator-fx<
    operator-fx=
    operator-fx+
+   operator-fx-
    operator-flonum?
    operator-nan?
    operator-exact?

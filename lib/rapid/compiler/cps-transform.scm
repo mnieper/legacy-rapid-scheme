@@ -22,9 +22,14 @@
 ;; TODO: Use syntactic and procedural flags and marks
 ;; Flags can be checked and materialized
 ;; Marks can be materialized (how?) <- if used multiple times (how often?)
+;; XXX: Check: Does this output non-letrec'ed case-lambda's?
 
 (define (cps-transform expression)
-  (transform expression (lambda (a) a) (make-literal #f #f) (make-literal '() #f)))
+  (transform expression
+	     (lambda (a) a)
+	     (make-literal #f #f)
+	     (lambda ()
+	       (make-literal '() #f))))
 
 #;(let ((c (make-location #f)))
     (make-procedure
@@ -50,7 +55,7 @@
       ((wcm)
        (transform-wcm expression k flag marks))
       ((ccm)
-       transform-ccm expression k flag marks)
+       (transform-ccm expression k flag marks))
       ((apply)
        (transform-apply expression k flag marks))
       ((error)
@@ -81,29 +86,36 @@
 		(make-procedure-call (car t*)
 				     (append (list (continuation-expression k)
 						   flag
-						   marks)
+						   (marks))
 					     (cdr t*))
 				     (expression-syntax expression)))
 	      (make-literal #f #f) marks))
 
 (define (transform-ccm expression k flag marks)
-  (make-procedure-call (continuation-expression k)
-		       (list marks)
-		       (expression-syntax expression)))
+  ((continuation-procedure k)
+   (marks)))
+
+ ;; Problem: where to put the syntax?
+ ;; (make-procedure-call (continuation-expression k)
+ ;;		       (list (marks))
+ ;;		       (expression-syntax expression)))
 
 (define (transform-wcm expression k flag marks)
   (define operands (primitive-operation-operands expression))
   (define mark (car operands))
   (define result (cadr operands))
   (transform mark
-	     (lambda (m)
+	     (lambda (m)    ;; m may explode
 	       (let ((m* (make-location #f)))
 		 (make-procedure-call
 		  (generate-procedure
 		   (list m*)
 		   #f
-		   (list (transform result k (make-literal #t #t) m*)))
-		  (list		  
+		   (list (transform result
+				    k
+				    (make-literal #t #t)
+				    (lambda () (make-reference m* #f)))))
+		  (list
 		   (make-conditional
 		    flag
 		    (make-primitive-operation
@@ -111,12 +123,12 @@
 		     (list m
 			   (make-primitive-operation
 			    operator-cdr
-			    (list marks)
+			    (list (marks))
 			    #f))
 		     #f)
 		    (make-primitive-operation
 		     operator-cons
-		     (list m marks)
+		     (list m (marks))
 		     #f)
 		    #f))
 		  (expression-syntax expression))))
@@ -129,7 +141,7 @@
 		(make-primitive-operation
 		 (primitive-operation-operator expression)
 		 (append
-		  (list (car a*) (continuation-expression k) flag marks)
+		  (list (car a*) (continuation-expression k) flag (marks))
 		  (cdr a*))
 		 (expression-syntax expression)))
 	      (make-literal #f #f) marks))
@@ -139,7 +151,7 @@
 	      (lambda (t*)
 		((continuation-procedure k)
 		 (make-primitive-operation (primitive-operation-operator expression)
-					   (append (list flag marks)
+					   (append (list flag (marks))
 						   t*)
 					   (expression-syntax expression))))
 	      (make-literal #f #f) marks))
@@ -223,7 +235,7 @@
 		    (make-procedure-call a
 					 (list (make-reference c #f)
 					       flag
-					       marks
+					       (marks)
 					       (let ((%c (make-location #f))
 						     (%f (make-location #f))
 						     (%m* (make-location #f))
@@ -260,8 +272,8 @@
 		   (formals-syntax formals))
 		  (transform-body (clause-body clause)
 				  (make-reference c #f)
-				  (make-reference f #f)
-				  (make-reference m* #f))
+				  (make-reference f #f) ; FIXME
+				  (lambda () (make-reference m* #f)))
 		  (clause-syntax clause)))))
 
 (define (transform-sequence expression k flag marks)
