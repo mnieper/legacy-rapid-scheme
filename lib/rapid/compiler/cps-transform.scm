@@ -380,13 +380,12 @@
 
 (define (flag-marks flag mark marks)
   (define (consequent mark)
-    (make-sequence
-     (list
-      (make-primitive-operation operator-set-car!
-				(list (marks) (mark))
-				#f)
-      (marks))
-     #f))
+    (make-primitive-operation operator-cons
+			      (list (mark)
+				    (make-primitive-operation operator-cdr
+							      (list (marks))
+							      #f))
+			      #f))
   (define (alternate mark)
     (make-primitive-operation operator-cons
 			      (list (mark) (marks))
