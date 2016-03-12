@@ -69,18 +69,14 @@
 (define (fxnegative? n)
   (negative? n))
 
-;;; Syntax objects
+;;; Source locations
 
-;; XXX: This should probably not be called syntax
-(define-record-type <syntax>
-  (make-syntax source start-line start-column end-line end-column context)
-  syntax?
-  (source syntax-source)
-  (start-line syntax-start-line)
-  (start-column syntax-start-column)
-  (end-line syntax-end-line)
-  (end-column syntax-end-column)
-  (context syntax-context))
+(define-record-type <source-location>
+  (make-source-location source start end)
+  source-location?
+  (source source-location-source)
+  (start source-location-start)
+  (end source-location-end))
 
 ;; Errors
 

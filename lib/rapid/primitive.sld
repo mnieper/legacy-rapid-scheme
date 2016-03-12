@@ -75,7 +75,8 @@
 	  
 	  exit
 
-	  make-syntax
+	  make-source-location
+	  source-location?
 	  
 	  make-rtd
 	  rtd-constructor
