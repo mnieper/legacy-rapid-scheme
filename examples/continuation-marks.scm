@@ -2,7 +2,7 @@
 
 (define-values (sum)
   (case-lambda
-   ((n)  
+   ((n)
     (if (fx= n 0)
 	(begin
 	  (display (ccm))

@@ -80,7 +80,7 @@
   (transform* (cons (procedure-call-operator expression)
 		    (procedure-call-operands expression))
 	      (lambda (t*)
-		(define (call flag marks)
+		(define (result k flag marks)
 		  (make-procedure-call (car t*)
 				       (append (list (continuation-expression k)
 						     (flag-expression flag)
@@ -88,12 +88,24 @@
 					       (cdr t*))
 				       syntax))
 		(if syntax
-		    (call #t (lambda () (flag-marks flag (make-literal syntax #f) marks)))
-		    ;; FIXME ^^^  (lambda () ... marks) can explode.
-		    ;; Use as in transform-wcm (factor out).
-		    ;; The syntax literal should be lifted
-		    (call marks)))
+		    (wcm (make-literal syntax #f)
+			 result
+			 k
+			 flag
+			 marks)
+		    (result k flag marks)))
 	      #f marks))
+
+(define (wcm mark result k flag marks)
+  (let ((m* (make-location #f)))
+    (make-procedure-call
+     (generate-procedure
+      (list m*)
+      #f
+      (list (result k #t (lambda () (make-reference m* #f)))))
+     (list
+      (flag-marks flag mark marks))
+     #f)))
 
 (define (transform-ccm expression k flag marks)
   ((continuation-procedure k)
@@ -105,18 +117,10 @@
   (define result (cadr operands))
   (transform mark
 	     (lambda (m)
-	       (let ((m* (make-location #f)))
-		 (make-procedure-call
-		  (generate-procedure
-		   (list m*)
-		   #f
-		   (list (transform result
-				    k
-				    #t
-				    (lambda () (make-reference m* #f)))))
-		  (list
-		   (flag-marks flag m marks))
-		  (expression-syntax expression))))
+	       (wcm m
+		    (lambda (k flag marks)
+		      (transform result k flag marks))
+		    k flag marks))
 	     #f marks))
 
 (define (transform-apply expression k flag marks)

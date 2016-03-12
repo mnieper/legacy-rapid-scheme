@@ -1,8 +1,6 @@
-* Move the "error" procedure to (rapid primitive).
+* Implement next pass that eliminated iifes
 
-* Add a "set-exception-handler!" to (rapid primitive).
-
-* Remove "make-error-object" from (rapid primitive).
+* Make use of source-locations and frame stack
 
 * Remove all checks (like number of args for procs, etc.) to the backends
 
