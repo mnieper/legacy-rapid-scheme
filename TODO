@@ -1,4 +1,5 @@
-* Implement next pass that eliminated iifes
+
+* Make shared library for error reporting
 
 * Make use of source-locations and frame stack
 
