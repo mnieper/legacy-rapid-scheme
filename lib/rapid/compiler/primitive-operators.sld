@@ -19,6 +19,8 @@
   (export
    operator-eq?
    operator-boolean?
+   operator-string->number
+   operator-number->string
    operator-fixnum?
    operator-fxnegative?
    operator-fx<

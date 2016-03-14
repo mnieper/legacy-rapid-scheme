@@ -69,15 +69,6 @@
 (define (fxnegative? n)
   (negative? n))
 
-;;; Source locations
-
-(define-record-type <source-location>
-  (make-source-location source start end)
-  source-location?
-  (source source-location-source)
-  (start source-location-start)
-  (end source-location-end))
-
 ;; Errors
 
 (define exception-handler #f)
@@ -87,19 +78,11 @@
 
 ;; Note that the signature is different from scheme-object
 (define (error flag marks message irritant*)
-  ;; TODO: Don't rely on the primordial scheme error object
-  ;; Use the continuation marks provided above
-  (let ((error-object (make-error-object message irritant*)))
+  (let ((error-object (vector message irritant* marks)))
     (let ((cont (lambda arg* (apply scheme-error message irritant*))))
       (when exception-handler
 	(exception-handler cont flag marks error-object))
       (cont))))
-
-(define (make-error-object message obj*)
-  (guard
-      (condition
-       (else condition))
-    (apply scheme-error message obj*)))
 
 ;; Procedural records
 

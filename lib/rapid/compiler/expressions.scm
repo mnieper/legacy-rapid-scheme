@@ -308,11 +308,11 @@
 	  value)
 	 ((syntax? value)
 	  (let ((source-location (syntax-source-location value)))
-	    `(make-source-location ,(source-location-source source-location)
-				   #(,(source-location-start-line source-location)
-				     ,(source-location-start-column source-location))
-				   #(,(source-location-end-line source-location)
-				     ,(source-location-end-column source-location)))))
+	    `#(,(source-location-source source-location)
+	       ,(source-location-start-line source-location)
+	       ,(source-location-start-column source-location)
+	       ,(source-location-end-line source-location)
+	       ,(source-location-end-column source-location))))
 	 (else
 	  `(quote ,value)))))
      ;; Undefined values

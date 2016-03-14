@@ -38,7 +38,9 @@
 	  fx<
 	  fx=
 	  fxnegative?
-
+	  number->string
+	  string->number
+	  
 	  boolean?
 
 	  symbol?
@@ -66,6 +68,7 @@
 	  
 	  error
 	  set-exception-handler!
+
 	  procedure?
 	  call-with-current-continuation
 	  apply
@@ -75,9 +78,6 @@
 	  
 	  exit
 
-	  make-source-location
-	  source-location?
-	  
 	  make-rtd
 	  rtd-constructor
 	  rtd-predicate

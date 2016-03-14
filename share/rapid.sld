@@ -60,11 +60,18 @@
    for-each
    string-for-each
    ;; Exceptions
-   with-exception-handler raise raise-continuable error
+   with-exception-handler
+   raise
+   raise-continuable
+   error
+   error-object?
+   error-object-message
+   error-object-irritants
    ;; Output
    current-output-port
    write-char
    write-string
+   write
    display
    newline
    ;; Quasiquotation

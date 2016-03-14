@@ -405,6 +405,8 @@
    ;; Equivalence predicates
    (eq? (primitive operator-eq?))
    ;; Numbers
+   (string->number (primitive operator-string->number))
+   (number->string (primitive operator-number->string))
    (fixnum? (primitive operator-fixnum?))
    (flonum? (primitive operator-flonum?))
    (exact? (primitive operator-exact?))

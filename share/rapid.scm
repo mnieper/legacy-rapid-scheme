@@ -478,6 +478,22 @@
 (define (eqv? obj1 obj2)
   (%eq? obj1 obj2))
 
+;;; Numbers
+
+(define (rectangular? obj)
+  ;; FIXME
+  #f)
+
+(define (number? obj)
+  (or (exact? obj) (flonum? obj) (rectangular? obj)))
+
+(define number->string
+  (case-lambda
+   ((obj)
+    (%number->string obj 10))
+   ((obj radix)
+    (%number->string obj radix))))
+
 ;;; Symbols
 
 (define (symbol? obj)
@@ -727,8 +743,20 @@
      (lambda ()
        ((car handlers) obj)))))
 
-(%set-exception-handler! raise)
+(define-record-type <error-object>
+  (make-error-object message irritants stack)
+  error-object?
+  (message error-object-message)
+  (irritants error-object-irritants)
+  (stack error-object-stack))
 
+(%set-exception-handler!
+ (lambda (exception)
+   (raise
+    (make-error-object (vector-ref exception 0)
+		       (vector-ref exception 1)
+		       (vector-ref exception 2)))))
+ 
 (define (error message . irritant*)
   (%error message irritant*))
 
@@ -805,9 +833,87 @@
 
 ;;; Output
 
-(define (write . args)
-  ;; FIXME
-  (error "not implemented"))
+(define (string-escape string)
+  (list->string
+   (let loop ((list (string->list string)))
+     (if (%null? list)
+	 '()
+	 (case (car list)
+	   ((#\")
+	    (append (list #\\ #\") (loop (cdr list))))
+	   ((#\\)
+	    (append (list #\\ #\\) (loop (cdr list))))
+	   (else
+	    (cons (car list) (loop (cdr list)))))))))
+
+(define-record-type <cell>
+  (make-cell value label written?)
+  cell?
+  (value cell-value)
+  (label cell-label)
+  (written? cell-written?))
+   
+(define write
+  (case-lambda
+   ((obj)
+    (write obj (current-output-port)))
+   ((obj port)
+    (assert-output-port! port)
+    (cond
+     ((string? obj)
+      (write-char #\" port)
+      (write-string (string-escape obj) port)
+      (write-char #\" port))
+     ((char? obj)
+      (write-string "#\\" port)
+      (write-char obj port))
+     ((symbol? obj)
+      ;; TODO: Only escape symbol if necessary
+      (write-char #\| port)
+      (write-string (string-escape (%symbol->string obj)) port)
+      (write-char #\| port))
+     ((number? obj)
+      (write-string (%number->string obj 10) port))
+     ((boolean? obj)
+      (write-string (if obj "#t" "#f")) port)
+     ((bytevector? obj)
+      (write-string "#u8(" port)
+      (let ((l (%bytevector-length obj)))
+	(do ((i 0 (+ i 1)))
+	    ((= i l))
+	  (unless (= i 0) (write-char #\space port))
+	  (write-string (%number->string (%bytevector-ref obj i)) port)))
+      (write-string ")") port)
+     ((null? obj)
+      (write-string "()" port))
+     ((vector? obj)
+      ;; could overwrite first element with a marker 
+      
+      ;; does not work!
+      (let ((cell (make-cell obj #f)))
+	(define label 0)
+	(define l (vector-length obj))
+	(do ((i 0 (+ i 1)))
+	    ((= i l))
+	  (let ((element (vector-ref obj i)))
+	    (cond
+	     ((pair? element)
+	      
+
+	      ...)
+	     ((vector? element)
+	      
+	      ...)
+	     ((cell? element)
+	      (unless (cell-label element)
+		(cell-set-label! label)
+		(set! label (+ label 1))))
+	     (else
+					; DO NOTHING
+	      ))))))
+     (else
+      ;; TODO
+      (error "not implemented"))))))
 
 (define display
   (case-lambda
@@ -821,11 +927,9 @@
      ((char? obj)
       (write-char obj port))
      ((symbol? obj)
-      ;; FIXME: How to display |...|-symbols?
-      (write-string (%symbol->string obj)))
+      (write-string (%symbol->string obj)) port)
      (else
-      ;; FIXME
-      (write-string "<unspecified>"))))))
+      (write obj port))))))
 
 (define newline
   (case-lambda

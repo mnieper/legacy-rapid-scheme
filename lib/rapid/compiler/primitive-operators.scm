@@ -21,6 +21,10 @@
 ;; Booleans
 (define operator-boolean? (make-operator 'boolean?))
 
+;; Numbers
+(define string->number (make-operator 'string->number))
+(define number->string (make-operator 'number->string))
+
 ;; Fixnums
 (define operator-fixnum? (make-operator 'fixnum?))
 (define operator-fxnegative? (make-operator 'fxnegative?))

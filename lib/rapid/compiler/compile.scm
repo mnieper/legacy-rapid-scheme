@@ -27,5 +27,5 @@
 	(output (expression->datum expression)))
      (write '(import (rapid primitive)))
      (newline)
-     (write output)
+     (write-shared output)
      (newline))))
