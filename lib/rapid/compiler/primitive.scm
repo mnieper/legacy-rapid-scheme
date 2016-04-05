@@ -15,6 +15,68 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+#;(define-environment primitive-environment
+
+  (define-special-form quote
+    (lambda (syntax)      
+      (and-let*
+	  ((form (unwrap-syntax syntax))
+	   ((or (= (length form) 2)
+		(compile-error "bad quote syntax" syntax)))
+	   (datum (list-ref form 1)))
+	(expand-into-expression	 
+	 (expression (quote ,(strip-syntactic-closures datum)) syntax)))))
+
+  (define-special-form if
+    (lambda (syntax)
+      (and-let*
+	  ((form (unwrap-syntax syntax))
+	   ((or (= (length form) 3) (= (length form) 4)
+		(compile-error "bad if syntax" syntax)))
+	   (test-syntax (list-ref form 1))
+	   (consequent-syntax (list-ref form 2))
+	   (alternate-syntax (and (= (length form) 4)
+				  (list-ref form 3))))
+	(expand-into-expression
+	 (expression (if ,(expand-expression test-syntax)
+			 ,(expand-expression consequent-syntax)
+			 ,(if alternate-syntax
+			      (expand-expression alternate-syntax)
+			      (expression |#<undef>|)))
+		     syntax)))))
+
+  (define-special-form case-lambda
+    (lambda (syntax)
+      (and-let*
+	  ((form (unwrap-syntax syntax))
+	   (clauses (cdr form)))
+	(expression (case-lambda
+		     ;; how does expression exactly work?
+		     ,@(map-in-order
+			(lambda (clause-syntax)
+			  (and-let*
+			      ((clause (unwrap-syntax clause-syntax))
+			       ((or (and (not (null? clause) (list? clause)))
+				    (compile-error "bad case-lambda clause"
+						   clause-syntax))))
+			    (with-scope
+			     (lambda ()
+			       (let ((parameters (expand-parameters! (car clause))))
+				 (make-clause parameters
+					      (list (expand-body (cdr clause) #f))
+					      clause-syntax))))))
+			clauses))
+		    syntax))))
+				
+  
+    
+  
+  (define-operator eq? 'eq?)
+  (define-operator string->number 'string->number)
+  (define-operator fixnum? 'fixnum?)
+  
+  )
+
 ;;; Utility functions
 
 (define (assert-identifier! syntax)
@@ -402,6 +464,7 @@
    (define-syntax define-syntax-expander)
    ;; Record-type definitions
    (define-record-type define-record-type-expander)
+
    ;; Equivalence predicates
    (eq? (primitive operator-eq?))
    ;; Numbers

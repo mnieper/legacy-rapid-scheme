@@ -485,7 +485,7 @@
   #f)
 
 (define (number? obj)
-  (or (exact? obj) (flonum? obj) (rectangular? obj)))
+  (or (%exact? obj) (%flonum? obj) (rectangular? obj)))
 
 (define number->string
   (case-lambda
@@ -876,7 +876,7 @@
       (write-string (%number->string obj 10) port))
      ((boolean? obj)
       (write-string (if obj "#t" "#f")) port)
-     ((bytevector? obj)
+     #;((bytevector? obj)
       (write-string "#u8(" port)
       (let ((l (%bytevector-length obj)))
 	(do ((i 0 (+ i 1)))
@@ -886,31 +886,6 @@
       (write-string ")") port)
      ((null? obj)
       (write-string "()" port))
-     ((vector? obj)
-      ;; could overwrite first element with a marker 
-      
-      ;; does not work!
-      (let ((cell (make-cell obj #f)))
-	(define label 0)
-	(define l (vector-length obj))
-	(do ((i 0 (+ i 1)))
-	    ((= i l))
-	  (let ((element (vector-ref obj i)))
-	    (cond
-	     ((pair? element)
-	      
-
-	      ...)
-	     ((vector? element)
-	      
-	      ...)
-	     ((cell? element)
-	      (unless (cell-label element)
-		(cell-set-label! label)
-		(set! label (+ label 1))))
-	     (else
-					; DO NOTHING
-	      ))))))
      (else
       ;; TODO
       (error "not implemented"))))))

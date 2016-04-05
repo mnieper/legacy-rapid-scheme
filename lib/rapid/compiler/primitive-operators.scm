@@ -57,6 +57,8 @@
 (define operator-string? (make-operator 'string?))
 (define operator-string->list (make-operator 'string->list))
 (define operator-list->string (make-operator 'list->string))
+(define operator-number->string (make-operator 'number->string))
+(define operator-string->number (make-operator 'string->number))
 
 ;; Characters
 (define operator-char? (make-operator 'char?))
