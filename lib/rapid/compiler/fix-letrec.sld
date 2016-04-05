@@ -20,7 +20,7 @@
   (import (scheme base)           (scheme write)     ;; XXX 
 	  (rapid comparators)
 	  (rapid graphs)
-	  (rapid table)
+	  (rapid tables)
 	  (rapid lists)
 	  (rapid compiler error)     (rapid syntax) ;;; XXX
 	  (rapid compiler expressions))

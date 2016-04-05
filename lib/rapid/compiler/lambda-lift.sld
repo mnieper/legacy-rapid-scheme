@@ -20,6 +20,6 @@
   (import (scheme base)                (scheme write)
 	  (scheme case-lambda)
 	  (rapid comparators)
-	  (rapid table)
+	  (rapid tables)
 	  (rapid compiler expressions))
   (include "lambda-lift.scm"))

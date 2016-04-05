@@ -41,7 +41,7 @@
 	  (scheme case-lambda)
 	  (rapid format)
 	  (rapid comparators)
-	  (rapid box)
+	  (rapid boxes)
 	  (rapid sets)
 	  (rapid maps)
 	  (rapid syntax)
