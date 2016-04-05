@@ -1,3 +1,5 @@
+* Use rapid-read
+
 * Factor out expansion code. Make rapid primitive library as small as possible.
 
 * Let rapid primitive library export (make-primitive ...)
