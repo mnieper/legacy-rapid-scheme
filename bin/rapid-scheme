@@ -3,4 +3,5 @@
 SCHEME="chibi-scheme"
 BASEDIR=$(dirname $0)/..
 
-$SCHEME -I$BASEDIR/lib $BASEDIR/bin/rapid-compiler.scm $*
+$SCHEME -I$BASEDIR/lib -I$BASEDIR/rapid-lib -I$BASEDIR/rapid-macros $BASEDIR/bin/rapid-compiler.scm $*
+

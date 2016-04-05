@@ -9,4 +9,4 @@ $COMPILE $1 > $OUTPUT
 
 shift
 
-$SCHEME -I$BASEDIR/lib -- $OUTPUT $*
+$SCHEME -I$BASEDIR/lib -I$BASEDIR/rapid-lib -I$BASEDIR/rapid-macros -- $OUTPUT $*

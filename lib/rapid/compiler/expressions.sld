@@ -55,5 +55,6 @@
 	  (rapid compiler syntactic-closures)
 	  (rapid compiler syntax)
 	  (rapid compiler read)
-	  (rapid table))
+	  (rapid table)
+	  (rapid macros))
   (include "expressions.scm"))

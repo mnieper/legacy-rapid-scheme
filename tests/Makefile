@@ -1,11 +1,14 @@
 TEST-RUNNER = chibi-scheme -I../lib -Ilib -I../rapid-lib -I../rapid-macros
 SCHEME = ../bin/scheme
 UNIT-TESTS = *-tests.scm ../rapid-lib/tests.scm ../rapid-macros/tests.scm
-INTEGRATION-TESTS = #check_simple check_macros
+INTEGRATION-TESTS = check_hello-world #check_simple check_macros
 
 all:
 
 check: $(UNIT-TESTS) $(INTEGRATION-TESTS)
+
+check_hello-world: all
+	$(SCHEME) ../examples/hello-world.scm | grep -q "Hello, World!"
 
 check_simple: all
 	$(SCHEME) ../examples/example.scm | grep -q "3"
