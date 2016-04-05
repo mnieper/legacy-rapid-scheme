@@ -1,6 +1,6 @@
 (import (scheme base) (scheme write)
 	(rapid test)
-	(rapid compiler read)
+	(rapid read)
 	(rapid compiler error))
 
 (define (string->syntax string)

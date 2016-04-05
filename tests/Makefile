@@ -1,6 +1,6 @@
-TEST-RUNNER = chibi-scheme -I../lib -Ilib -I../rapid-lib -I../rapid-macros
+TEST-RUNNER = chibi-scheme -I../lib -Ilib -I../rapid-lib -I../rapid-macros -I../rapid-read
 SCHEME = ../bin/scheme
-UNIT-TESTS = *-tests.scm ../rapid-lib/tests.scm ../rapid-macros/tests.scm
+UNIT-TESTS = *-tests.scm ../rapid-lib/tests.scm ../rapid-macros/tests.scm ../rapid-read/tests.scm
 INTEGRATION-TESTS = check_hello-world #check_simple check_macros
 
 all:

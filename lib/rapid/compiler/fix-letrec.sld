@@ -22,6 +22,6 @@
 	  (rapid graphs)
 	  (rapid table)
 	  (rapid lists)
-	  (rapid compiler error)     (rapid compiler syntax) ;;; XXX
+	  (rapid compiler error)     (rapid syntax) ;;; XXX
 	  (rapid compiler expressions))
   (include "fix-letrec.scm"))

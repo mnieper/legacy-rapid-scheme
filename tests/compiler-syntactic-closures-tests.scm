@@ -1,6 +1,6 @@
 (import (scheme base)
 	(rapid test)
-	(rapid compiler syntax)
+	(rapid syntax)
 	(rapid compiler syntactic-environments)
 	(rapid compiler syntactic-closures))
 

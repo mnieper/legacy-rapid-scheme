@@ -1,6 +1,6 @@
 (import (scheme base)
 	(rapid test)
-	(rapid compiler read)
+	(rapid read)
 	(rapid compiler syntactic-environments))
 
 (define (string->syntax string)

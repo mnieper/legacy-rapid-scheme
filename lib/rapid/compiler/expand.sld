@@ -28,13 +28,12 @@
 	  expand-into-syntax-definition
 	  expand-into-record-type-definition
 	  expand-into-sequence)
-  (import (scheme base)    (scheme write) ;; XXX
-	  
+  (import (scheme base)    (scheme write) ;; XXX	  
 	  (rapid lists)
-	  (rapid box)
+	  (rapid boxes)
 	  (rapid format)
 	  (rapid compiler error)
-	  (rapid compiler syntax)
+	  (rapid syntax)
 	  (rapid compiler syntactic-closures)
 	  (rapid compiler syntactic-environments)
 	  (rapid compiler primitive-operators)

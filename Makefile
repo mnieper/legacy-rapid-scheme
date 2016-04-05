@@ -1,7 +1,7 @@
 .SUFFIXES:
 
 SHELL = /bin/bash
-SCHEME = chibi-scheme -Ilib -Irapid-lib -Irapid-macros
+SCHEME = chibi-scheme -Ilib -Irapid-lib -Irapid-macros -Irapid-read
 
 all:
 	cd tests && $(MAKE) $@

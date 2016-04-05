@@ -4,3 +4,6 @@
 [submodule "rapid-macros"]
 	path = rapid-macros
 	url = https://github.com/mnieper/rapid-macros.git
+[submodule "rapid-read"]
+	path = rapid-read
+	url = https://github.com/mnieper/rapid-read.git

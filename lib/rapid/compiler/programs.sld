@@ -22,6 +22,6 @@
 	  (rapid compiler syntactic-environments)
 	  (rapid compiler expressions)
 	  (rapid compiler expand)
-	  (rapid compiler syntax)
+	  (rapid syntax)
 	  (rapid compiler import-sets))
   (include "programs.scm"))
